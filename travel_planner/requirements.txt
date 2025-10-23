@@ -1,0 +1,35 @@
+# Core Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# UI
+streamlit==1.39.0
+
+# Caching
+redis==5.2.0
+
+# Data Science y ML
+pandas==2.2.3
+numpy==2.1.3
+scikit-learn==1.5.2
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+
+# Profiling
+py-spy==0.3.14
+memory-profiler==0.61.0
+
+# Code Quality
+black==24.10.0
+flake8==7.1.1
+mypy==1.13.0
+
+# Async
+aiohttp==3.10.10
+
+# Utils
+python-dotenv==1.0.1
+pydantic==2.9.2
