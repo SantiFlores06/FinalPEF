@@ -6,34 +6,34 @@ API RESTful para el sistema de planificación de viajes multidestino.
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from datetime import datetime
+from app.data.routes_fixed import ROUTES_FIXED
+import asyncio
 import logging
 
 # Imports de nuestros módulos
 from app.core.graph import TravelGraph
 from app.core.tsp_dp import TSPSolver
-from app.core.itinerary_validator import (
-    ItineraryValidator,
-    ItineraryConstraints,
-    RouteSegment,
-    TransportType
-)
+from app.core.itinerary_validator import ItineraryConstraints
 from app.caches.lru_cache import LRUCache
-from app.booking.reservations import ReservationManager, Reservation
+from app.booking.reservations import ReservationManager
 from app.booking.batching import ReservationBatchProcessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Inicializar FastAPI
+# ==========================================================
+# CONFIGURACIÓN PRINCIPAL
+# ==========================================================
+
 app = FastAPI(
     title="Travel Planner API",
     description="Sistema de planificación de viajes multidestino con optimización algorítmica",
     version="1.0.0"
 )
 
-# Configurar CORS
+# Configuración CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,15 +48,16 @@ route_cache = LRUCache(capacity=100)
 reservation_manager = ReservationManager(max_concurrent=10)
 batch_processor = ReservationBatchProcessor(batch_size=20)
 
-# Modelos Pydantic para requests/responses
+# ==========================================================
+# MODELOS Pydantic
+# ==========================================================
+
 class RouteRequest(BaseModel):
-    """Request para calcular una ruta."""
-    origin: str = Field(..., example="Madrid")
-    destination: str = Field(..., example="Barcelona")
-    optimize_by: str = Field(default="cost", example="cost")
+    origin: str
+    destination: str
+    optimize_by: str = Field(default="cost", description="Criterio: cost o time")
 
 class RouteResponse(BaseModel):
-    """Response con la ruta calculada."""
     origin: str
     destination: str
     path: List[str]
@@ -64,76 +65,62 @@ class RouteResponse(BaseModel):
     cached: bool = False
 
 class TSPRequest(BaseModel):
-    """Request para resolver TSP."""
-    cities: List[str] = Field(..., min_length=2, example=["Madrid", "Barcelona", "Valencia"])
+    cities: List[str] = Field(..., min_length=2)
     cost_matrix: List[List[float]]
-    return_to_start: bool = Field(default=True)
+    return_to_start: bool = True
 
 class TSPResponse(BaseModel):
-    """Response con solución TSP."""
     optimal_route: List[str]
     total_cost: float
     computation_time: float
 
 class ItineraryRequest(BaseModel):
-    """Request para crear itinerario completo."""
     user_id: str
     origin: str
     destinations: List[str]
-    max_budget: float = Field(default=1000.0)
-    max_duration_hours: float = Field(default=72.0)
-    transport_preferences: List[str] = Field(default=["tren", "avión", "bus"])
+    max_budget: float = 1000.0
+    max_duration_hours: float = 72.0
+    transport_preferences: List[str] = ["tren", "avión", "bus"]
 
 class ReservationRequest(BaseModel):
-    """Request para crear reserva."""
     user_id: str
     itinerary: Dict[str, Any]
 
 class ReservationResponse(BaseModel):
-    """Response con información de reserva."""
     reservation_id: str
     user_id: str
     status: str
     total_cost: float
     created_at: str
 
-# Dependency para inicializar grafo con datos de ejemplo
+# ==========================================================
+# GRAFO BASE
+# ==========================================================
+
 def get_populated_graph():
-    """Devuelve grafo pre-poblado con rutas de ejemplo."""
+    """Devuelve grafo pre-poblado con rutas fijas (auto, avión, tren)."""
     if travel_graph.graph:
         return travel_graph
-    
-    # Datos de ejemplo - en producción vendría de base de datos
-    routes = [
-        ("Madrid", "Barcelona", 50, 3, "tren"),
-        ("Madrid", "Valencia", 40, 4, "bus"),
-        ("Madrid", "Sevilla", 60, 5, "tren"),
-        ("Barcelona", "París", 100, 2, "avión"),
-        ("Barcelona", "Valencia", 45, 3.5, "tren"),
-        ("Valencia", "París", 120, 8, "bus"),
-        ("París", "Roma", 150, 2.5, "avión"),
-        ("Roma", "Barcelona", 130, 2, "avión"),
-        ("Sevilla", "Lisboa", 50, 6, "bus"),
-        ("Lisboa", "Madrid", 55, 6.5, "bus"),
-    ]
-    
-    for origin, dest, cost, time, transport in routes:
+
+    for origin, dest, cost, time, transport in ROUTES_FIXED:
         travel_graph.add_route(origin, dest, cost, time, transport)
-    
-    logger.info(f"Grafo inicializado con {len(routes)} rutas")
+
+    logger.info(f"Grafo inicializado con {len(ROUTES_FIXED)} rutas fijas")
     return travel_graph
 
-# Endpoints
+# ==========================================================
+# ENDPOINTS
+# ==========================================================
 
 @app.get("/")
 async def root():
-    """Endpoint raíz con información de la API."""
     return {
         "message": "Travel Planner API",
         "version": "1.0.0",
         "endpoints": {
             "routes": "/routes/shortest",
             "tsp": "/routes/optimize-multi",
+            "matrix": "/routes/matrix",
             "reservations": "/reservations",
             "health": "/health"
         }
@@ -141,7 +128,6 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -149,40 +135,59 @@ async def health_check():
         "reservation_stats": reservation_manager.get_stats()
     }
 
+# ==========================================================
+# 🔹 NUEVO ENDPOINT: MATRIZ DESDE ROUTES_FIXED
+# ==========================================================
+
+@app.get("/routes/matrix")
+async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
+    """
+    Devuelve matriz de costos o tiempos fijos desde app/data/routes_fixed.py
+    """
+    valid_transports = {"auto", "avión", "tren"}
+    valid_metrics = {"cost", "time"}
+
+    if transport not in valid_transports or optimize_by not in valid_metrics:
+        raise HTTPException(status_code=400, detail="Parámetros inválidos")
+
+    filtered = [r for r in ROUTES_FIXED if r[4] == transport]
+    cities = sorted({r[0] for r in filtered} | {r[1] for r in filtered})
+    n = len(cities)
+    matrix = [[0.0] * n for _ in range(n)]
+
+    for (o, d, cost, time, t) in filtered:
+        i, j = cities.index(o), cities.index(d)
+        matrix[i][j] = cost if optimize_by == "cost" else time
+        matrix[j][i] = matrix[i][j]
+
+    return {
+        "cities": cities,
+        "transport": transport,
+        "optimize_by": optimize_by,
+        "matrix": matrix
+    }
+
+# ==========================================================
+# RUTA SIMPLE
+# ==========================================================
+
 @app.post("/routes/shortest", response_model=RouteResponse)
-async def calculate_shortest_route(
-    request: RouteRequest,
-    graph: TravelGraph = Depends(get_populated_graph)
-):
-    """
-    Calcula la ruta más corta entre dos ciudades usando Dijkstra.
-    
-    - **origin**: Ciudad de origen
-    - **destination**: Ciudad de destino
-    - **optimize_by**: Criterio de optimización (cost o time)
-    """
+async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = Depends(get_populated_graph)):
     cache_key = f"{request.origin}_{request.destination}_{request.optimize_by}"
-    
-    # Intentar obtener del cache
-    cached_result = route_cache.get(cache_key)
-    if cached_result:
-        logger.info(f"Cache HIT para ruta {cache_key}")
-        return {**cached_result, "cached": True}
-    
-    # Calcular ruta
+
+    cached = route_cache.get(cache_key)
+    if cached:
+        return {**cached, "cached": True}
+
     try:
         path, cost = graph.find_shortest_path(
             request.origin,
             request.destination,
             weight=request.optimize_by
         )
-        
         if not path:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No se encontró ruta entre {request.origin} y {request.destination}"
-            )
-        
+            raise HTTPException(status_code=404, detail="Ruta no encontrada")
+
         result = {
             "origin": request.origin,
             "destination": request.destination,
@@ -190,86 +195,84 @@ async def calculate_shortest_route(
             "total_cost": cost,
             "cached": False
         }
-        
-        # Guardar en cache
         route_cache.put(cache_key, result)
-        logger.info(f"Ruta calculada y cacheada: {cache_key}")
-        
         return result
-        
+
     except Exception as e:
-        logger.error(f"Error calculando ruta: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================================
+# RUTA MULTIDESTINO (TSP) con Cache
+# ==========================================================
 
 @app.post("/routes/optimize-multi", response_model=TSPResponse)
 async def optimize_multi_destination(request: TSPRequest):
     """
-    Optimiza ruta visitando múltiples destinos (TSP).
-    
-    Usa programación dinámica para encontrar el orden óptimo de visita.
+    Optimiza una ruta multidestino usando TSP con memoización (cache LRU).
+    Si ya existe una combinación idéntica de ciudades y parámetros, se devuelve desde cache.
     """
     import time
-    start_time = time.time()
-    
+
+    start = time.time()
+
+    # Crear clave de cache única
+    # Ejemplo: "multi_Madrid-Barcelona-París_auto_cost_return"
+    cache_key = f"multi_{'-'.join(request.cities)}_{request.return_to_start}"
+
+    # 1️⃣ Buscar en cache
+    cached_result = route_cache.get(cache_key)
+    if cached_result:
+        logger.info(f"🧠 Resultado obtenido desde cache: {cache_key}")
+        return {**cached_result, "cached": True}
+
     try:
-        solver = TSPSolver(
-            cost_matrix=request.cost_matrix,
-            city_names=request.cities
-        )
-        
-        min_cost, route_indices = solver.solve(
-            start_city=0,
-            return_to_start=request.return_to_start
-        )
-        
-        optimal_route = solver.get_route_with_names(route_indices)
-        computation_time = time.time() - start_time
-        
-        logger.info(f"TSP resuelto en {computation_time:.3f}s para {len(request.cities)} ciudades")
-        
-        return {
-            "optimal_route": optimal_route,
+        # 2️⃣ Resolver TSP normalmente
+        solver = TSPSolver(cost_matrix=request.cost_matrix, city_names=request.cities)
+        min_cost, route_idx = solver.solve(start_city=0, return_to_start=request.return_to_start)
+        route = solver.get_route_with_names(route_idx)
+        elapsed = time.time() - start
+
+        # 3️⃣ Armar resultado
+        result = {
+            "optimal_route": route,
             "total_cost": min_cost,
-            "computation_time": computation_time
+            "computation_time": elapsed,
+            "cached": False
         }
-        
+
+        # 4️⃣ Guardar en cache
+        route_cache.put(cache_key, result)
+        logger.info(f"💾 Guardado en cache: {cache_key}")
+
+        return result
+
     except Exception as e:
-        logger.error(f"Error en TSP: {e}")
+        logger.error(f"❌ Error en optimize_multi_destination: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================================
+# ITINERARIO Y RESERVAS
+# ==========================================================
 
 @app.post("/itinerary/plan")
 async def plan_itinerary(request: ItineraryRequest):
-    """
-    Planifica itinerario completo considerando múltiples restricciones.
-    
-    Combina Dijkstra para rutas individuales y validación de restricciones.
-    """
     try:
-        # Calcular rutas entre destinos consecutivos
         segments = []
         current = request.origin
-        
         for destination in request.destinations:
             path, cost = travel_graph.find_shortest_path(current, destination)
             if path:
-                segments.append({
-                    "from": current,
-                    "to": destination,
-                    "path": path,
-                    "cost": cost
-                })
+                segments.append({"from": current, "to": destination, "path": path, "cost": cost})
                 current = destination
-        
-        # Validar itinerario
+
         constraints = ItineraryConstraints(
             max_budget=request.max_budget,
             max_duration_hours=request.max_duration_hours,
             max_segments=10,
             required_cities=request.destinations
         )
-        
+
         total_cost = sum(s["cost"] for s in segments)
-        
         return {
             "user_id": request.user_id,
             "origin": request.origin,
@@ -279,33 +282,29 @@ async def plan_itinerary(request: ItineraryRequest):
             "within_budget": total_cost <= request.max_budget,
             "valid": total_cost <= request.max_budget
         }
-        
     except Exception as e:
-        logger.error(f"Error planificando itinerario: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ==========================================================
+# 🧩 RESERVAS (individuales y por lote)
+# ==========================================================
+
 @app.post("/reservations", response_model=ReservationResponse)
-async def create_reservation(
-    request: ReservationRequest,
-    background_tasks: BackgroundTasks
-):
-    """
-    Crea una nueva reserva de viaje.
-    
-    La reserva se procesa de forma asíncrona en background.
-    """
+async def create_reservation(request: ReservationRequest, background_tasks: BackgroundTasks):
+    """Crea una nueva reserva individual."""
     try:
         reservation = await reservation_manager.create_reservation(
             user_id=request.user_id,
             itinerary=request.itinerary
         )
-        
-        # Procesar en background
-        background_tasks.add_task(
-            reservation_manager.process_reservation,
-            reservation
-        )
-        
+
+        async def process_async(reservation_obj):
+            await reservation_manager.process_reservation(reservation_obj)
+
+        background_tasks.add_task(process_async, reservation)
+        logger.info(f"Reserva creada correctamente: {reservation.reservation_id}")
+
         return {
             "reservation_id": reservation.reservation_id,
             "user_id": reservation.user_id,
@@ -313,43 +312,78 @@ async def create_reservation(
             "total_cost": reservation.total_cost,
             "created_at": reservation.created_at.isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error creando reserva: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/reservations/batch")
+async def create_reservations_batch(requests: List[ReservationRequest], background_tasks: BackgroundTasks):
+    """
+    Crea múltiples reservas y las procesa en batch automáticamente.
+    Cada reserva se procesa asíncronamente igual que en create_reservation(),
+    garantizando que todas pasen de pending → confirmed de forma normal.
+    """
+    created_ids = []
+
+    try:
+        for req in requests:
+            # Crear la reserva base (queda inicialmente en estado pending)
+            reservation = await reservation_manager.create_reservation(
+                user_id=req.user_id,
+                itinerary=req.itinerary
+            )
+            created_ids.append(reservation.reservation_id)
+
+            # Procesarla de forma asíncrona igual que las individuales
+            async def process_async(reservation_obj):
+                await reservation_manager.process_reservation(reservation_obj)
+
+            background_tasks.add_task(process_async, reservation)
+
+        logger.info(f"🧩 Lote recibido con {len(requests)} reservas para procesamiento asíncrono")
+
+        return {
+            "status": "queued",
+            "count": len(requests),
+            "reservations": created_ids,
+            "message": f"{len(requests)} reservas creadas y en proceso de confirmación."
+        }
+
+    except Exception as e:
+        logger.error(f"Error creando lote: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+##
 @app.get("/reservations/{reservation_id}")
 async def get_reservation(reservation_id: str):
-    """Obtiene el estado de una reserva."""
     reservation = reservation_manager.get_reservation(reservation_id)
-    
     if not reservation:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
-    
     return reservation.to_dict()
+
 
 @app.get("/reservations/user/{user_id}")
 async def get_user_reservations(user_id: str):
-    """Obtiene todas las reservas de un usuario."""
     reservations = reservation_manager.get_user_reservations(user_id)
     return [r.to_dict() for r in reservations]
 
+
 @app.delete("/reservations/{reservation_id}")
 async def cancel_reservation(reservation_id: str):
-    """Cancela una reserva."""
     success = await reservation_manager.cancel_reservation(reservation_id)
-    
     if not success:
-        raise HTTPException(
-            status_code=400,
-            detail="No se pudo cancelar la reserva"
-        )
-    
+        raise HTTPException(status_code=400, detail="No se pudo cancelar la reserva")
     return {"message": "Reserva cancelada exitosamente"}
+
+
+# ==========================================================
+# ESTADÍSTICAS DEL SISTEMA
+# ==========================================================
 
 @app.get("/stats")
 async def get_system_stats():
-    """Obtiene estadísticas del sistema."""
     return {
         "cache": route_cache.get_stats(),
         "reservations": reservation_manager.get_stats(),
@@ -357,7 +391,29 @@ async def get_system_stats():
         "timestamp": datetime.now().isoformat()
     }
 
-# Ejecutar servidor
+# 💡 Procesamiento automático de batches cada X segundos
+@app.on_event("startup")
+async def start_batch_loop():
+    """Ejecuta procesamiento periódico de lotes."""
+    async def loop():
+        while True:
+            if batch_processor.queue:
+                logger.info(f"⏳ Procesando lote automático ({len(batch_processor.queue)} en cola)")
+                batch = batch_processor._extract_batch()
+                if batch:
+                    await batch_processor._process_batch(batch)
+            await asyncio.sleep(3)
+
+    asyncio.create_task(loop())
+
+
+
+
+
+# ==========================================================
+# MAIN (para ejecutar localmente)
+# ==========================================================
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
