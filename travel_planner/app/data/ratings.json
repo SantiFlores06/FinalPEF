@@ -1,0 +1,25 @@
+﻿{
+  "ratings": [
+    {
+      "user_id": "user_1",
+      "destination_id": "madrid",
+      "rating": 5.0,
+      "timestamp": "2025-01-15T10:30:00",
+      "review": "Increíble cultura y museos"
+    },
+    {
+      "user_id": "user_1",
+      "destination_id": "barcelona",
+      "rating": 4.5,
+      "timestamp": "2025-02-20T14:20:00",
+      "review": "Playa y arquitectura perfecta"
+    },
+    {
+      "user_id": "user_2",
+      "destination_id": "barcelona",
+      "rating": 5.0,
+      "timestamp": "2025-01-10T09:15:00",
+      "review": "Lo mejor de España"
+    }
+  ]
+}

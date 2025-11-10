@@ -33,3 +33,5 @@ aiohttp==3.10.10
 # Utils
 python-dotenv==1.0.1
 pydantic==2.9.2
+python-multipart==0.0.12
+requests==2.32.3

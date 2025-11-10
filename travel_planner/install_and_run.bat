@@ -105,10 +105,10 @@ echo.
 
 REM Iniciar FastAPI Server
 echo [1/2] Iniciando FastAPI Server en puerto 8000...
-start "FastAPI Server - Travel Planner" cmd /k "title FastAPI Server && cd /d "%CD%" && call .venv\Scripts\activate.bat && echo Iniciando API... && .venv\Scripts\python.exe -m uvicorn app.api.server:app --reload --host 0.0.0.0 --port 8000"
+start "FastAPI Server - Travel Planner" cmd /k "title FastAPI Server && cd /d "%CD%" && call .venv\Scripts\activate.bat && echo Iniciando API... && .venv\Scripts\python.exe -m uvicorn app.api.server:app  --host 0.0.0.0 --port 8000"
 
-echo [INFO] Esperando 7 segundos para que la API inicie...
-timeout /t 7 /nobreak >nul
+echo [INFO] Esperando 12 segundos para que la API inicie...
+timeout /t 12 /nobreak >nul
 
 REM Iniciar Streamlit UI
 echo [2/2] Iniciando Streamlit UI en puerto 8501...

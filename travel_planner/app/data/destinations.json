@@ -1,0 +1,76 @@
+﻿{
+  "destinations": [
+    {
+      "id": "madrid",
+      "name": "Madrid",
+      "country": "España",
+      "type": "city",
+      "features": {
+        "culture": 0.9,
+        "beach": 0.1,
+        "mountains": 0.2,
+        "nightlife": 0.8,
+        "historical": 0.9,
+        "modern": 0.7,
+        "family_friendly": 0.8,
+        "adventure": 0.3,
+        "relaxation": 0.5,
+        "shopping": 0.8
+      },
+      "cost_level": 3,
+      "best_season": ["spring", "fall"],
+      "tags": ["capital", "museums", "tapas", "football", "parks"],
+      "description": "capital ciudad histórica museo arte cultura tapas real madrid parque retiro",
+      "avg_temp_summer": 31,
+      "avg_temp_winter": 10
+    },
+    {
+      "id": "barcelona",
+      "name": "Barcelona",
+      "country": "España",
+      "type": "city",
+      "features": {
+        "culture": 0.8,
+        "beach": 0.9,
+        "mountains": 0.3,
+        "nightlife": 0.9,
+        "historical": 0.7,
+        "modern": 0.9,
+        "family_friendly": 0.9,
+        "adventure": 0.5,
+        "relaxation": 0.7,
+        "shopping": 0.9
+      },
+      "cost_level": 3,
+      "best_season": ["spring", "summer", "fall"],
+      "tags": ["beach", "gaudi", "sagrada familia", "gothic quarter", "mediterranean"],
+      "description": "playa ciudad arquitectura gaudí cultura mediterráneo sagrada familia ramblas",
+      "avg_temp_summer": 28,
+      "avg_temp_winter": 13
+    },
+    {
+      "id": "paris",
+      "name": "París",
+      "country": "Francia",
+      "type": "city",
+      "features": {
+        "culture": 1.0,
+        "beach": 0.0,
+        "mountains": 0.1,
+        "nightlife": 0.9,
+        "historical": 0.9,
+        "modern": 0.8,
+        "family_friendly": 0.7,
+        "adventure": 0.2,
+        "relaxation": 0.6,
+        "shopping": 1.0
+      },
+      "cost_level": 5,
+      "best_season": ["spring", "fall"],
+      "tags": ["romantic", "eiffel tower", "louvre", "fashion", "wine"],
+      "description": "romántica torre eiffel museo louvre cultura arte moda sena champs elysees",
+      "avg_temp_summer": 25,
+      "avg_temp_winter": 6
+    }
+  ]
+}

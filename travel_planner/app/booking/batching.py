@@ -2,17 +2,19 @@
 batching.py - Sistema de procesamiento por lotes de reservas.
 Agrupa múltiples reservas para procesarlas eficientemente en batches.
 """
-
 import asyncio
-from typing import List, Dict, Any, Optional, Callable
-from datetime import datetime
+from typing import List, Dict, Any, Optional, Callable, Deque
+from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from collections import deque
 import logging
 
+# (Importar ReservationManager para type hinting)
+from .reservations import ReservationManager 
+
+# Configurar logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class BatchItem:
@@ -22,37 +24,20 @@ class BatchItem:
     future: asyncio.Future = field(default_factory=asyncio.Future)
     added_at: datetime = field(default_factory=datetime.now)
 
-
 class BatchProcessor:
     """
     Procesador por lotes que agrupa items y los procesa eficientemente.
-    
-    Útil para optimizar operaciones que son más eficientes en batch,
-    como consultas a bases de datos, APIs externas, etc.
-    
-    Patrón: Acumula items durante un tiempo o hasta alcanzar un tamaño,
-    luego procesa todo el batch de una vez.
     """
-    
     def __init__(
         self,
         batch_size: int = 10,
-        timeout_seconds: float = 2.0,
-        max_concurrent_batches: int = 3
-    ) -> None:
-        """
-        Inicializa el procesador por lotes.
-        
-        Args:
-            batch_size: Tamaño máximo del batch antes de procesarlo.
-            timeout_seconds: Tiempo máximo de espera para llenar un batch.
-            max_concurrent_batches: Número máximo de batches procesándose simultáneamente.
-        """
+        timeout_seconds: float = 5.0,
+        max_concurrent_batches: int = 5
+    ):
         self.batch_size = batch_size
-        self.timeout = timeout_seconds
-        self.max_concurrent_batches = max_concurrent_batches
-        
-        self.queue: deque = deque()
+        self.timeout = timedelta(seconds=timeout_seconds)
+        self.queue: Deque[BatchItem] = deque()
+        self.last_processed_time = datetime.now()
         self.processing = False
         self.semaphore = asyncio.Semaphore(max_concurrent_batches)
         
@@ -62,330 +47,164 @@ class BatchProcessor:
             'items_processed': 0,
             'items_failed': 0
         }
-    
-    async def add_item(
-        self,
-        item_id: str,
-        data: Any
-    ) -> Any:
+
+    def add_item_sync(self, item_id: str, data: Any) -> asyncio.Future:
         """
-        Agrega un item al batch y retorna el resultado cuando esté procesado.
-        
-        Args:
-            item_id: Identificador único del item.
-            data: Datos del item a procesar.
-        
-        Returns:
-            Resultado del procesamiento del item.
+        Agrega un item al batch y retorna el future (SIN AWAIT).
+        Esta función es síncrona y súper rápida.
         """
-        # Crear item con future para esperar resultado
         batch_item = BatchItem(item_id=item_id, data=data)
-        
-        # Agregar a la cola
         self.queue.append(batch_item)
         self.stats['total_items'] += 1
         
         logger.debug(f"Item {item_id} agregado a la cola ({len(self.queue)} items)")
         
-        # Iniciar procesamiento si no está corriendo
-        if not self.processing:
-            asyncio.create_task(self._process_batches_loop())
+        # Dispara el procesamiento, pero NO lo espera (create_task)
+        # Esto permite que la función add_item termine inmediatamente.
+        asyncio.create_task(self._trigger_processing())
         
-        # Esperar resultado
-        return await batch_item.future
-    
-    async def _process_batches_loop(self) -> None:
-        """Loop principal que procesa batches continuamente."""
+        # Devuelve el future, NO lo espera
+        return batch_item.future
+
+    def _should_process(self) -> bool:
+        """Verifica si se debe procesar un lote."""
+        if not self.queue:
+            return False
+        
+        queue_size = len(self.queue)
+        time_since_last = datetime.now() - self.last_processed_time
+        
+        if queue_size >= self.batch_size:
+            logger.info(f"Trigger: Lote lleno (Tamaño: {queue_size})")
+            return True
+        if queue_size > 0 and time_since_last >= self.timeout:
+            logger.info(f"Trigger: Timeout (Cola: {queue_size}, Tiempo: {time_since_last.seconds}s)")
+            return True
+        return False
+
+    async def _trigger_processing(self):
+        """
+        Método llamado por el servidor para verificar si procesar.
+        Esta es la función que SÍ existe.
+        """
+        if self.processing or not self._should_process():
+            return
+
         self.processing = True
-        
         try:
-            while self.queue or self.processing:
-                # Esperar para acumular más items
-                await asyncio.sleep(self.timeout)
-                
-                # Si no hay items, terminar
-                if not self.queue:
-                    break
-                
-                # Extraer batch de la cola
-                batch = self._extract_batch()
-                
-                if batch:
-                    # Procesar batch de forma asíncrona
-                    asyncio.create_task(self._process_batch(batch))
-        
+            batch = self._extract_batch()
+            if batch:
+                # Inicia el procesamiento del lote sin esperar a que termine
+                asyncio.create_task(self._process_batch(batch))
         finally:
             self.processing = False
-    
+            self.last_processed_time = datetime.now()
+
     def _extract_batch(self) -> List[BatchItem]:
-        """
-        Extrae un batch de items de la cola.
-        
-        Returns:
-            Lista de items para el batch.
-        """
+        """Extrae un batch de items de la cola."""
         batch = []
-        
         while self.queue and len(batch) < self.batch_size:
             batch.append(self.queue.popleft())
-        
         return batch
-    
+
     async def _process_batch(self, batch: List[BatchItem]) -> None:
-        """
-        Procesa un batch completo.
-        
-        Args:
-            batch: Lista de items a procesar.
-        """
+        """Procesa un batch completo."""
         async with self.semaphore:
             self.stats['total_batches'] += 1
             batch_id = f"batch_{self.stats['total_batches']}"
-            
-            logger.info(f"Procesando {batch_id} con {len(batch)} items")
+            logger.info(f"Procesando {batch_id} con {len(batch)} items...")
             
             try:
-                # Simular procesamiento del batch
+                # Simular resultados
                 results = await self._batch_operation(batch)
                 
-                # Asignar resultados a los futures
-                for item, result in zip(batch, results):
-                    if not item.future.done():
-                        item.future.set_result(result)
-                        self.stats['items_processed'] += 1
+                # Repartir resultados a los futures
+                for i, item in enumerate(batch):
+                    item.future.set_result(results[i])
+                    self.stats['items_processed'] += 1
                 
-                logger.info(f"✓ {batch_id} completado exitosamente")
-                
+                logger.info(f"✅ {batch_id} procesado exitosamente.")
+
             except Exception as e:
-                logger.error(f"✗ Error procesando {batch_id}: {e}")
-                
-                # Marcar todos los items como fallidos
+                logger.error(f"❌ Error procesando {batch_id}: {e}")
                 for item in batch:
-                    if not item.future.done():
-                        item.future.set_exception(e)
-                        self.stats['items_failed'] += 1
-    
+                    item.future.set_exception(e)
+                    self.stats['items_failed'] += 1
+
     async def _batch_operation(self, batch: List[BatchItem]) -> List[Any]:
-        """
-        Operación real del batch (debe ser implementada/customizada).
-        
-        Args:
-            batch: Items a procesar.
-        
-        Returns:
-            Lista de resultados en el mismo orden.
-        """
-        # Simular operación costosa (ej: query a DB, API externa)
-        await asyncio.sleep(0.5)
-        
-        # Procesar todos los items
+        """Operación real del batch (simulada por defecto)."""
+        await asyncio.sleep(0.1) # Simulación de I/O
         results = []
         for item in batch:
-            # Simular procesamiento
-            result = {
+            results.append({
                 'item_id': item.item_id,
                 'processed': True,
                 'data': item.data,
                 'timestamp': datetime.now().isoformat()
-            }
-            results.append(result)
-        
+            })
         return results
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Retorna estadísticas del procesador."""
         return {
             **self.stats,
             'queue_size': len(self.queue),
             'batch_size': self.batch_size,
-            'timeout': self.timeout,
             'processing': self.processing
         }
-
 
 class ReservationBatchProcessor(BatchProcessor):
     """
     Procesador especializado para reservas de viajes.
-    
-    Extiende BatchProcessor con lógica específica para reservas.
     """
     
     def __init__(
         self,
         batch_size: int = 20,
-        timeout_seconds: float = 3.0
+        timeout_seconds: float = 3.0,
+        max_concurrent_batches: int = 5,
+        reservation_manager: 'ReservationManager' = None # <-- Aceptar el manager
     ) -> None:
         """Inicializa procesador de reservas."""
-        super().__init__(batch_size, timeout_seconds)
+        super().__init__(batch_size, timeout_seconds, max_concurrent_batches)
+        if reservation_manager is None:
+            raise ValueError("ReservationBatchProcessor requiere un ReservationManager")
+        self.reservation_manager = reservation_manager # <-- Guardar el manager
     
     async def _batch_operation(self, batch: List[BatchItem]) -> List[Any]:
         """
-        Procesa un batch de reservas.
-        
-        Optimizaciones típicas en batch:
-        - Una sola query a DB en lugar de N queries
-        - Una sola llamada a API de pago
-        - Notificaciones agrupadas
+        Procesa un batch de reservas llamando al ReservationManager real.
         """
-        logger.info(f"Procesando batch de {len(batch)} reservas")
+        logger.info(f"Procesando batch de {len(batch)} reservas REALES...")
         
-        # Simular validación en batch
-        await self._validate_batch(batch)
-        
-        # Simular procesamiento de pagos en batch
-        await self._process_payments_batch(batch)
-        
-        # Simular confirmación con proveedores en batch
-        await self._confirm_providers_batch(batch)
-        
-        # Generar resultados
-        results = []
+        # Crear tareas para procesar cada reserva REAL
+        tasks = []
         for item in batch:
-            result = {
-                'reservation_id': item.item_id,
-                'status': 'confirmed',
-                'itinerary': item.data,
-                'confirmed_at': datetime.now().isoformat()
-            }
-            results.append(result)
+            # Usamos el item.data (que es el itinerario) y el item.item_id (que es el user_id)
+            tasks.append(
+                self.process_single_reservation(item.item_id, item.data)
+            )
         
+        # Procesar todas las reservas del lote en paralelo
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         return results
-    
-    async def _validate_batch(self, batch: List[BatchItem]) -> None:
-        """Valida todas las reservas del batch."""
-        await asyncio.sleep(0.2)
-        logger.debug(f"Validadas {len(batch)} reservas")
-    
-    async def _process_payments_batch(self, batch: List[BatchItem]) -> None:
-        """Procesa pagos en batch (más eficiente)."""
-        await asyncio.sleep(0.3)
-        logger.debug(f"Procesados {len(batch)} pagos")
-    
-    async def _confirm_providers_batch(self, batch: List[BatchItem]) -> None:
-        """Confirma con proveedores en batch."""
-        await asyncio.sleep(0.2)
-        logger.debug(f"Confirmados {len(batch)} proveedores")
 
-
-class WindowedBatchProcessor:
-    """
-    Procesador con ventanas de tiempo fijas.
-    
-    Procesa batches en ventanas regulares (ej: cada 5 segundos),
-    independientemente del tamaño del batch.
-    """
-    
-    def __init__(
-        self,
-        window_seconds: float = 5.0,
-        processor: Callable = None
-    ) -> None:
+    async def process_single_reservation(self, user_id: str, itinerary: Dict) -> Dict:
         """
-        Inicializa procesador con ventanas.
-        
-        Args:
-            window_seconds: Duración de cada ventana.
-            processor: Función async para procesar el batch.
+        Lógica para crear y procesar UNA reserva.
+        Esto es lo que el lote ejecutará en paralelo.
         """
-        self.window_seconds = window_seconds
-        self.processor = processor or self._default_processor
-        self.current_batch: List[Any] = []
-        self.running = False
-    
-    async def start(self) -> None:
-        """Inicia el procesador de ventanas."""
-        self.running = True
-        logger.info(f"Iniciando procesador con ventanas de {self.window_seconds}s")
-        
-        while self.running:
-            await asyncio.sleep(self.window_seconds)
+        try:
+            # 1. Crear la reserva (guarda en memoria)
+            reservation = await self.reservation_manager.create_reservation(
+                user_id=user_id,
+                itinerary=itinerary
+            )
+            # 2. Procesar la reserva (simula pago, etc.)
+            await self.reservation_manager.process_reservation(reservation)
             
-            if self.current_batch:
-                batch = self.current_batch
-                self.current_batch = []
-                
-                logger.info(f"Procesando ventana con {len(batch)} items")
-                await self.processor(batch)
-    
-    def add(self, item: Any) -> None:
-        """Agrega item a la ventana actual."""
-        self.current_batch.append(item)
-    
-    def stop(self) -> None:
-        """Detiene el procesador."""
-        self.running = False
-    
-    async def _default_processor(self, batch: List[Any]) -> None:
-        """Procesador por defecto."""
-        await asyncio.sleep(0.1)
-        logger.info(f"Procesados {len(batch)} items")
-
-
-# Ejemplo de uso
-async def main():
-    """Ejemplo de uso del sistema de batching."""
-    print("=" * 60)
-    print("Sistema de Procesamiento por Lotes")
-    print("=" * 60)
-    
-    # Crear procesador
-    processor = ReservationBatchProcessor(
-        batch_size=5,
-        timeout_seconds=1.0
-    )
-    
-    # Simular llegada de reservas
-    print("\nEnviando 12 reservas...")
-    tasks = []
-    
-    for i in range(12):
-        task = processor.add_item(
-            item_id=f"reservation_{i}",
-            data={
-                'user_id': f"user_{i % 3}",
-                'route': ['Madrid', 'Barcelona'],
-                'cost': 100 + (i * 10)
-            }
-        )
-        tasks.append(task)
-        
-        # Simular llegada escalonada
-        if i % 4 == 0:
-            await asyncio.sleep(0.5)
-    
-    # Esperar todos los resultados
-    print("Esperando resultados...")
-    results = await asyncio.gather(*tasks)
-    
-    print(f"\n✓ Procesadas {len(results)} reservas")
-    print("\nPrimeras 3 resultados:")
-    for result in results[:3]:
-        print(f"  - {result['reservation_id']}: {result['status']}")
-    
-    # Estadísticas
-    stats = processor.get_stats()
-    print(f"\nEstadísticas:")
-    for key, value in stats.items():
-        print(f"  {key}: {value}")
-    
-    print("\n" + "=" * 60)
-    print("Ventana de Tiempo Fija")
-    print("=" * 60)
-    
-    # Procesador con ventanas
-    windowed = WindowedBatchProcessor(window_seconds=2.0)
-    
-    # Iniciar en background
-    asyncio.create_task(windowed.start())
-    
-    # Agregar items en diferentes momentos
-    for i in range(8):
-        windowed.add(f"item_{i}")
-        await asyncio.sleep(0.7)  # Algunos en misma ventana, otros en diferentes
-    
-    await asyncio.sleep(2.5)  # Esperar última ventana
-    windowed.stop()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+            # 3. Devolver el resultado confirmado
+            return reservation.to_dict()
+        except Exception as e:
+            logger.error(f"Error en sub-proceso de batch: {e}")
+            return {"status": "failed", "error": str(e)}

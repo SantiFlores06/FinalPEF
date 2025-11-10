@@ -11,6 +11,7 @@ from datetime import datetime
 from app.data.routes_fixed import ROUTES_FIXED
 import asyncio
 import logging
+import time # Importar time para el profiling
 
 # Imports de nuestros módulos
 from app.core.graph import TravelGraph
@@ -19,9 +20,19 @@ from app.core.itinerary_validator import ItineraryConstraints
 from app.caches.lru_cache import LRUCache
 from app.booking.reservations import ReservationManager
 from app.booking.batching import ReservationBatchProcessor
+from app.ml.data_loader import DataLoader
+from app.ml.recommender import TravelRecommender
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# --- INICIAR IA AL ARRANCAR ---
+logger.info("Cargando datos de IA...")
+data_loader = DataLoader(data_dir="app/data")
+recommender = TravelRecommender(data_loader=data_loader)
+recommender.train_knn_model()
+logger.info("Sistema de Recomendaciones de IA listo.")
+# -----------------------------
 
 # ==========================================================
 # CONFIGURACIÓN PRINCIPAL
@@ -46,11 +57,20 @@ app.add_middleware(
 travel_graph = TravelGraph()
 route_cache = LRUCache(capacity=100)
 reservation_manager = ReservationManager(max_concurrent=10)
-batch_processor = ReservationBatchProcessor(batch_size=20)
+batch_processor = ReservationBatchProcessor(
+    batch_size=20, 
+    timeout_seconds=5.0, # (El timeout que tenías en batching.py)
+    reservation_manager=reservation_manager 
+)
 
 # ==========================================================
-# MODELOS Pydantic
+# MODELOS Pydantic (Corregidos)
 # ==========================================================
+class AIRecommendation(BaseModel):
+    """Modelo para una sola recomendación de IA"""
+    destination_id: str
+    destination_name: str
+    similarity: float
 
 class RouteRequest(BaseModel):
     origin: str
@@ -63,6 +83,7 @@ class RouteResponse(BaseModel):
     path: List[str]
     total_cost: float
     cached: bool = False
+    recommendations: List[AIRecommendation] = [] # Ya estaba aquí
 
 class TSPRequest(BaseModel):
     cities: List[str] = Field(..., min_length=2)
@@ -70,9 +91,12 @@ class TSPRequest(BaseModel):
     return_to_start: bool = True
 
 class TSPResponse(BaseModel):
+    """Modelo TSP Corregido"""
     optimal_route: List[str]
     total_cost: float
     computation_time: float
+    cached: bool = False                 # <-- AÑADIDO
+    recommendations: List[AIRecommendation] = [] # <-- AÑADIDO
 
 class ItineraryRequest(BaseModel):
     user_id: str
@@ -99,7 +123,7 @@ class ReservationResponse(BaseModel):
 
 def get_populated_graph():
     """Devuelve grafo pre-poblado con rutas fijas (auto, avión, tren)."""
-    if travel_graph.graph:
+    if travel_graph.graph: # Revisa si el grafo ya tiene nodos/aristas
         return travel_graph
 
     for origin, dest, cost, time, transport in ROUTES_FIXED:
@@ -153,18 +177,28 @@ async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
     filtered = [r for r in ROUTES_FIXED if r[4] == transport]
     cities = sorted({r[0] for r in filtered} | {r[1] for r in filtered})
     n = len(cities)
-    matrix = [[0.0] * n for _ in range(n)]
+    
+    # Inicializar con infinito para destinos no conectados
+    matrix = [[float('inf')] * n for _ in range(n)]
+    for i in range(n):
+        matrix[i][i] = 0.0 # Costo 0 a sí mismo
 
     for (o, d, cost, time, t) in filtered:
-        i, j = cities.index(o), cities.index(d)
-        matrix[i][j] = cost if optimize_by == "cost" else time
-        matrix[j][i] = matrix[i][j]
-
+        if o in cities and d in cities: # Asegurarse que ambas ciudades estén en la lista
+            i, j = cities.index(o), cities.index(d)
+            value = cost if optimize_by == "cost" else time
+            matrix[i][j] = value
+            matrix[j][i] = value # Asumir rutas simétricas para TSP
+    # Convertir el Inf en None para que JSON sea compatible
+    json_compliant_matrix = [
+        [None if val == float('inf') else val for val in row]
+        for row in matrix
+    ]
     return {
         "cities": cities,
         "transport": transport,
         "optimize_by": optimize_by,
-        "matrix": matrix
+        "matrix": json_compliant_matrix # <-- Enviar la matriz corregida
     }
 
 # ==========================================================
@@ -177,7 +211,8 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
 
     cached = route_cache.get(cache_key)
     if cached:
-        return {**cached, "cached": True}
+        cached["cached"] = True
+        return cached # Devuelve el resultado completo desde el caché
 
     try:
         path, cost = graph.find_shortest_path(
@@ -188,21 +223,47 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
         if not path:
             raise HTTPException(status_code=404, detail="Ruta no encontrada")
 
+        # --- INICIO DE INTEGRACIÓN CON IA ---
+        ai_recs = []
+        final_destination = path[-1] # Obtener el destino final de la ruta
+        dest_id = final_destination.lower() # Convertir a ID (ej. "París" -> "paris")
+
+        if dest_id in data_loader.destinations:
+            # Llamar al modelo KNN para encontrar destinos similares
+            similar_destinations = recommender.get_similar_destinations(
+                destination_id=dest_id, 
+                n_similar=3
+            )
+            # Formatear la respuesta de la IA
+            for dest_key, sim_score in similar_destinations:
+                dest_obj = data_loader.get_destination(dest_key)
+                if dest_obj:
+                    ai_recs.append({
+                        "destination_id": dest_obj.id,
+                        "destination_name": dest_obj.name,
+                        "similarity": sim_score
+                    })
+        else:
+            logger.warning(f"Destino '{dest_id}' no encontrado en los datos de la IA.")
+        # --- FIN DE INTEGRACIÓN CON IA ---
+
         result = {
             "origin": request.origin,
             "destination": request.destination,
             "path": path,
             "total_cost": cost,
-            "cached": False
+            "cached": False,
+            "recommendations": ai_recs  # <-- Añadir recomendaciones al resultado
         }
-        route_cache.put(cache_key, result)
+        
+        route_cache.put(cache_key, result) # Guardar el resultado completo en caché
         return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==========================================================
-# RUTA MULTIDESTINO (TSP) con Cache
+# RUTA MULTIDESTINO (TSP) con Cache (Corregido)
 # ==========================================================
 
 @app.post("/routes/optimize-multi", response_model=TSPResponse)
@@ -211,19 +272,17 @@ async def optimize_multi_destination(request: TSPRequest):
     Optimiza una ruta multidestino usando TSP con memoización (cache LRU).
     Si ya existe una combinación idéntica de ciudades y parámetros, se devuelve desde cache.
     """
-    import time
-
     start = time.time()
 
     # Crear clave de cache única
-    # Ejemplo: "multi_Madrid-Barcelona-París_auto_cost_return"
     cache_key = f"multi_{'-'.join(request.cities)}_{request.return_to_start}"
 
     # 1️⃣ Buscar en cache
     cached_result = route_cache.get(cache_key)
     if cached_result:
         logger.info(f"🧠 Resultado obtenido desde cache: {cache_key}")
-        return {**cached_result, "cached": True}
+        cached_result["cached"] = True # Asegúrate de marcarlo como cacheado
+        return cached_result
 
     try:
         # 2️⃣ Resolver TSP normalmente
@@ -232,11 +291,36 @@ async def optimize_multi_destination(request: TSPRequest):
         route = solver.get_route_with_names(route_idx)
         elapsed = time.time() - start
 
-        # 3️⃣ Armar resultado
+        # --- INICIO DE INTEGRACIÓN CON IA ---
+        ai_recs = []
+        final_destination = route[-1] # Destino final de la ruta TSP
+        dest_id = final_destination.lower() 
+
+        if dest_id in data_loader.destinations:
+            # Llamar al modelo KNN
+            similar_destinations = recommender.get_similar_destinations(
+                destination=dest_id, 
+                n_similar=3
+            )
+            # Formatear la respuesta
+            for dest_key, sim_score in similar_destinations:
+                dest_obj = data_loader.get_destination(dest_key)
+                if dest_obj:
+                    ai_recs.append({
+                        "destination_id": dest_obj.id,
+                        "destination_name": dest_obj.name,
+                        "similarity": sim_score
+                    })
+        else:
+            logger.warning(f"Destino '{dest_id}' no encontrado en los datos de la IA.")
+        # --- FIN DE INTEGRACIÓN CON IA ---
+
+        #  Armar resultado
         result = {
             "optimal_route": route,
             "total_cost": min_cost,
             "computation_time": elapsed,
+            "recommendations": ai_recs, # <-- IA AÑADIDA
             "cached": False
         }
 
@@ -255,12 +339,12 @@ async def optimize_multi_destination(request: TSPRequest):
 # ==========================================================
 
 @app.post("/itinerary/plan")
-async def plan_itinerary(request: ItineraryRequest):
+async def plan_itinerary(request: ItineraryRequest, graph: TravelGraph = Depends(get_populated_graph)):
     try:
         segments = []
         current = request.origin
         for destination in request.destinations:
-            path, cost = travel_graph.find_shortest_path(current, destination)
+            path, cost = graph.find_shortest_path(current, destination)
             if path:
                 segments.append({"from": current, "to": destination, "path": path, "cost": cost})
                 current = destination
@@ -280,35 +364,44 @@ async def plan_itinerary(request: ItineraryRequest):
             "segments": segments,
             "total_cost": total_cost,
             "within_budget": total_cost <= request.max_budget,
-            "valid": total_cost <= request.max_budget
+            "valid": total_cost <= request.max_budget # Lógica de validación simplificada
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==========================================================
-# 🧩 RESERVAS (individuales y por lote)
+# 🧩 RESERVAS (individuales y por lote) - CORREGIDO
 # ==========================================================
 
 @app.post("/reservations", response_model=ReservationResponse)
 async def create_reservation(request: ReservationRequest, background_tasks: BackgroundTasks):
-    """Crea una nueva reserva individual."""
+    """
+    Crea una NUEVA reserva individual (procesamiento inmediato).
+    """
     try:
+        # 1. Crear la reserva en el manager (estado: PENDING)
         reservation = await reservation_manager.create_reservation(
             user_id=request.user_id,
             itinerary=request.itinerary
         )
 
+        # 2. Definir la tarea asíncrona que se ejecutará en fondo
         async def process_async(reservation_obj):
+            logger.info(f"Task: Procesando reserva individual {reservation_obj.reservation_id}")
             await reservation_manager.process_reservation(reservation_obj)
+            logger.info(f"Task: Reserva individual {reservation_obj.reservation_id} finalizada")
 
+        # 3. Añadir la tarea al fondo de FastAPI
         background_tasks.add_task(process_async, reservation)
-        logger.info(f"Reserva creada correctamente: {reservation.reservation_id}")
+        
+        logger.info(f"Reserva individual {reservation.reservation_id} creada y encolada.")
 
+        # 4. Devolver respuesta inmediata al usuario
         return {
             "reservation_id": reservation.reservation_id,
             "user_id": reservation.user_id,
-            "status": reservation.status.value,
+            "status": reservation.status.value, # Devolverá "pending"
             "total_cost": reservation.total_cost,
             "created_at": reservation.created_at.isoformat()
         }
@@ -319,36 +412,29 @@ async def create_reservation(request: ReservationRequest, background_tasks: Back
 
 
 @app.post("/reservations/batch")
-async def create_reservations_batch(requests: List[ReservationRequest], background_tasks: BackgroundTasks):
+async def create_reservations_batch(requests: List[ReservationRequest]):
     """
-    Crea múltiples reservas y las procesa en batch automáticamente.
-    Cada reserva se procesa asíncronamente igual que en create_reservation(),
-    garantizando que todas pasen de pending → confirmed de forma normal.
+    Añade múltiples reservas al PROCESADOR POR LOTES (BatchProcessor).
     """
-    created_ids = []
+    if not requests:
+        raise HTTPException(status_code=400, detail="La lista de reservas no puede estar vacía")
+
+    user_id = requests[0].user_id
+    
+    logger.info(f"🧩 Recibido lote de {len(requests)} reservas para User {user_id}")
 
     try:
+        # 1. Añadir todos los items a la cola RÁPIDAMENTE
+        #    (Ahora usamos add_item_sync y no hay 'await')
         for req in requests:
-            # Crear la reserva base (queda inicialmente en estado pending)
-            reservation = await reservation_manager.create_reservation(
-                user_id=req.user_id,
-                itinerary=req.itinerary
-            )
-            created_ids.append(reservation.reservation_id)
+            batch_processor.add_item_sync(item_id=req.user_id, data=req.itinerary) 
 
-            # Procesarla de forma asíncrona igual que las individuales
-            async def process_async(reservation_obj):
-                await reservation_manager.process_reservation(reservation_obj)
-
-            background_tasks.add_task(process_async, reservation)
-
-        logger.info(f"🧩 Lote recibido con {len(requests)} reservas para procesamiento asíncrono")
-
+        # 2. Devolver respuesta inmediata
+        #    El servidor responde "En cola" en menos de 1 segundo.
         return {
             "status": "queued",
             "count": len(requests),
-            "reservations": created_ids,
-            "message": f"{len(requests)} reservas creadas y en proceso de confirmación."
+            "message": f"{len(requests)} reservas añadidas al lote. Se procesarán en breve."
         }
 
     except Exception as e:
@@ -395,19 +481,16 @@ async def get_system_stats():
 @app.on_event("startup")
 async def start_batch_loop():
     """Ejecuta procesamiento periódico de lotes."""
+    logger.info("⏰ Iniciando loop de procesamiento de lotes en background...")
+    
     async def loop():
         while True:
-            if batch_processor.queue:
-                logger.info(f"⏳ Procesando lote automático ({len(batch_processor.queue)} en cola)")
-                batch = batch_processor._extract_batch()
-                if batch:
-                    await batch_processor._process_batch(batch)
-            await asyncio.sleep(3)
+            await asyncio.sleep(10) # Revisa cada 10 segundos
+            
+            # CORRECCIÓN: Llamar a la función que SÍ existe en tu batching.py
+            await batch_processor._trigger_processing()
 
     asyncio.create_task(loop())
-
-
-
 
 
 # ==========================================================
