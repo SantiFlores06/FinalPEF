@@ -170,7 +170,7 @@ def get_system_stats() -> Dict:
 # ==========================================================
 # SESIÓN DE USUARIO
 # ==========================================================
-if "user_id" not in st.session_state: st.session_state.user_id = "user_demo_123"
+if "user_id" not in st.session_state: st.session_state.user_id = "user_1"
 
 if "tsp_result" not in st.session_state:
     st.session_state.tsp_result = None
@@ -240,14 +240,15 @@ if page == "🌍 Ruta Multidestino":
         if st.button("🧠 Calcular Ruta Óptima", type="primary"):
             indices = [all_cities.index(c) for c in selected_cities]
             submatrix = [
-                [
-                    float('inf') if cost_matrix[i][j] is None else cost_matrix[i][j]
-                    for j in indices
-                ]
+                [cost_matrix[i][j] for j in indices]
                 for i in indices
             ]
             
             st.write("📊 Matriz de valores desde backend:")
+            display_matrix = [
+                ['∞' if val == -1.0 else (f"{val:.0f}" if optimize_by == 'cost' else f"{val:.1f}h") for val in row]
+                for row in submatrix
+            ]
             df = pd.DataFrame(submatrix, index=selected_cities, columns=selected_cities)
             st.dataframe(df.style.format("{:.2f}"))
             

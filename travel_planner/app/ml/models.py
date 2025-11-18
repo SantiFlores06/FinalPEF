@@ -2,12 +2,10 @@
 models.py - Modelos de datos para el sistema de recomendaciones.
 Usa Pydantic para validación automática.
 """
-
 from pydantic import BaseModel, Field, field_validator
 from typing import Dict, List, Optional
 from datetime import datetime
 from enum import Enum
-
 
 class SeasonType(str, Enum):
     """Estaciones del año."""
@@ -15,7 +13,6 @@ class SeasonType(str, Enum):
     SUMMER = "summer"
     FALL = "fall"
     WINTER = "winter"
-
 
 class DestinationType(str, Enum):
     """Tipos de destino."""
@@ -25,20 +22,18 @@ class DestinationType(str, Enum):
     COUNTRYSIDE = "countryside"
     ISLAND = "island"
 
-
 class DestinationFeatures(BaseModel):
     """Características de un destino (0-1)."""
-    culture: float = Field(ge=0.0, le=1.0)
-    beach: float = Field(ge=0.0, le=1.0)
-    mountains: float = Field(ge=0.0, le=1.0)
-    nightlife: float = Field(ge=0.0, le=1.0)
-    historical: float = Field(ge=0.0, le=1.0)
-    modern: float = Field(ge=0.0, le=1.0)
-    family_friendly: float = Field(ge=0.0, le=1.0, default=0.5)
-    adventure: float = Field(ge=0.0, le=1.0, default=0.5)
-    relaxation: float = Field(ge=0.0, le=1.0, default=0.5)
-    shopping: float = Field(ge=0.0, le=1.0, default=0.5)
-
+    culture: float = Field(default=0.5, ge=0.0, le=1.0)
+    beach: float = Field(default=0.5, ge=0.0, le=1.0)
+    mountains: float = Field(default=0.5, ge=0.0, le=1.0)
+    nightlife: float = Field(default=0.5, ge=0.0, le=1.0)
+    historical: float = Field(default=0.5, ge=0.0, le=1.0)
+    modern: float = Field(default=0.5, ge=0.0, le=1.0)
+    family_friendly: float = Field(default=0.5, ge=0.0, le=1.0)
+    adventure: float = Field(default=0.5, ge=0.0, le=1.0)
+    relaxation: float = Field(default=0.5, ge=0.0, le=1.0)
+    shopping: float = Field(default=0.5, ge=0.0, le=1.0)
 
 class Destination(BaseModel):
     """Modelo de un destino turístico."""
@@ -53,22 +48,6 @@ class Destination(BaseModel):
     description: str
     avg_temp_summer: Optional[float] = None
     avg_temp_winter: Optional[float] = None
-    
-    def to_feature_vector(self) -> List[float]:
-        """Convierte características a vector numpy-compatible."""
-        return [
-            self.features.culture,
-            self.features.beach,
-            self.features.mountains,
-            self.features.nightlife,
-            self.features.historical,
-            self.features.modern,
-            self.features.family_friendly,
-            self.features.adventure,
-            self.features.relaxation,
-            self.features.shopping
-        ]
-
 
 class UserRating(BaseModel):
     """Rating de un usuario para un destino."""
@@ -77,33 +56,22 @@ class UserRating(BaseModel):
     rating: float = Field(ge=1.0, le=5.0)
     timestamp: datetime
     review: Optional[str] = None
-    
-    @field_validator('timestamp', mode='before')
-    def parse_timestamp(cls, v):
-        if isinstance(v, str):
-            return datetime.fromisoformat(v)
-        return v
 
+    @field_validator('timestamp', mode='before')
+    @classmethod
+    def parse_timestamp(cls, v):
+        """Validador para convertir string ISO a objeto datetime."""
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v)
+            except ValueError:
+                raise ValueError(f"Formato de timestamp inválido: {v}")
+        return v
 
 class UserProfile(BaseModel):
     """Perfil de preferencias de un usuario."""
     user_id: str
-    name: Optional[str] = None
+    name: str
     preferences: DestinationFeatures
     budget_level: int = Field(ge=1, le=5, default=3)
     preferred_seasons: List[SeasonType] = []
-    
-    def to_preference_vector(self) -> List[float]:
-        """Convierte preferencias a vector."""
-        return [
-            self.preferences.culture,
-            self.preferences.beach,
-            self.preferences.mountains,
-            self.preferences.nightlife,
-            self.preferences.historical,
-            self.preferences.modern,
-            self.preferences.family_friendly,
-            self.preferences.adventure,
-            self.preferences.relaxation,
-            self.preferences.shopping
-        ]

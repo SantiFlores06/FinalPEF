@@ -94,8 +94,8 @@ if errorlevel 1 echo   [ERROR] streamlit no instalado
 .venv\Scripts\python.exe -c "import fastapi; print('  [OK] fastapi')" 2>nul
 if errorlevel 1 echo   [ERROR] fastapi no instalado
 
-.venv\Scripts\python.exe -c "import networkx; print('  [OK] networkx')" 2>nul
-if errorlevel 1 echo   [ERROR] networkx no instalado
+.venv\Scripts\python.exe -c "import sklearn; print('  [OK] scikit-learn')" 2>nul
+if errorlevel 1 echo   [ERROR] scikit-learn no instalado
 
 echo.
 echo ====================================================
@@ -103,16 +103,16 @@ echo   Iniciando Servicios
 echo ====================================================
 echo.
 
-REM Iniciar FastAPI Server
+REM Iniciar FastAPI Server (Sin --reload para persistencia)
 echo [1/2] Iniciando FastAPI Server en puerto 8000...
-start "FastAPI Server - Travel Planner" cmd /k "title FastAPI Server && cd /d "%CD%" && call .venv\Scripts\activate.bat && echo Iniciando API... && .venv\Scripts\python.exe -m uvicorn app.api.server:app  --host 0.0.0.0 --port 8000"
+start "FastAPI Server - Travel Planner" cmd /k "title FastAPI Server && cd /d "%CD%" && call .venv\Scripts\activate.bat && echo Iniciando API... && .venv\Scripts\python.exe -m uvicorn app.api.server:app --host 0.0.0.0 --port 8000"
 
 echo [INFO] Esperando 12 segundos para que la API inicie...
 timeout /t 12 /nobreak >nul
 
 REM Iniciar Streamlit UI
 echo [2/2] Iniciando Streamlit UI en puerto 8501...
-start "Streamlit UI - Travel Planner" cmd /k "title Streamlit UI && cd /d "%CD%" && call .venv\Scripts\activate.bat && echo Iniciando UI... && .venv\Scripts\python.exe -m streamlit run app/ui/streamlit_app.py"
+start "Streamlit UI - Travel Planner" cmd /k "title Streamlit UI && cd /d "%CD%" && call .venv\Scripts\activate.bat && echo Iniciando UI... && .venv\Scripts\python.exe -m streamlit run app\ui\streamlit_app.py"
 
 echo.
 echo ====================================================
@@ -120,9 +120,9 @@ echo   Sistema Iniciado Correctamente!
 echo ====================================================
 echo.
 echo  URLs Importantes:
-echo    API Backend:  http://localhost:8000
-echo    API Docs:     http://localhost:8000/docs
-echo    Frontend UI:  http://localhost:8501
+echo    API Backend:   http://localhost:8000
+echo    API Docs:      http://localhost:8000/docs
+echo    Frontend UI:   http://localhost:8501
 echo.
 echo  Se abrieron 2 ventanas nuevas:
 echo    1. FastAPI Server (Backend)
@@ -134,13 +134,7 @@ echo  Para detener: Cierra las ventanas o presiona Ctrl+C en cada una
 echo.
 echo ====================================================
 
-REM Esperar y abrir navegador
-echo.
-echo Abriendo navegador en 3 segundos...
-timeout /t 3 /nobreak >nul
-start http://localhost:8501
-
-echo.
+REM (Eliminado el bloque que abría el navegador manualmente)
 echo Presiona cualquier tecla para cerrar esta ventana
 echo (Los servicios seguiran ejecutandose)
 pause >nul

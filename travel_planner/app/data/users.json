@@ -4,19 +4,64 @@
       "user_id": "user_1",
       "name": "Ana García",
       "preferences": {
-        "culture": 0.9,
-        "beach": 0.3,
-        "mountains": 0.2,
-        "nightlife": 0.7,
-        "historical": 0.9,
-        "modern": 0.6,
-        "family_friendly": 0.4,
-        "adventure": 0.3,
-        "relaxation": 0.5,
-        "shopping": 0.7
+        "culture": 0.8697051000000001,
+        "beach": 0.3757474000000001,
+        "mountains": 0.21409490000000003,
+        "nightlife": 0.7852507999999998,
+        "historical": 0.8475102,
+        "modern": 0.7074457,
+        "family_friendly": 0.5934185000000001,
+        "adventure": 0.3443898000000001,
+        "relaxation": 0.5362898000000001,
+        "shopping": 0.7609507999999998
       },
       "budget_level": 4,
-      "preferred_seasons": ["spring", "fall"]
+      "preferred_seasons": [
+        "spring",
+        "fall"
+      ]
+    },
+    {
+      "user_id": "user_2",
+      "name": "Carlos Martínez",
+      "preferences": {
+        "culture": 0.6,
+        "beach": 0.9,
+        "mountains": 0.4,
+        "nightlife": 0.9,
+        "historical": 0.3,
+        "modern": 0.8,
+        "family_friendly": 0.7,
+        "adventure": 0.6,
+        "relaxation": 0.8,
+        "shopping": 0.6
+      },
+      "budget_level": 3,
+      "preferred_seasons": [
+        "spring",
+        "summer"
+      ]
+    },
+    {
+      "user_id": "user_3",
+      "name": "Sofía López",
+      "preferences": {
+        "culture": 1.0,
+        "beach": 0.1,
+        "mountains": 0.1,
+        "nightlife": 0.5,
+        "historical": 1.0,
+        "modern": 0.4,
+        "family_friendly": 0.8,
+        "adventure": 0.2,
+        "relaxation": 0.6,
+        "shopping": 0.5
+      },
+      "budget_level": 3,
+      "preferred_seasons": [
+        "spring",
+        "fall"
+      ]
     }
   ]
 }

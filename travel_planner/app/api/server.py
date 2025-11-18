@@ -95,8 +95,8 @@ class TSPResponse(BaseModel):
     optimal_route: List[str]
     total_cost: float
     computation_time: float
-    cached: bool = False                 # <-- AÑADIDO
-    recommendations: List[AIRecommendation] = [] # <-- AÑADIDO
+    cached: bool = False                 
+    recommendations: List[AIRecommendation] = [] 
 
 class ItineraryRequest(BaseModel):
     user_id: str
@@ -166,7 +166,8 @@ async def health_check():
 @app.get("/routes/matrix")
 async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
     """
-    Devuelve matriz de costos o tiempos fijos desde app/data/routes_fixed.py
+    Devuelve matriz de costos o tiempos fijos.
+    Usa -1.0 para representar rutas no conectadas (infinito), ya que JSON no soporta 'inf'.
     """
     valid_transports = {"auto", "avión", "tren"}
     valid_metrics = {"cost", "time"}
@@ -178,29 +179,26 @@ async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
     cities = sorted({r[0] for r in filtered} | {r[1] for r in filtered})
     n = len(cities)
     
-    # Inicializar con infinito para destinos no conectados
-    matrix = [[float('inf')] * n for _ in range(n)]
+    # 1. Inicializar con -1.0 (valor seguro para JSON) en lugar de inf
+    matrix = [[-1.0] * n for _ in range(n)]
+    
+    # 2. Poner 0.0 solo en la diagonal (costo de una ciudad a sí misma)
     for i in range(n):
-        matrix[i][i] = 0.0 # Costo 0 a sí mismo
+        matrix[i][i] = 0.0
 
     for (o, d, cost, time, t) in filtered:
-        if o in cities and d in cities: # Asegurarse que ambas ciudades estén en la lista
+        if o in cities and d in cities:
             i, j = cities.index(o), cities.index(d)
             value = cost if optimize_by == "cost" else time
             matrix[i][j] = value
-            matrix[j][i] = value # Asumir rutas simétricas para TSP
-    # Convertir el Inf en None para que JSON sea compatible
-    json_compliant_matrix = [
-        [None if val == float('inf') else val for val in row]
-        for row in matrix
-    ]
+            matrix[j][i] = value # Asumir rutas simétricas
+
     return {
         "cities": cities,
         "transport": transport,
         "optimize_by": optimize_by,
-        "matrix": json_compliant_matrix # <-- Enviar la matriz corregida
+        "matrix": matrix 
     }
-
 # ==========================================================
 # RUTA SIMPLE
 # ==========================================================
@@ -265,75 +263,64 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
 # ==========================================================
 # RUTA MULTIDESTINO (TSP) con Cache (Corregido)
 # ==========================================================
-
 @app.post("/routes/optimize-multi", response_model=TSPResponse)
 async def optimize_multi_destination(request: TSPRequest):
-    """
-    Optimiza una ruta multidestino usando TSP con memoización (cache LRU).
-    Si ya existe una combinación idéntica de ciudades y parámetros, se devuelve desde cache.
-    """
     start = time.time()
-
-    # Crear clave de cache única
     cache_key = f"multi_{'-'.join(request.cities)}_{request.return_to_start}"
 
-    # 1️⃣ Buscar en cache
     cached_result = route_cache.get(cache_key)
     if cached_result:
         logger.info(f"🧠 Resultado obtenido desde cache: {cache_key}")
-        cached_result["cached"] = True # Asegúrate de marcarlo como cacheado
+        cached_result["cached"] = True
         return cached_result
 
     try:
-        # 2️⃣ Resolver TSP normalmente
-        solver = TSPSolver(cost_matrix=request.cost_matrix, city_names=request.cities)
+        # 1. CONVERSIÓN DE ENTRADA: -1.0 -> float('inf')
+        # El algoritmo TSP necesita 'inf' para funcionar, pero recibimos -1.0 del JSON
+        matrix_with_inf = [
+            [float('inf') if val == -1.0 else val for val in row]
+            for row in request.cost_matrix
+        ]
+
+        # 2. Resolver TSP
+        solver = TSPSolver(cost_matrix=matrix_with_inf, city_names=request.cities)
         min_cost, route_idx = solver.solve(start_city=0, return_to_start=request.return_to_start)
         route = solver.get_route_with_names(route_idx)
         elapsed = time.time() - start
 
-        # --- INICIO DE INTEGRACIÓN CON IA ---
+        # 3. CONVERSIÓN DE SALIDA: float('inf') -> None
+        # Si no hay solución, el costo es inf, pero JSON no lo soporta. Enviamos None.
+        final_cost = None
+        if min_cost != float('inf'):
+            final_cost = min_cost
+
+        # 4. Obtener recomendaciones de IA
         ai_recs = []
-        final_destination = route[-1] # Destino final de la ruta TSP
-        dest_id = final_destination.lower() 
+        if route and final_cost is not None:
+            final_destination = route[-1]
+            dest_id = final_destination.lower() 
+            if dest_id in data_loader.destinations:
+                similar_destinations = recommender.get_similar_destinations(destination=dest_id, n_similar=3)
+                for dest_key, sim_score in similar_destinations:
+                    dest_obj = data_loader.get_destination(dest_key)
+                    if dest_obj:
+                        ai_recs.append({"destination_id": dest_obj.id, "destination_name": dest_obj.name, "similarity": sim_score})
 
-        if dest_id in data_loader.destinations:
-            # Llamar al modelo KNN
-            similar_destinations = recommender.get_similar_destinations(
-                destination=dest_id, 
-                n_similar=3
-            )
-            # Formatear la respuesta
-            for dest_key, sim_score in similar_destinations:
-                dest_obj = data_loader.get_destination(dest_key)
-                if dest_obj:
-                    ai_recs.append({
-                        "destination_id": dest_obj.id,
-                        "destination_name": dest_obj.name,
-                        "similarity": sim_score
-                    })
-        else:
-            logger.warning(f"Destino '{dest_id}' no encontrado en los datos de la IA.")
-        # --- FIN DE INTEGRACIÓN CON IA ---
-
-        #  Armar resultado
         result = {
             "optimal_route": route,
-            "total_cost": min_cost,
+            "total_cost": final_cost,
             "computation_time": elapsed,
-            "recommendations": ai_recs, # <-- IA AÑADIDA
+            "recommendations": ai_recs,
             "cached": False
         }
 
-        # 4️⃣ Guardar en cache
         route_cache.put(cache_key, result)
-        logger.info(f"💾 Guardado en cache: {cache_key}")
-
         return result
 
     except Exception as e:
         logger.error(f"❌ Error en optimize_multi_destination: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 # ==========================================================
 # ITINERARIO Y RESERVAS
 # ==========================================================
@@ -376,36 +363,41 @@ async def plan_itinerary(request: ItineraryRequest, graph: TravelGraph = Depends
 
 @app.post("/reservations", response_model=ReservationResponse)
 async def create_reservation(request: ReservationRequest, background_tasks: BackgroundTasks):
-    """
-    Crea una NUEVA reserva individual (procesamiento inmediato).
-    """
+    """Crea una NUEVA reserva individual (procesamiento inmediato)."""
     try:
-        # 1. Crear la reserva en el manager (estado: PENDING)
         reservation = await reservation_manager.create_reservation(
             user_id=request.user_id,
             itinerary=request.itinerary
         )
 
-        # 2. Definir la tarea asíncrona que se ejecutará en fondo
         async def process_async(reservation_obj):
-            logger.info(f"Task: Procesando reserva individual {reservation_obj.reservation_id}")
+            # 1. Procesar la reserva (simulación de pago, etc.)
             await reservation_manager.process_reservation(reservation_obj)
+            
+            # 2. --- Aprendizaje de la ia ---
+            if reservation_obj.status.value == "confirmed":
+                try:
+                    # Extraer destinos del itinerario
+                    # (Asumimos que itinerary tiene 'cities' o 'optimal_route')
+                    cities = reservation_obj.itinerary.get('cities') or reservation_obj.itinerary.get('optimal_route', [])
+                    
+                    if cities:
+                        logger.info(f"🧠 IA Entrenando con reserva {reservation_obj.reservation_id}...")
+                        # Ejecutar el aprendizaje (esto es rápido, puede ser síncrono o en thread separado)
+                        recommender.learn_from_reservation(
+                            user_id=reservation_obj.user_id, 
+                            destination_ids=cities
+                        )
+                except Exception as e:
+                    logger.error(f"Error en aprendizaje de IA: {e}")
+            # -----------------------------------
+            
             logger.info(f"Task: Reserva individual {reservation_obj.reservation_id} finalizada")
 
-        # 3. Añadir la tarea al fondo de FastAPI
         background_tasks.add_task(process_async, reservation)
         
         logger.info(f"Reserva individual {reservation.reservation_id} creada y encolada.")
-
-        # 4. Devolver respuesta inmediata al usuario
-        return {
-            "reservation_id": reservation.reservation_id,
-            "user_id": reservation.user_id,
-            "status": reservation.status.value, # Devolverá "pending"
-            "total_cost": reservation.total_cost,
-            "created_at": reservation.created_at.isoformat()
-        }
-
+        return reservation.to_dict()
     except Exception as e:
         logger.error(f"Error creando reserva: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -421,7 +413,7 @@ async def create_reservations_batch(requests: List[ReservationRequest]):
 
     user_id = requests[0].user_id
     
-    logger.info(f"🧩 Recibido lote de {len(requests)} reservas para User {user_id}")
+    logger.info(f" Recibido lote de {len(requests)} reservas para User {user_id}")
 
     try:
         # 1. Añadir todos los items a la cola RÁPIDAMENTE

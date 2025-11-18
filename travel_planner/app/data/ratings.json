@@ -15,11 +15,74 @@
       "review": "Playa y arquitectura perfecta"
     },
     {
+      "user_id": "user_1",
+      "destination_id": "parís",
+      "rating": 5.0,
+      "timestamp": "2025-03-10T18:00:00",
+      "review": "La ciudad más romántica del mundo."
+    },
+    {
+      "user_id": "user_1",
+      "destination_id": "roma",
+      "rating": 4.0,
+      "timestamp": "2025-04-05T11:00:00",
+      "review": "Historia impresionante, pero demasiada gente."
+    },
+    {
       "user_id": "user_2",
       "destination_id": "barcelona",
       "rating": 5.0,
       "timestamp": "2025-01-10T09:15:00",
-      "review": "Lo mejor de España"
+      "review": "Lo mejor de España, la comida es genial."
+    },
+    {
+      "user_id": "user_2",
+      "destination_id": "valencia",
+      "rating": 4.5,
+      "timestamp": "2025-02-15T13:30:00",
+      "review": "Playa y comida excelente, muy relajante."
+    },
+    {
+      "user_id": "user_2",
+      "destination_id": "lisboa",
+      "rating": 4.0,
+      "timestamp": "2025-03-20T10:00:00",
+      "review": "Encantadora y económica."
+    },
+    {
+      "user_id": "user_2",
+      "destination_id": "berlín",
+      "rating": 3.5,
+      "timestamp": "2025-04-25T15:00:00",
+      "review": "Interesante, pero demasiado fría en abril."
+    },
+    {
+      "user_id": "user_3",
+      "destination_id": "madrid",
+      "rating": 3.0,
+      "timestamp": "2025-02-01T12:00:00",
+      "review": "Buena, pero prefiero Sevilla."
+    },
+    {
+      "user_id": "user_3",
+      "destination_id": "sevilla",
+      "rating": 5.0,
+      "timestamp": "2025-03-15T19:00:00",
+      "review": "¡La mejor ciudad de Andalucía! El Alcázar es increíble."
+    },
+    {
+      "user_id": "user_3",
+      "destination_id": "roma",
+      "rating": 5.0,
+      "timestamp": "2025-04-10T14:00:00",
+      "review": "Historia pura en cada esquina."
+    },
+    {
+      "user_id": "user_3",
+      "destination_id": "parís",
+      "rating": 4.5,
+      "timestamp": "2025-05-01T16:00:00",
+      "review": "Romántica como dicen, pero muy cara."
     }
   ]
 }
