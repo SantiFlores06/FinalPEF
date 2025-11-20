@@ -6,15 +6,23 @@
       "country": "España",
       "type": "city",
       "features": {
-        "culture": 0.9, "beach": 0.1, "mountains": 0.2, "nightlife": 0.8,
-        "historical": 0.9, "modern": 0.7, "family_friendly": 0.8,
-        "adventure": 0.3, "relaxation": 0.5, "shopping": 0.8
+        "culture": 0.9,
+        "beach": 0.1,
+        "mountains": 0.2,
+        "nightlife": 0.8,
+        "historical": 0.9,
+        "modern": 0.7,
+        "family_friendly": 0.8,
+        "adventure": 0.3,
+        "relaxation": 0.5,
+        "shopping": 0.8
       },
       "cost_level": 3,
       "best_season": ["spring", "fall"],
       "tags": ["capital", "museums", "tapas", "football", "parks"],
-      "description": "capital ciudad histórica museo arte cultura tapas real madrid parque",
-      "avg_temp_summer": 31, "avg_temp_winter": 10
+      "description": "capital ciudad histórica museo arte cultura tapas real madrid parque retiro",
+      "avg_temp_summer": 31,
+      "avg_temp_winter": 10
     },
     {
       "id": "barcelona",
@@ -22,15 +30,23 @@
       "country": "España",
       "type": "city",
       "features": {
-        "culture": 0.8, "beach": 0.9, "mountains": 0.3, "nightlife": 0.9,
-        "historical": 0.7, "modern": 0.9, "family_friendly": 0.9,
-        "adventure": 0.5, "relaxation": 0.7, "shopping": 0.9
+        "culture": 0.8,
+        "beach": 0.9,
+        "mountains": 0.3,
+        "nightlife": 0.9,
+        "historical": 0.7,
+        "modern": 0.9,
+        "family_friendly": 0.9,
+        "adventure": 0.5,
+        "relaxation": 0.7,
+        "shopping": 0.9
       },
       "cost_level": 3,
       "best_season": ["spring", "summer", "fall"],
       "tags": ["beach", "gaudi", "sagrada familia", "gothic quarter", "mediterranean"],
-      "description": "playa ciudad arquitectura gaudí cultura mediterráneo sagrada familia",
-      "avg_temp_summer": 28, "avg_temp_winter": 13
+      "description": "playa ciudad arquitectura gaudí cultura mediterráneo sagrada familia ramblas",
+      "avg_temp_summer": 28,
+      "avg_temp_winter": 13
     },
     {
       "id": "valencia",
@@ -38,15 +54,23 @@
       "country": "España",
       "type": "city",
       "features": {
-        "culture": 0.6, "beach": 0.8, "mountains": 0.2, "nightlife": 0.7,
-        "historical": 0.5, "modern": 0.8, "family_friendly": 0.8,
-        "adventure": 0.4, "relaxation": 0.7, "shopping": 0.7
+        "culture": 0.6,
+        "beach": 0.8,
+        "mountains": 0.2,
+        "nightlife": 0.7,
+        "historical": 0.5,
+        "modern": 0.8,
+        "family_friendly": 0.8,
+        "adventure": 0.4,
+        "relaxation": 0.7,
+        "shopping": 0.7
       },
       "cost_level": 2,
       "best_season": ["spring", "summer", "fall"],
       "tags": ["beach", "paella", "modern", "science", "oceanographic"],
-      "description": "playa paella ciudad moderna ciencias oceanográfico",
-      "avg_temp_summer": 29, "avg_temp_winter": 12
+      "description": "playa paella ciudad moderna ciencias oceanográfico fallas mediterráneo",
+      "avg_temp_summer": 29,
+      "avg_temp_winter": 12
     },
     {
       "id": "sevilla",
@@ -54,15 +78,23 @@
       "country": "España",
       "type": "city",
       "features": {
-        "culture": 0.9, "beach": 0.0, "mountains": 0.1, "nightlife": 0.8,
-        "historical": 0.9, "modern": 0.5, "family_friendly": 0.7,
-        "adventure": 0.3, "relaxation": 0.6, "shopping": 0.6
+        "culture": 0.9,
+        "beach": 0.0,
+        "mountains": 0.1,
+        "nightlife": 0.8,
+        "historical": 0.9,
+        "modern": 0.5,
+        "family_friendly": 0.7,
+        "adventure": 0.3,
+        "relaxation": 0.6,
+        "shopping": 0.6
       },
       "cost_level": 2,
       "best_season": ["spring", "fall"],
       "tags": ["flamenco", "historical", "andalusia", "giralda", "alcazar"],
-      "description": "flamenco histórica andalucía catedral cultura giralda alcazar",
-      "avg_temp_summer": 35, "avg_temp_winter": 11
+      "description": "flamenco histórica andalucía catedral cultura giralda alcazar feria abril",
+      "avg_temp_summer": 35,
+      "avg_temp_winter": 11
     },
     {
       "id": "parís",
@@ -70,15 +102,23 @@
       "country": "Francia",
       "type": "city",
       "features": {
-        "culture": 1.0, "beach": 0.0, "mountains": 0.1, "nightlife": 0.9,
-        "historical": 0.9, "modern": 0.8, "family_friendly": 0.7,
-        "adventure": 0.2, "relaxation": 0.6, "shopping": 1.0
+        "culture": 1.0,
+        "beach": 0.0,
+        "mountains": 0.1,
+        "nightlife": 0.9,
+        "historical": 0.9,
+        "modern": 0.8,
+        "family_friendly": 0.7,
+        "adventure": 0.2,
+        "relaxation": 0.6,
+        "shopping": 1.0
       },
       "cost_level": 5,
       "best_season": ["spring", "fall"],
       "tags": ["romantic", "eiffel tower", "louvre", "fashion", "wine"],
       "description": "romántica torre eiffel museo louvre cultura arte moda sena champs elysees",
-      "avg_temp_summer": 25, "avg_temp_winter": 6
+      "avg_temp_summer": 25,
+      "avg_temp_winter": 6
     },
     {
       "id": "roma",
@@ -86,15 +126,23 @@
       "country": "Italia",
       "type": "city",
       "features": {
-        "culture": 1.0, "beach": 0.1, "mountains": 0.2, "nightlife": 0.7,
-        "historical": 1.0, "modern": 0.6, "family_friendly": 0.8,
-        "adventure": 0.3, "relaxation": 0.5, "shopping": 0.8
+        "culture": 1.0,
+        "beach": 0.1,
+        "mountains": 0.2,
+        "nightlife": 0.7,
+        "historical": 1.0,
+        "modern": 0.6,
+        "family_friendly": 0.8,
+        "adventure": 0.3,
+        "relaxation": 0.5,
+        "shopping": 0.8
       },
       "cost_level": 4,
       "best_season": ["spring", "fall"],
       "tags": ["colosseum", "historical", "ancient", "vatican", "pasta"],
-      "description": "coliseo histórica antigua imperio cultura arte vaticano foro",
-      "avg_temp_summer": 30, "avg_temp_winter": 8
+      "description": "coliseo histórica antigua imperio cultura arte vaticano foro fontana trevi",
+      "avg_temp_summer": 30,
+      "avg_temp_winter": 8
     },
     {
       "id": "lisboa",
@@ -102,15 +150,23 @@
       "country": "Portugal",
       "type": "city",
       "features": {
-        "culture": 0.7, "beach": 0.6, "mountains": 0.3, "nightlife": 0.7,
-        "historical": 0.8, "modern": 0.7, "family_friendly": 0.8,
-        "adventure": 0.4, "relaxation": 0.8, "shopping": 0.6
+        "culture": 0.7,
+        "beach": 0.6,
+        "mountains": 0.3,
+        "nightlife": 0.7,
+        "historical": 0.8,
+        "modern": 0.7,
+        "family_friendly": 0.8,
+        "adventure": 0.4,
+        "relaxation": 0.8,
+        "shopping": 0.6
       },
       "cost_level": 2,
       "best_season": ["spring", "summer", "fall"],
-      "tags": ["tram", "viewpoints", "portuguese", "fado"],
-      "description": "tranvía mirador portugués fado cultura océano",
-      "avg_temp_summer": 27, "avg_temp_winter": 11
+      "tags": ["tram", "viewpoints", "portuguese", "fado", "ocean"],
+      "description": "tranvía mirador portugués fado cultura océano belem alfama",
+      "avg_temp_summer": 27,
+      "avg_temp_winter": 11
     },
     {
       "id": "berlín",
@@ -118,15 +174,71 @@
       "country": "Alemania",
       "type": "city",
       "features": {
-        "culture": 0.8, "beach": 0.0, "mountains": 0.1, "nightlife": 1.0,
-        "historical": 0.8, "modern": 0.9, "family_friendly": 0.6,
-        "adventure": 0.3, "relaxation": 0.4, "shopping": 0.7
+        "culture": 0.8,
+        "beach": 0.0,
+        "mountains": 0.1,
+        "nightlife": 1.0,
+        "historical": 0.8,
+        "modern": 0.9,
+        "family_friendly": 0.6,
+        "adventure": 0.3,
+        "relaxation": 0.4,
+        "shopping": 0.7
       },
       "cost_level": 3,
       "best_season": ["spring", "summer", "fall"],
       "tags": ["wall", "history", "modern", "technology", "clubs"],
-      "description": "muro historia moderna tecnología cultura clubes brandenburgo",
-      "avg_temp_summer": 24, "avg_temp_winter": 2
+      "description": "muro historia moderna tecnología cultura clubes brandenburgo techno arte",
+      "avg_temp_summer": 24,
+      "avg_temp_winter": 2
+    },
+    {
+      "id": "londres",
+      "name": "Londres",
+      "country": "Reino Unido",
+      "type": "city",
+      "features": {
+        "culture": 0.9,
+        "beach": 0.0,
+        "mountains": 0.0,
+        "nightlife": 0.8,
+        "historical": 0.9,
+        "modern": 0.8,
+        "family_friendly": 0.7,
+        "adventure": 0.2,
+        "relaxation": 0.4,
+        "shopping": 0.9
+      },
+      "cost_level": 5,
+      "best_season": ["spring", "summer"],
+      "tags": ["big ben", "museums", "royalty", "pubs", "cosmopolitan"],
+      "description": "ciudad cosmopolita historia realeza big ben museos pubs cultura támesis",
+      "avg_temp_summer": 22,
+      "avg_temp_winter": 5
+    },
+    {
+      "id": "ámsterdam",
+      "name": "Ámsterdam",
+      "country": "Países Bajos",
+      "type": "city",
+      "features": {
+        "culture": 0.8,
+        "beach": 0.1,
+        "mountains": 0.0,
+        "nightlife": 0.8,
+        "historical": 0.8,
+        "modern": 0.7,
+        "family_friendly": 0.7,
+        "adventure": 0.2,
+        "relaxation": 0.6,
+        "shopping": 0.7
+      },
+      "cost_level": 4,
+      "best_season": ["spring", "summer"],
+      "tags": ["canals", "bikes", "museums", "liberal", "tulips"],
+      "description": "canales bicicletas museos liberal tulipanes van gogh ana frank",
+      "avg_temp_summer": 21,
+      "avg_temp_winter": 3
     }
   ]
 }

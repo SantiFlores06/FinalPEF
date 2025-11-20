@@ -3,6 +3,10 @@
 # Formato: (origin, destination, cost, time, transport_type)
 
 ROUTES_FIXED = [
+    # ==========================================
+    # RUTAS ORIGINALES (Sur de Europa)
+    # ==========================================
+    
     # --- Rutas de TREN ---
     ("Madrid", "Barcelona", 50, 3, "tren"),
     ("Madrid", "Valencia", 40, 4, "tren"),
@@ -35,4 +39,44 @@ ROUTES_FIXED = [
     ("Madrid", "Lisboa", 630, 7, "auto"),
     ("Barcelona", "Valencia", 350, 3.8, "auto"),
     ("Sevilla", "Lisboa", 400, 5, "auto"),
+
+    # ==========================================
+    # NUEVAS CIUDADES: LONDRES y ÁMSTERDAM
+    # ==========================================
+
+    # --- Conexiones LONDRES ---
+    # Tren (Eurostar)
+    ("Londres", "París", 100, 2.5, "tren"),
+    ("París", "Londres", 100, 2.5, "tren"),
+    
+    # Avión (Conexiones principales)
+    ("Londres", "Madrid", 90, 2.5, "avión"),
+    ("Madrid", "Londres", 90, 2.5, "avión"),
+    ("Londres", "Barcelona", 85, 2.2, "avión"),
+    ("Barcelona", "Londres", 85, 2.2, "avión"),
+    ("Londres", "Berlín", 70, 2.0, "avión"),
+    ("Berlín", "Londres", 70, 2.0, "avión"),
+    ("Londres", "Roma", 110, 2.8, "avión"),
+    ("Roma", "Londres", 110, 2.8, "avión"),
+
+    # --- Conexiones ÁMSTERDAM ---
+    # Tren (Alta velocidad)
+    ("Ámsterdam", "París", 80, 3.5, "tren"),
+    ("París", "Ámsterdam", 80, 3.5, "tren"),
+    ("Ámsterdam", "Berlín", 90, 6.0, "tren"),
+    ("Berlín", "Ámsterdam", 90, 6.0, "tren"),
+
+    # Avión
+    ("Ámsterdam", "Madrid", 100, 2.8, "avión"),
+    ("Madrid", "Ámsterdam", 100, 2.8, "avión"),
+    ("Ámsterdam", "Londres", 60, 1.2, "avión"),
+    ("Londres", "Ámsterdam", 60, 1.2, "avión"),
+    ("Ámsterdam", "Roma", 120, 2.5, "avión"),
+    ("Roma", "Ámsterdam", 120, 2.5, "avión"),
+
+    # Auto (Rutas europeas)
+    ("Ámsterdam", "París", 50, 5.5, "auto"),
+    ("París", "Ámsterdam", 50, 5.5, "auto"),
+    ("Ámsterdam", "Berlín", 65, 7.0, "auto"),
+    ("Berlín", "Ámsterdam", 65, 7.0, "auto"),
 ]
