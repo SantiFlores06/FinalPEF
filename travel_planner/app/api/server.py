@@ -6,7 +6,7 @@ API RESTful para el sistema de planificación de viajes multidestino.
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from app.data.routes_fixed import ROUTES_FIXED
 import asyncio
@@ -72,10 +72,20 @@ class AIRecommendation(BaseModel):
     destination_name: str
     similarity: float
 
+class RouteComparison(BaseModel):
+    """Modelo para comparar rutas directa vs económica"""
+    origin: str
+    destination: str
+    direct_route: Optional[Dict] = None  # Ruta directa (si existe)
+    cheapest_route: Dict  # Ruta más económica
+    direct_exists: bool
+    savings: Optional[float] = None  # Ahorro si hay ruta económica mejor
+
 class RouteRequest(BaseModel):
     origin: str
     destination: str
     optimize_by: str = Field(default="cost", description="Criterio: cost o time")
+
 
 class RouteResponse(BaseModel):
     origin: str
@@ -261,12 +271,79 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==========================================================
-# RUTA MULTIDESTINO (TSP) con Cache (Corregido)
+# COMPARAR RUTAS: DIRECTA vs ECONÓMICA
 # ==========================================================
+
+@app.get("/routes/compare", response_model=RouteComparison)
+async def get_compare_routes(origin: str, destination: str, transport: str = "auto", optimize_by: str = "cost", graph: TravelGraph = Depends(get_populated_graph)):
+    """
+    Compara dos opciones de ruta:
+    1. Ruta directa (si existe conexión directa en el transporte especificado)
+    2. Ruta más económica (usando Dijkstra, puede tener intermediarios)
+    """
+    try:
+        # 1. Verificar si existe ruta directa
+        direct_route = None
+        direct_exists = False
+        direct_cost = float('inf')
+
+        for o, d, cost, time, t in ROUTES_FIXED:
+            if o == origin and d == destination and t == transport:
+                direct_route = {
+                    "path": [origin, destination],
+                    "total_cost": cost if optimize_by == "cost" else time,
+                    "is_direct": True,
+                    "description": f"Conexión directa"
+                }
+                direct_exists = True
+                direct_cost = cost if optimize_by == "cost" else time
+                break
+
+        # 2. Encontrar ruta más económica (con intermediarios si es necesario)
+        cheapest_path, cheapest_cost = graph.find_shortest_path(origin, destination, weight=optimize_by, transport_type=transport)
+
+        if not cheapest_path:
+            raise HTTPException(status_code=404, detail=f"No hay ruta disponible desde {origin} hasta {destination} en {transport}")
+
+        cheapest_route = {
+            "path": cheapest_path,
+            "total_cost": cheapest_cost,
+            "is_direct": len(cheapest_path) == 2,
+            "description": f"Ruta con {len(cheapest_path) - 1} segmentos" if len(cheapest_path) > 2 else "Conexión directa"
+        }
+
+        # 3. Calcular ahorro si la ruta económica es mejor
+        savings = None
+        if direct_exists and cheapest_cost < direct_cost:
+            savings = direct_cost - cheapest_cost
+
+        return RouteComparison(
+            origin=origin,
+            destination=destination,
+            direct_route=direct_route,
+            cheapest_route=cheapest_route,
+            direct_exists=direct_exists,
+            savings=savings
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error comparando rutas: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 @app.post("/routes/optimize-multi", response_model=TSPResponse)
 async def optimize_multi_destination(request: TSPRequest):
     start = time.time()
-    cache_key = f"multi_{'-'.join(request.cities)}_{request.return_to_start}"
+
+    # Crear hash de la matriz para hacer la clave del caché única por matriz
+    import hashlib
+    matrix_flat = []
+    for row in request.cost_matrix:
+        matrix_flat.extend(row)
+    matrix_str = str(matrix_flat)
+    matrix_hash = hashlib.md5(matrix_str.encode()).hexdigest()[:8]
+
+    cache_key = f"multi_{'-'.join(request.cities)}_{request.return_to_start}_{matrix_hash}"
 
     cached_result = route_cache.get(cache_key)
     if cached_result:

@@ -72,27 +72,29 @@ class TravelGraph:
         self.graph[origin].append(route)
     
     def dijkstra(
-        self, 
-        source: str, 
+        self,
+        source: str,
         target: Optional[str] = None,
-        weight: str = 'cost'
+        weight: str = 'cost',
+        transport_type: Optional[str] = None
     ) -> Tuple[Dict[str, float], Dict[str, Optional[str]]]:
         """
         Implementación del algoritmo de Dijkstra desde cero.
-        
+
         Encuentra el camino más corto desde el nodo origen a todos los demás
         nodos (o a un nodo específico si se proporciona target).
-        
+
         Args:
             source: Nodo de origen.
             target: Nodo de destino opcional. Si es None, calcula a todos.
             weight: Atributo por el cual ponderar ('cost' o 'time').
-        
+            transport_type: Tipo de transporte opcional para filtrar rutas ('auto', 'tren', 'avión').
+
         Returns:
             Tupla con dos diccionarios:
             - distances: Distancias mínimas desde source a cada nodo.
             - predecessors: Predecesor de cada nodo en el camino más corto.
-        
+
         Complejidad:
             Tiempo: O((V + E) log V) con cola de prioridad.
             Espacio: O(V) para estructuras auxiliares.
@@ -132,14 +134,18 @@ class TravelGraph:
             
             # Relajación de aristas
             for route in self.graph[current_node]:
+                # Filtrar por tipo de transporte si se especificó
+                if transport_type and route.transport_type != transport_type:
+                    continue
+
                 neighbor = route.destination
-                
+
                 # Obtener el peso según el criterio especificado
                 edge_weight = getattr(route, weight)
-                
+
                 # Calcular nueva distancia tentativa
                 new_distance = current_distance + edge_weight
-                
+
                 # Si encontramos un camino más corto, actualizamos
                 if new_distance < distances[neighbor]:
                     distances[neighbor] = new_distance
@@ -149,19 +155,21 @@ class TravelGraph:
         return distances, predecessors
     
     def find_shortest_path(
-        self, 
-        origin: str, 
+        self,
+        origin: str,
         destination: str,
-        weight: str = 'cost'
+        weight: str = 'cost',
+        transport_type: Optional[str] = None
     ) -> Tuple[List[str], float]:
         """
         Encuentra el camino más corto entre dos nodos.
-        
+
         Args:
             origin: Ciudad de origen.
             destination: Ciudad de destino.
             weight: Criterio de optimización ('cost' o 'time').
-        
+            transport_type: Tipo de transporte opcional para filtrar rutas.
+
         Returns:
             Tupla con:
             - path: Lista de ciudades en el camino óptimo.
@@ -169,13 +177,13 @@ class TravelGraph:
         """
         if destination not in self.vertices:
             return [], float('inf')
-        
+
         # Ejecutar Dijkstra
-        distances, predecessors = self.dijkstra(origin, destination, weight)
-        
+        distances, predecessors = self.dijkstra(origin, destination, weight, transport_type)
+
         # Reconstruir el camino desde destination hacia origin
         path = self._reconstruct_path(predecessors, origin, destination)
-        
+
         return path, distances[destination]
     
     def _reconstruct_path(
@@ -218,31 +226,33 @@ class TravelGraph:
         return path
     
     def find_all_shortest_paths(
-        self, 
+        self,
         origin: str,
-        weight: str = 'cost'
+        weight: str = 'cost',
+        transport_type: Optional[str] = None
     ) -> Dict[str, Tuple[List[str], float]]:
         """
         Encuentra todos los caminos más cortos desde un origen a todos los destinos.
-        
+
         Args:
             origin: Ciudad de origen.
             weight: Criterio de optimización.
-        
+            transport_type: Tipo de transporte opcional para filtrar rutas.
+
         Returns:
             Diccionario donde la clave es el destino y el valor es una tupla
             con (camino, distancia).
         """
-        distances, predecessors = self.dijkstra(origin, weight=weight)
-        
+        distances, predecessors = self.dijkstra(origin, weight=weight, transport_type=transport_type)
+
         results = {}
         for destination in self.vertices:
             if destination == origin:
                 continue
-            
+
             path = self._reconstruct_path(predecessors, origin, destination)
             results[destination] = (path, distances[destination])
-        
+
         return results
     
     def get_route_details(self, path: List[str]) -> List[Dict]:
