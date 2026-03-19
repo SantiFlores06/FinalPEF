@@ -4,16 +4,16 @@
       "user_id": "user_1",
       "name": "Ana García",
       "preferences": {
-        "culture": 0.8697051000000001,
-        "beach": 0.3757474000000001,
-        "mountains": 0.21409490000000003,
-        "nightlife": 0.7852507999999998,
-        "historical": 0.8475102,
-        "modern": 0.7074457,
-        "family_friendly": 0.5934185000000001,
-        "adventure": 0.3443898000000001,
-        "relaxation": 0.5362898000000001,
-        "shopping": 0.7609507999999998
+        "culture": 0.843060164499,
+        "beach": 0.4105240822260001,
+        "mountains": 0.20469389750100003,
+        "nightlife": 0.8133317448919999,
+        "historical": 0.822493297998,
+        "modern": 0.760098611393,
+        "family_friendly": 0.668996690065,
+        "adventure": 0.3554337330020001,
+        "relaxation": 0.559560764002,
+        "shopping": 0.7790128378919998
       },
       "budget_level": 4,
       "preferred_seasons": [

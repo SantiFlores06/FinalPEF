@@ -99,16 +99,15 @@ class ReservationManager:
     async def process_reservation(self, reservation: Reservation) -> Reservation:
         """
         Procesa una reserva individual de forma asíncrona.
-        
-        Simula operaciones I/O como:
-        - Verificar disponibilidad
-        - Procesar pago
+
+        Confirma la reserva directamente sin fallos aleatorios.
+        Simula operaciones I/O rápidas:
         - Confirmar con proveedores
         - Enviar notificaciones
-        
+
         Args:
             reservation: Reserva a procesar.
-        
+
         Returns:
             Reserva procesada con estado actualizado.
         """
@@ -116,55 +115,29 @@ class ReservationManager:
             try:
                 reservation.status = ReservationStatus.PROCESSING
                 reservation.updated_at = datetime.now()
-                
+
                 logger.info(f"Procesando reserva {reservation.reservation_id}")
-                
-                # Simular verificación de disponibilidad (I/O)
-                await asyncio.sleep(0.5)
-                available = await self._check_availability(reservation)
-                
-                if not available:
-                    raise Exception("No hay disponibilidad")
-                
-                # Simular procesamiento de pago (I/O)
-                await asyncio.sleep(0.3)
-                payment_ok = await self._process_payment(reservation)
-                
-                if not payment_ok:
-                    raise Exception("Error en el pago")
-                
+
                 # Simular confirmación con proveedores (I/O)
-                await asyncio.sleep(0.4)
-                await self._confirm_with_providers(reservation)
-                
-                # Simular envío de notificación (I/O)
                 await asyncio.sleep(0.2)
+                await self._confirm_with_providers(reservation)
+
+                # Simular envío de notificación (I/O)
+                await asyncio.sleep(0.1)
                 await self._send_notification(reservation)
-                
-                # Éxito
+
+                # Éxito - Cambiar directamente a CONFIRMED
                 reservation.status = ReservationStatus.CONFIRMED
                 reservation.updated_at = datetime.now()
                 logger.info(f"✓ Reserva {reservation.reservation_id} confirmada")
-                
+
             except Exception as e:
                 reservation.status = ReservationStatus.FAILED
                 reservation.error_message = str(e)
                 reservation.updated_at = datetime.now()
                 logger.error(f"✗ Reserva {reservation.reservation_id} falló: {e}")
-            
+
             return reservation
-    
-    async def _check_availability(self, reservation: Reservation) -> bool:
-        """Simula verificación de disponibilidad."""
-        await asyncio.sleep(0.1)
-        import random
-        return random.random() > 0.05
-    
-    async def _process_payment(self, reservation: Reservation) -> bool:
-        """Simula procesamiento de pago."""
-        await asyncio.sleep(0.1)
-        import random
-        return random.random() > 0.02
     
     async def _confirm_with_providers(self, reservation: Reservation) -> None:
         """Simula confirmación con proveedores de transporte/hoteles."""
@@ -210,25 +183,37 @@ class ReservationManager:
     async def cancel_reservation(self, reservation_id: str) -> bool:
         """
         Cancela una reserva.
-        
+
+        Permite cancelar desde CONFIRMED, PROCESSING, o PENDING.
+        Una vez cancelada, no se puede revertir.
+
         Args:
             reservation_id: ID de la reserva a cancelar.
-        
+
         Returns:
-            True si se canceló exitosamente.
+            True si se canceló exitosamente, False si no es posible.
         """
         if reservation_id not in self.reservations:
+            logger.warning(f"Intento de cancelar reserva inexistente: {reservation_id}")
             return False
-        
+
         reservation = self.reservations[reservation_id]
-        
-        if reservation.status == ReservationStatus.CONFIRMED:
+
+        # Verificar que NO esté ya cancelada (CANCELLED es irreversible)
+        if reservation.status == ReservationStatus.CANCELLED:
+            logger.warning(f"Reserva {reservation_id} ya está cancelada")
+            return False
+
+        # Permitir cancelar desde cualquier estado excepto CANCELLED
+        if reservation.status in [ReservationStatus.CONFIRMED, ReservationStatus.PROCESSING,
+                                  ReservationStatus.PENDING, ReservationStatus.FAILED]:
             await asyncio.sleep(0.2)
             reservation.status = ReservationStatus.CANCELLED
             reservation.updated_at = datetime.now()
-            logger.info(f"Reserva {reservation_id} cancelada")
+            logger.info(f"✓ Reserva {reservation_id} cancelada exitosamente")
             return True
-        
+
+        logger.warning(f"No se puede cancelar reserva en estado {reservation.status.value}")
         return False
     
     def get_reservation(self, reservation_id: str) -> Optional[Reservation]:

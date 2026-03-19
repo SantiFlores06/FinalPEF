@@ -1,36 +1,48 @@
 # travel_planner/app/ai/gemini_recommendations.py
 """
-Generador de recomendaciones usando Google Generative AI (Gemini).
+Generador de recomendaciones usando Google Gen AI SDK (nuevo).
 Proporciona recomendaciones de lugares que visitar en ciudades.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 try:
-    import google.generativeai as genai
+    from google import genai
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
 
+# Cliente global (se inicializa una sola vez)
+_client = None
 
-def setup_gemini():
-    """Configura la API de Google Generative AI."""
+
+def get_client():
+    """Retorna el cliente de Gemini, inicializándolo si es necesario."""
+    global _client
+
     if not GEMINI_AVAILABLE:
-        return False
+        return None
+
+    if _client is not None:
+        return _client
 
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         print("[WARNING] GOOGLE_API_KEY no configurada. Recomendaciones deshabilitadas.")
-        return False
+        return None
 
     try:
-        genai.configure(api_key=api_key)
-        return True
+        _client = genai.Client(api_key=api_key)
+        return _client
     except Exception as e:
-        print(f"[ERROR] No se pudo configurar Gemini: {e}")
-        return False
+        print(f"[ERROR] No se pudo inicializar el cliente de Gemini: {e}")
+        return None
 
+
+# Modelo recomendado actualmente (estable y gratuito en el tier free)
+GEMINI_MODEL = "gemini-2.5-flash-lite"
+# para poner la api key usar el comando $env:GOOGLE_API_KEY="clave" en la terminal
 
 def generate_city_recommendations(city: str, country: str = None) -> Optional[str]:
     """
@@ -43,10 +55,8 @@ def generate_city_recommendations(city: str, country: str = None) -> Optional[st
     Returns:
         Texto con recomendaciones o None si hay error.
     """
-    if not GEMINI_AVAILABLE:
-        return None
-
-    if not setup_gemini():
+    client = get_client()
+    if not client:
         return None
 
     try:
@@ -60,14 +70,16 @@ Formato: Lista con viñetas, cada lugar en 1-2 líneas máximo.
 Incluye: nombre del lugar y breve descripción.
 
 Ejemplo:
-• Sagrada Familia - Basílica icónica de Gaudí, imprescindible
-• Casa Batlló - Otro masterpiece arquitectónico modernista
+- Sagrada Familia - Basílica icónica de Gaudí, imprescindible
+- Casa Batlló - Otro masterpiece arquitectónico modernista
 
 Responde SOLO las recomendaciones, sin introducción ni conclusión extra.
 """
 
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt, stream=False)
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+        )
 
         if response and response.text:
             return response.text.strip()
@@ -90,10 +102,8 @@ def generate_itinerary_summary(cities: List[str], total_cost: float, transport_m
     Returns:
         Texto motivacional o None si hay error.
     """
-    if not GEMINI_AVAILABLE:
-        return None
-
-    if not setup_gemini():
+    client = get_client()
+    if not client:
         return None
 
     try:
@@ -112,8 +122,10 @@ Ejemplo: "¡Qué increíble itinerario! Visitarás 4 ciudades europeas por solo 
 Responde SOLO el comentario, sin texto adicional.
 """
 
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt, stream=False)
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+        )
 
         if response and response.text:
             return response.text.strip()

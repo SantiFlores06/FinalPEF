@@ -37,4 +37,4 @@ python-multipart==0.0.12
 requests==2.32.3
 
 # AI
-google-generativeai==0.7.2
+google-genai==0.1.0
