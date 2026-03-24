@@ -26,24 +26,24 @@ class ReservationStatus(Enum):
 
 @dataclass
 class Reservation:
-    """Representa una reserva de viaje."""
     reservation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str = ""
     itinerary: Dict[str, Any] = field(default_factory=dict)
     status: ReservationStatus = ReservationStatus.PENDING
-    total_cost: float = 0.0
+    total_cost: float = 0.0        # siempre en euros (€)
+    total_time: Optional[float] = None  # horas, solo si se optimizó por tiempo
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     error_message: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convierte la reserva a diccionario."""
         return {
             'reservation_id': self.reservation_id,
             'user_id': self.user_id,
             'itinerary': self.itinerary,
             'status': self.status.value,
             'total_cost': self.total_cost,
+            'total_time': self.total_time,   # ← nuevo
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'error_message': self.error_message
@@ -70,11 +70,7 @@ class ReservationManager:
         self.reservations: Dict[str, Reservation] = {}
         self.active_tasks: List[asyncio.Task] = []
     
-    async def create_reservation(
-        self,
-        user_id: str,
-        itinerary: Dict[str, Any]
-    ) -> Reservation:
+    async def create_reservation(self, user_id: str, itinerary: Dict[str, Any]) -> Reservation:
         """
         Crea una nueva reserva.
         
@@ -86,10 +82,11 @@ class ReservationManager:
             Objeto Reservation creado.
         """
         reservation = Reservation(
-            user_id=user_id,
-            itinerary=itinerary,
-            total_cost=itinerary.get('total_cost', 0.0)
-        )
+        user_id=user_id,
+        itinerary=itinerary,
+        total_cost=itinerary.get('total_cost', 0.0),   # siempre € (ya corregido en frontend)
+        total_time=itinerary.get('total_time', None)    # horas opcionales
+    )
         
         self.reservations[reservation.reservation_id] = reservation
         logger.info(f"Reserva creada: {reservation.reservation_id} para usuario {user_id}")
