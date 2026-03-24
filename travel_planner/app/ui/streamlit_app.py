@@ -28,45 +28,60 @@ API_URL = "http://localhost:8000"
 # ==========================================================
 # ESTILOS CSS PERSONALIZADOS
 # ==========================================================
-
 st.markdown(
-    """
+"""
 <style>
-    .main-header {
-        font-size: 3rem;
-        color: #1E88E5;
-        text-align: center;
-        padding: 1rem 0;
-    }
-    .res-card {
-        background-color: #f9fafc;
-        border: 1px solid #d1d9e6;
-        border-radius: 16px;
-        padding: 1rem 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0px 3px 10px rgba(0,0,0,0.05);
-        transition: transform 0.2s ease-in-out;
-    }
-    .res-card:hover { transform: scale(1.01); box-shadow: 0px 6px 15px rgba(0,0,0,0.1); }
-    .res-header { font-size: 1.2rem; font-weight: bold; color: #1565C0; }
-    .res-sub { font-size: 0.9rem; color: #555; }
-   .res-badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: white; }
-    .status-pending { background-color: #fbc02d; } /* Amarillo */
-    .status-processing { background-color: #1E88E5; } /* Azul */
-    .status-confirmed { background-color: #43a047; } /* Verde */
-    .status-failed { background-color: #e53935; } /* Rojo */
-    .status-cancelled { background-color: #757575; } /* Gris */
-    .success-box {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        background-color: #F0F8FF;
-        border-left: 5px solid #1E88E5;
-    }
+.main-header {
+    font-size: 3rem;
+    color: #1E88E5;
+    text-align: center;
+    padding: 1rem 0;
+}
+.res-card {
+    background-color: #f9fafc;
+    border: 1px solid #d1d9e6;
+    border-radius: 16px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0px 3px 10px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease-in-out;
+}
+.res-card:hover {
+    transform: scale(1.01);
+    box-shadow: 0px 6px 15px rgba(0,0,0,0.1);
+}
+.res-header {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1565C0;
+}
+.res-sub {
+    font-size: 0.9rem;
+    color: #555;
+}
+.res-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+}
+.status-pending { background-color: #fbc02d; }
+.status-processing { background-color: #1E88E5; }
+.status-confirmed { background-color: #43a047; }
+.status-failed { background-color: #e53935; }
+.status-cancelled { background-color: #757575; }
+.success-box {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: #F0F8FF;
+    border-left: 5px solid #1E88E5;
+}
 </style>
 """,
-    unsafe_allow_html=True
+unsafe_allow_html=True
 )
-
 # ==========================================================
 # FUNCIONES AUXILIARES DE API
 # ==========================================================
@@ -526,33 +541,7 @@ if page == "🌍 Ruta Multidestino":
 
         st.divider()
 
-        st.divider()
-        st.subheader("🎯 Ruta seleccionada:")
-
-        # Mostrar en forma visual
-        route_display = " → ".join(st.session_state.selected_cities)
-        st.info(route_display)
-
-        # Opciones para modificar
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            if st.button("🗑️ Limpiar todo", use_container_width=True):
-                st.session_state.selected_cities = []
-                st.rerun()
-
-        with col2:
-            if len(st.session_state.selected_cities) > 1:
-                if st.button("↶ Quitar última", use_container_width=True):
-                    st.session_state.selected_cities.pop()
-                    st.rerun()
-
-        with col3:
-            # Cambiar el orden
-            if len(st.session_state.selected_cities) >= 2:
-                if st.button("🔄 Invertir orden", use_container_width=True):
-                    st.session_state.selected_cities.reverse()
-                    st.rerun()
+       
 
     # Obtener matriz y calcular ruta (solo si hay al menos 2 ciudades Y no hay resultado calculado)
     if len(st.session_state.selected_cities) >= 2 and not st.session_state.tsp_result:
@@ -709,8 +698,8 @@ elif page == "📋 Mis Reservas":
         st.info("No tienes reservas registradas.")
     else:
         st.info(f"Mostrando {len(reservations)} reservas para el usuario {st.session_state.user_id[:12]}...")
-        if st.button("Actualizar Estados"):
-            st.rerun()
+        #if st.button("Actualizar Estados"):
+         #   st.rerun()
 
         for r in sorted(reservations, key=lambda x: x.get('created_at', ''), reverse=True):
             itinerary = r.get("itinerary", {})
@@ -727,7 +716,7 @@ elif page == "📋 Mis Reservas":
             )
 
             # Crear columnas para la tarjeta y el botón de acción
-            col_card, col_action = st.columns([0.85, 0.15])
+            col_card, col_action = st.columns([0.80, 0.20])
 
             with col_card:
                 st.markdown(f"""
@@ -744,7 +733,6 @@ elif page == "📋 Mis Reservas":
                 """, unsafe_allow_html=True)
 
             with col_action:
-                # Mostrar botón de cancelar solo si no está ya cancelada
                 if status != "cancelled":
                     if st.button("❌ Cancelar", key=f"cancel_{reservation_id}", use_container_width=True):
                         with st.spinner("Cancelando reserva..."):
@@ -755,10 +743,16 @@ elif page == "📋 Mis Reservas":
                             st.rerun()
                         else:
                             st.error("Error al cancelar la reserva")
-                else:
-                    st.info("Cancelada")
 
-
+                    # 👇 le metemos altura con padding fake (funciona SIEMPRE)
+                    st.markdown("""
+                    <style>
+                    button[kind="secondary"] {
+                        padding-top: 120px !important;
+                        padding-bottom: 120px !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
 # ==========================================================
 #  ESTADÍSTICAS
 # ==========================================================

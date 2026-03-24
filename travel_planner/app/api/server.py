@@ -20,19 +20,9 @@ from app.core.itinerary_validator import ItineraryConstraints
 from app.caches.lru_cache import LRUCache
 from app.booking.reservations import ReservationManager
 from app.booking.batching import ReservationBatchProcessor
-from app.ml.data_loader import DataLoader
-from app.ml.recommender import TravelRecommender
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# --- INICIAR IA AL ARRANCAR ---
-logger.info("Cargando datos de IA...")
-data_loader = DataLoader(data_dir="app/data")
-recommender = TravelRecommender(data_loader=data_loader)
-recommender.train_knn_model()
-logger.info("Sistema de Recomendaciones de IA listo.")
-# -----------------------------
 
 # ==========================================================
 # CONFIGURACIÓN PRINCIPAL
@@ -231,37 +221,13 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
         if not path:
             raise HTTPException(status_code=404, detail="Ruta no encontrada")
 
-        # --- INICIO DE INTEGRACIÓN CON IA ---
-        ai_recs = []
-        final_destination = path[-1] # Obtener el destino final de la ruta
-        dest_id = final_destination.lower() # Convertir a ID (ej. "París" -> "paris")
-
-        if dest_id in data_loader.destinations:
-            # Llamar al modelo KNN para encontrar destinos similares
-            similar_destinations = recommender.get_similar_destinations(
-                destination_id=dest_id, 
-                n_similar=3
-            )
-            # Formatear la respuesta de la IA
-            for dest_key, sim_score in similar_destinations:
-                dest_obj = data_loader.get_destination(dest_key)
-                if dest_obj:
-                    ai_recs.append({
-                        "destination_id": dest_obj.id,
-                        "destination_name": dest_obj.name,
-                        "similarity": sim_score
-                    })
-        else:
-            logger.warning(f"Destino '{dest_id}' no encontrado en los datos de la IA.")
-        # --- FIN DE INTEGRACIÓN CON IA ---
-
         result = {
             "origin": request.origin,
             "destination": request.destination,
             "path": path,
             "total_cost": cost,
             "cached": False,
-            "recommendations": ai_recs  # <-- Añadir recomendaciones al resultado
+            "recommendations": []
         }
         
         route_cache.put(cache_key, result) # Guardar el resultado completo en caché
@@ -371,23 +337,11 @@ async def optimize_multi_destination(request: TSPRequest):
         if min_cost != float('inf'):
             final_cost = min_cost
 
-        # 4. Obtener recomendaciones de IA
-        ai_recs = []
-        if route and final_cost is not None:
-            final_destination = route[-1]
-            dest_id = final_destination.lower() 
-            if dest_id in data_loader.destinations:
-                similar_destinations = recommender.get_similar_destinations(destination=dest_id, n_similar=3)
-                for dest_key, sim_score in similar_destinations:
-                    dest_obj = data_loader.get_destination(dest_key)
-                    if dest_obj:
-                        ai_recs.append({"destination_id": dest_obj.id, "destination_name": dest_obj.name, "similarity": sim_score})
-
         result = {
             "optimal_route": route,
             "total_cost": final_cost,
             "computation_time": elapsed,
-            "recommendations": ai_recs,
+            "recommendations": [],
             "cached": False
         }
 
@@ -450,25 +404,6 @@ async def create_reservation(request: ReservationRequest, background_tasks: Back
         async def process_async(reservation_obj):
             # 1. Procesar la reserva (simulación de pago, etc.)
             await reservation_manager.process_reservation(reservation_obj)
-            
-            # 2. --- Aprendizaje de la ia ---
-            if reservation_obj.status.value == "confirmed":
-                try:
-                    # Extraer destinos del itinerario
-                    # (Asumimos que itinerary tiene 'cities' o 'optimal_route')
-                    cities = reservation_obj.itinerary.get('cities') or reservation_obj.itinerary.get('optimal_route', [])
-                    
-                    if cities:
-                        logger.info(f"🧠 IA Entrenando con reserva {reservation_obj.reservation_id}...")
-                        # Ejecutar el aprendizaje (esto es rápido, puede ser síncrono o en thread separado)
-                        recommender.learn_from_reservation(
-                            user_id=reservation_obj.user_id, 
-                            destination_ids=cities
-                        )
-                except Exception as e:
-                    logger.error(f"Error en aprendizaje de IA: {e}")
-            # -----------------------------------
-            
             logger.info(f"Task: Reserva individual {reservation_obj.reservation_id} finalizada")
 
         background_tasks.add_task(process_async, reservation)

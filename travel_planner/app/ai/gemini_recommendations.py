@@ -42,7 +42,7 @@ def get_client():
 
 # Modelo recomendado actualmente (estable y gratuito en el tier free)
 GEMINI_MODEL = "gemini-2.5-flash-lite"
-# para poner la api key usar el comando $env:GOOGLE_API_KEY="clave" en la terminal
+# para poner la api key usar el comando $env:GOOGLE_API_KEY="AIzaSyCbNAYgUwg_xwbnFE2hEP_wOkxFo1J8HjM" en la terminal
 
 def generate_city_recommendations(city: str, country: str = None) -> Optional[str]:
     """
