@@ -312,6 +312,15 @@ if "route_comparison" not in st.session_state:
 if "city_recommendations" not in st.session_state:
     st.session_state.city_recommendations = {}
 
+if "user_route_result" not in st.session_state:
+    st.session_state.user_route_result = None
+
+if "optimized_route_result" not in st.session_state:
+    st.session_state.optimized_route_result = None
+
+if "selected_route_for_booking" not in st.session_state:
+    st.session_state.selected_route_for_booking = None
+
 
 PAGES = ["🏠 Inicio", "🌍 Ruta Multidestino", "📋 Mis Reservas", "📊 Estadísticas"]
 if "page" not in st.session_state:
@@ -337,8 +346,7 @@ else:
 # ==========================================================
 with st.sidebar:
     st.header("🚀 Travel Planner")
-    st.image("https://raw.githubusercontent.com/streamlit/demo-travel-app/main/assets/road-trip.jpeg", use_column_width=True)
-
+   
     selected = st.radio(
         "Selecciona una opción:",
         PAGES,
@@ -356,7 +364,7 @@ page = st.session_state.page
 # ==========================================================
 if page == "🌍 Ruta Multidestino":
     st.header("🌍 Optimización de Ruta Multidestino (TSP)")
-    st.write("Encuentra el orden óptimo para visitar múltiples ciudades minimizando costo o tiempo.")
+    st.write("Selecciona múltiples ciudades y compara la ruta optimizada con tu orden preferido.")
 
     transport_mode = st.selectbox("🚗 Tipo de transporte", ["auto", "avión", "tren"])
     optimize_by = st.selectbox("⚖️ Optimizar por", ["cost", "time"], format_func=lambda x: "Costo (€)" if x == "cost" else "Tiempo (h)")
@@ -365,9 +373,11 @@ if page == "🌍 Ruta Multidestino":
     if st.session_state.last_transport != transport_mode or st.session_state.last_optimize_by != optimize_by:
         st.session_state.selected_cities = []
         st.session_state.tsp_result = None
+        st.session_state.user_route_result = None
+        st.session_state.optimized_route_result = None
+        st.session_state.selected_route_for_booking = None
         st.session_state.last_transport = transport_mode
         st.session_state.last_optimize_by = optimize_by
-        # ✅ Limpiar caché de recomendaciones al cambiar transporte/criterio
         st.session_state.city_recommendations = {}
 
     # Obtener todas las ciudades disponibles para este transporte
@@ -377,273 +387,336 @@ if page == "🌍 Ruta Multidestino":
         st.error(f"No hay ciudades disponibles para transporte en {transport_mode}")
         st.stop()
 
-    # Selector secuencial de ciudades
-    st.subheader("📍 Seleccionar ciudades en orden")
+    # Selector múltiple de ciudades (máximo 10)
+    st.subheader("📍 Seleccionar ciudades (máximo 10)")
+    st.session_state.selected_cities = st.multiselect(
+        "Elige las ciudades que quieres visitar:",
+        available_cities,
+        default=st.session_state.selected_cities,
+        max_selections=10,
+        key="cities_selector"
+    )
 
-    col1, col2 = st.columns([0.8, 0.2])
-
+    col1, col2, col3 = st.columns([0.4, 0.3, 0.3])
     with col1:
-        # Primera ciudad: mostrar todas disponibles
-        if len(st.session_state.selected_cities) == 0:
-            first_city = st.selectbox(
-                "Primera ciudad (origen):",
-                available_cities,
-                key="first_city"
-            )
-            if st.button("✓ Agregar primera ciudad", key="add_first_city", use_container_width=True):
-                st.session_state.selected_cities = [first_city]
-                st.rerun()
-
-        # Siguientes ciudades: mostrar solo las conectadas desde la última
-        elif len(st.session_state.selected_cities) < 10:
-            last_city = st.session_state.selected_cities[-1]
-            connected_cities = get_connected_cities(last_city, transport_mode)
-
-            if not connected_cities:
-                st.warning(f"❌ No hay ciudades conectadas desde {last_city} en {transport_mode}")
-            else:
-                available_for_next = sorted(list(connected_cities))
-                next_city = st.selectbox(
-                    f"Siguiente ciudad (desde {last_city}):",
-                    available_for_next,
-                    key=f"next_city_{len(st.session_state.selected_cities)}"
-                )
-                if st.button("✓ Ver opciones de ruta", key="compare_routes_btn", use_container_width=True):
-                    st.session_state.pending_city = next_city
-                    comparison = compare_routes(last_city, next_city, transport_mode, optimize_by)
-                    st.session_state.route_comparison = comparison
-                    st.rerun()
-
+        st.metric("Ciudades seleccionadas", len(st.session_state.selected_cities))
+    
     with col2:
-        st.metric("Ciudades", len(st.session_state.selected_cities))
+        return_to_start = st.checkbox("Regresar al origen", value=True, key="return_to_start")
+    
+    with col3:
+        st.write("")  # Espaciador
 
-    # Mostrar comparación de rutas si está disponible
-    if st.session_state.route_comparison:
+    if len(st.session_state.selected_cities) < 2:
+        st.info("⚠️ Selecciona al menos 2 ciudades para calcular costos")
+    else:
+        # Botón para calcular costos
+        if st.button("💰 Calcular costos", type="primary", use_container_width=True):
+            # Obtener AMBAS matrices (costo y tiempo)
+            matrix_cost = get_matrix_from_api(transport_mode, "cost")
+            matrix_time = get_matrix_from_api(transport_mode, "time")
+            
+            if not matrix_cost or not matrix_time:
+                st.error("No se pudieron cargar los datos de las rutas. Revisa el backend.")
+            else:
+                all_cities = matrix_cost["cities"]
+                cost_matrix = matrix_cost["matrix"]
+                time_matrix = matrix_time["matrix"]
+
+                # Verificar que todas las ciudades están en la matriz
+                missing_cities = [c for c in st.session_state.selected_cities if c not in all_cities]
+                if missing_cities:
+                    st.error(f"❌ Las siguientes ciudades no están disponibles: {', '.join(missing_cities)}")
+                else:
+                    # Calcular ruta en el orden seleccionado por el usuario
+                    indices_user_order = [all_cities.index(c) for c in st.session_state.selected_cities]
+                    submatrix_cost = [
+                        [cost_matrix[i][j] for j in indices_user_order]
+                        for i in indices_user_order
+                    ]
+                    submatrix_time = [
+                        [time_matrix[i][j] for j in indices_user_order]
+                        for i in indices_user_order
+                    ]
+
+                    # Calcular costo y tiempo de ruta usuario
+                    user_route_cost = 0.0
+                    user_route_time = 0.0
+                    user_route_path = st.session_state.selected_cities.copy()
+                    
+                    for i in range(len(user_route_path) - 1):
+                        city_from = user_route_path[i]
+                        city_to = user_route_path[i + 1]
+                        idx_from = all_cities.index(city_from)
+                        idx_to = all_cities.index(city_to)
+                        cost = cost_matrix[idx_from][idx_to]
+                        time = time_matrix[idx_from][idx_to]
+                        if cost == -1.0 or time == -1.0:
+                            st.error(f"❌ No hay conexión entre {city_from} y {city_to}")
+                            st.stop()
+                        user_route_cost += cost
+                        user_route_time += time
+
+                    # Si debe regresar al inicio
+                    if return_to_start and len(user_route_path) > 1:
+                        idx_last = all_cities.index(user_route_path[-1])
+                        idx_first = all_cities.index(user_route_path[0])
+                        cost = cost_matrix[idx_last][idx_first]
+                        time = time_matrix[idx_last][idx_first]
+                        if cost != -1.0 and time != -1.0:
+                            user_route_cost += cost
+                            user_route_time += time
+                            user_route_path.append(user_route_path[0])
+
+                    st.session_state.user_route_result = {
+                        "route": user_route_path,
+                        "total_cost": user_route_cost,
+                        "total_time": user_route_time
+                    }
+
+                    # Calcular ruta económica optimizada
+                    with st.spinner("Estimando ruta económica..."):
+                        optimized_result = optimize_multi_destination(
+                            st.session_state.selected_cities,
+                            submatrix_cost if optimize_by == "cost" else submatrix_time,
+                            return_to_start
+                        )
+
+                    if optimized_result:
+                        st.session_state.optimized_route_result = optimized_result
+                        st.session_state.city_recommendations = {}
+                        st.success("✅ Costos calculados correctamente")
+                        st.rerun()
+                    else:
+                        st.error("No se pudo calcular la ruta optimizada")
+
         st.divider()
-        comparison = st.session_state.route_comparison
 
-        st.subheader("🛣️ Opciones de conexión")
+    # Mostrar resultados de cálculo de costos
+    if st.session_state.user_route_result and st.session_state.optimized_route_result:
+        user_result = st.session_state.user_route_result
+        opt_result = st.session_state.optimized_route_result
 
-        if "return_to_start_comparison" not in st.session_state:
-            st.session_state.return_to_start_comparison = True
-
-        st.checkbox(
-            "Regresar a la ciudad de inicio al final",
-            value=True,
-            key="return_to_start_comparison"
-        )
+        st.subheader("📊 Comparación de Rutas")
 
         col1, col2 = st.columns(2)
 
-        # Opción 1: Ruta Directa
+        # Obtener AMBAS matrices (costo y tiempo) para mostrar en detalles
+        cost_matrix_data = get_matrix_from_api(transport_mode, "cost")
+        time_matrix_data = get_matrix_from_api(transport_mode, "time")
+        
+        all_cities_for_cost = cost_matrix_data["cities"] if cost_matrix_data else []
+        cost_matrix = cost_matrix_data["matrix"] if cost_matrix_data else []
+        
+        all_cities_for_time = time_matrix_data["cities"] if time_matrix_data else []
+        time_matrix = time_matrix_data["matrix"] if time_matrix_data else []
+
+        # Columna 1: Ruta del Usuario
         with col1:
-            if comparison["direct_exists"]:
-                st.markdown("### 🎯 Ruta Directa")
-                direct = comparison["direct_route"]
-                st.metric(
-                    "Costo/Tiempo",
-                    f"{direct['total_cost']:.2f} {'€' if optimize_by == 'cost' else 'h'}"
-                )
-                st.caption(f"Segmentos: {len(direct['path']) - 1}")
-                st.caption(direct["description"])
-
-                if st.button("✓ Usar ruta directa", key="select_direct", use_container_width=True):
-                    st.session_state.selected_cities.append(st.session_state.pending_city)
-                    st.session_state.route_comparison = None
-                    st.session_state.pending_city = None
-
-                    if len(st.session_state.selected_cities) >= 2:
-                        matrix_data = get_matrix_from_api(transport_mode, optimize_by)
-                        if matrix_data:
-                            all_cities = matrix_data["cities"]
-                            cost_matrix = matrix_data["matrix"]
-
-                            if all(c in all_cities for c in st.session_state.selected_cities):
-                                indices = [all_cities.index(c) for c in st.session_state.selected_cities]
-                                submatrix = [
-                                    [cost_matrix[i][j] for j in indices]
-                                    for i in indices
-                                ]
-                                result = optimize_multi_destination(st.session_state.selected_cities, submatrix, st.session_state.return_to_start_comparison)
-                                if result:
-                                    st.session_state.tsp_result = result
-                                    # ✅ Limpiar caché de recomendaciones al calcular nueva ruta
-                                    st.session_state.city_recommendations = {}
-
-                    st.rerun()
-            else:
-                st.markdown("### ⛔ Ruta Directa")
-                st.caption("No hay conexión directa disponible")
-
-        # Opción 2: Ruta más Económica
-        with col2:
-            st.markdown("### 💰 Ruta Más Económica")
-            cheapest = comparison["cheapest_route"]
+            st.markdown("### 🎯 Tu Ruta Seleccionada")
+            
+            # Mostrar costo en euros siempre
+            user_cost_euros = user_result['total_cost']
+            if optimize_by == "time":
+                # Recalcular costo en euros si se optimizó por tiempo
+                user_cost_euros = 0.0
+                for i in range(len(user_result['route']) - 1):
+                    city_from = user_result['route'][i]
+                    city_to = user_result['route'][i + 1]
+                    if city_from in all_cities_for_cost and city_to in all_cities_for_cost:
+                        idx_from = all_cities_for_cost.index(city_from)
+                        idx_to = all_cities_for_cost.index(city_to)
+                        cost = cost_matrix[idx_from][idx_to]
+                        if cost != -1.0:
+                            user_cost_euros += cost
+            
             st.metric(
-                "Costo/Tiempo",
-                f"{cheapest['total_cost']:.2f} {'€' if optimize_by == 'cost' else 'h'}"
+                "Costo en €",
+                f"{user_cost_euros:.2f} €"
             )
-            st.caption(f"Segmentos: {len(cheapest['path']) - 1}")
-            st.caption(cheapest["description"])
-
-            if comparison["savings"]:
-                st.info(f"💚 **Ahorras:** {comparison['savings']:.2f} {'€' if optimize_by == 'cost' else 'h'}")
-
-            if len(cheapest["path"]) > 2:
-                st.caption(f"Vía: {' → '.join(cheapest['path'])}")
-
-            if st.button("✓ Usar ruta económica", key="select_cheapest", use_container_width=True):
-                for city in cheapest["path"]:
-                    if city not in st.session_state.selected_cities:
-                        st.session_state.selected_cities.append(city)
-
-                st.session_state.route_comparison = None
-                st.session_state.pending_city = None
-
-                if len(st.session_state.selected_cities) >= 2:
-                    matrix_data = get_matrix_from_api(transport_mode, optimize_by)
-                    if matrix_data:
-                        all_cities = matrix_data["cities"]
-                        cost_matrix = matrix_data["matrix"]
-
-                        if all(c in all_cities for c in st.session_state.selected_cities):
-                            indices = [all_cities.index(c) for c in st.session_state.selected_cities]
-                            submatrix = [
-                                [cost_matrix[i][j] for j in indices]
-                                for i in indices
-                            ]
-                            result = optimize_multi_destination(st.session_state.selected_cities, submatrix, st.session_state.return_to_start_comparison)
-                            if result:
-                                st.session_state.tsp_result = result
-                                # ✅ Limpiar caché de recomendaciones al calcular nueva ruta
-                                st.session_state.city_recommendations = {}
-
+            st.info(" → ".join(user_result['route']))
+            
+            # Detalle de costos y tiempo por segmento
+            with st.expander("🔍 Ver detalles de costo y tiempo"):
+                total_cost_detail = 0.0
+                total_time_detail = 0.0
+                
+                for i in range(len(user_result['route']) - 1):
+                    city_from = user_result['route'][i]
+                    city_to = user_result['route'][i + 1]
+                    
+                    segment_cost = None
+                    segment_time = None
+                    
+                    # Obtener costo
+                    if city_from in all_cities_for_cost and city_to in all_cities_for_cost:
+                        idx_from = all_cities_for_cost.index(city_from)
+                        idx_to = all_cities_for_cost.index(city_to)
+                        cost = cost_matrix[idx_from][idx_to]
+                        if cost != -1.0:
+                            segment_cost = cost
+                            total_cost_detail += cost
+                    
+                    # Obtener tiempo
+                    if city_from in all_cities_for_time and city_to in all_cities_for_time:
+                        idx_from = all_cities_for_time.index(city_from)
+                        idx_to = all_cities_for_time.index(city_to)
+                        time = time_matrix[idx_from][idx_to]
+                        if time != -1.0:
+                            segment_time = time
+                            total_time_detail += time
+                    
+                    # Mostrar segmento con ambas métricas
+                    if segment_cost is not None and segment_time is not None:
+                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} € | {segment_time:.1f}h")
+                    elif segment_cost is not None:
+                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} €")
+                    elif segment_time is not None:
+                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_time:.1f}h")
+                
+                st.divider()
+                st.text(f"**Total: {total_cost_detail:.2f} € | {total_time_detail:.1f}h**")
+            
+            if st.button("✓ Seleccionar esta ruta", key="select_user_route", use_container_width=True):
+                st.session_state.selected_route_for_booking = {
+                    "route": user_result['route'],
+                    "total_cost": user_cost_euros,
+                    "type": "user_selected"
+                }
+                st.success("✅ Ruta seleccionada para reserva")
                 st.rerun()
 
-        if st.button("❌ Cancelar selección", key="cancel_comparison", use_container_width=True):
-            st.session_state.route_comparison = None
-            st.session_state.pending_city = None
-            st.rerun()
+        # Columna 2: Ruta Económica
+        with col2:
+            st.markdown("### 💰 Ruta Económica (Optimizada)")
+            
+            # Mostrar costo en euros siempre
+            opt_cost_euros = opt_result['total_cost']
+            if optimize_by == "time":
+                # Recalcular costo en euros si se optimizó por tiempo
+                opt_cost_euros = 0.0
+                for i in range(len(opt_result['optimal_route']) - 1):
+                    city_from = opt_result['optimal_route'][i]
+                    city_to = opt_result['optimal_route'][i + 1]
+                    if city_from in all_cities_for_cost and city_to in all_cities_for_cost:
+                        idx_from = all_cities_for_cost.index(city_from)
+                        idx_to = all_cities_for_cost.index(city_to)
+                        cost = cost_matrix[idx_from][idx_to]
+                        if cost != -1.0:
+                            opt_cost_euros += cost
+            
+            st.metric(
+                "Costo en €",
+                f"{opt_cost_euros:.2f} €"
+            )
+            st.info(" → ".join(opt_result['optimal_route']))
+            
+            # Detalle de costos y tiempo por segmento
+            with st.expander("🔍 Ver detalles de costo y tiempo"):
+                total_cost_detail = 0.0
+                total_time_detail = 0.0
+                
+                for i in range(len(opt_result['optimal_route']) - 1):
+                    city_from = opt_result['optimal_route'][i]
+                    city_to = opt_result['optimal_route'][i + 1]
+                    
+                    segment_cost = None
+                    segment_time = None
+                    
+                    # Obtener costo
+                    if city_from in all_cities_for_cost and city_to in all_cities_for_cost:
+                        idx_from = all_cities_for_cost.index(city_from)
+                        idx_to = all_cities_for_cost.index(city_to)
+                        cost = cost_matrix[idx_from][idx_to]
+                        if cost != -1.0:
+                            segment_cost = cost
+                            total_cost_detail += cost
+                    
+                    # Obtener tiempo
+                    if city_from in all_cities_for_time and city_to in all_cities_for_time:
+                        idx_from = all_cities_for_time.index(city_from)
+                        idx_to = all_cities_for_time.index(city_to)
+                        time = time_matrix[idx_from][idx_to]
+                        if time != -1.0:
+                            segment_time = time
+                            total_time_detail += time
+                    
+                    # Mostrar segmento con ambas métricas
+                    if segment_cost is not None and segment_time is not None:
+                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} € | {segment_time:.1f}h")
+                    elif segment_cost is not None:
+                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} €")
+                    elif segment_time is not None:
+                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_time:.1f}h")
+                
+                st.divider()
+                st.text(f"**Total: {total_cost_detail:.2f} € | {total_time_detail:.1f}h**")
+            
+            # Calcular ahorro
+            savings = user_cost_euros - opt_cost_euros
+            if savings > 0:
+                st.success(f"💚 Ahorras: {savings:.2f} € ({(savings/user_cost_euros*100):.1f}%)")
+            elif savings < 0:
+                st.warning(f"⚠️ Cuesta más: {abs(savings):.2f} €")
+            else:
+                st.info("✓ Mismo costo que tu ruta")
+            
+            if st.button("✓ Seleccionar esta ruta", key="select_opt_route", use_container_width=True):
+                st.session_state.selected_route_for_booking = {
+                    "route": opt_result['optimal_route'],
+                    "total_cost": opt_cost_euros,
+                    "type": "optimized"
+                }
+                st.success("✅ Ruta seleccionada para reserva")
+                st.rerun()
 
         st.divider()
 
-    # Obtener matriz y calcular ruta (solo si hay al menos 2 ciudades Y no hay resultado calculado)
-    if len(st.session_state.selected_cities) >= 2 and not st.session_state.tsp_result:
-        matrix_data = get_matrix_from_api(transport_mode, optimize_by)
-        if not matrix_data:
-            st.error("No se pudieron cargar los datos de las rutas. Revisa el backend.")
-            st.stop()
-
-        all_cities = matrix_data["cities"]
-        cost_matrix = matrix_data["matrix"]
-
-        missing_cities = [c for c in st.session_state.selected_cities if c not in all_cities]
-        if missing_cities:
-            st.error(f"❌ Las siguientes ciudades no están disponibles en la matriz: {', '.join(missing_cities)}")
-            st.info("💡 Esto puede ocurrir si una ciudad no tiene rutas de conexión. Intenta seleccionar otra ciudad.")
-            st.stop()
-
-        return_to_start = st.checkbox("Regresar al origen", value=True)
-
-        if st.button("🧠 Calcular Ruta Óptima", type="primary", use_container_width=True):
-            indices = [all_cities.index(c) for c in st.session_state.selected_cities]
-            submatrix = [
-                [cost_matrix[i][j] for j in indices]
-                for i in indices
-            ]
-
-            st.write("📊 Matriz de valores desde backend:")
-            df = pd.DataFrame(submatrix, index=st.session_state.selected_cities, columns=st.session_state.selected_cities)
-            st.dataframe(df.style.format("{:.2f}"))
-
-            with st.spinner("Calculando mejor ruta... (IA incluida)"):
-                result = optimize_multi_destination(st.session_state.selected_cities, submatrix, return_to_start)
-            if result:
-                st.session_state.tsp_result = result
-                # ✅ Limpiar caché de recomendaciones al calcular nueva ruta
-                st.session_state.city_recommendations = {}
-                st.success("✅ Ruta óptima encontrada")
-            else:
-                st.error("No se pudo calcular la ruta.")
-
-    # Mostrar resultado guardado (permite crear reserva)
-    if st.session_state.tsp_result:
-        result = st.session_state.tsp_result
-
-        # --- CAJA DE RESULTADOS ---
-        st.markdown('<div class="success-box">', unsafe_allow_html=True)
-        st.metric("Costo total" if optimize_by == "cost" else "Tiempo total",
-                  f"{result['total_cost']:.2f} {'€' if optimize_by == 'cost' else 'h'}")
-        st.info(" → ".join(result["optimal_route"]))
-
-        # ==========================================================
-        #  BLOQUE DE IA INSERTADO
-        # ==========================================================
-        if "recommendations" in result and result["recommendations"]:
-            st.subheader(f"🧠 IA: Basado en tu destino final ({result['optimal_route'][-1]}), ¡quizás te interese!")
-
-            rec_list = result["recommendations"]
+        # Mostrar recomendaciones de la IA (si hay)
+        if "recommendations" in opt_result and opt_result["recommendations"]:
+            st.subheader(f"🧠 IA: Basado en tu destino final ({opt_result['optimal_route'][-1]}), ¡quizás te interese!")
+            rec_list = opt_result["recommendations"]
             num_cols = min(len(rec_list), 4)
-
             if num_cols > 0:
                 cols = st.columns(num_cols)
                 for i, rec in enumerate(rec_list):
                     if i < num_cols:
                         with cols[i]:
                             st.button(f"📍 {rec['destination_name']}",
-                                      help=f"Similitud con {result['optimal_route'][-1]}: {rec['similarity']:.2f}",
-                                      key=f"rec_tsp_{i}",
+                                      help=f"Similitud: {rec['similarity']:.2f}",
+                                      key=f"rec_compare_{i}",
                                       use_container_width=True)
-        # ==========================================================
-        #  FIN DEL BLOQUE DE IA
-        # ==========================================================
+            st.divider()
 
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.divider()
+        # Mostrar recomendaciones de lugares por ciudad
+        if st.session_state.selected_route_for_booking:
+            selected_route = st.session_state.selected_route_for_booking["route"]
+            show_city_recommendations(selected_route)
+            st.divider()
 
-        # ==========================================================
-        #  RECOMENDACIONES DE LUGARES POR CIUDAD
-        #  Las recomendaciones se leen desde session_state si ya fueron
-        #  generadas, evitando llamadas innecesarias a la IA de Gemini.
-        # ==========================================================
-        show_city_recommendations(result["optimal_route"])
+    # Sección de reserva (solo si hay una ruta seleccionada)
+    if st.session_state.selected_route_for_booking:
+        selected = st.session_state.selected_route_for_booking
+        
+        st.subheader("🎟️ Realizar Reserva")
+        st.info(f"**Ruta seleccionada:** {' → '.join(selected['route'])}")
+        st.info(f"**Costo total:** {selected['total_cost']:.2f} €")
 
-        st.divider()
-
-        # ==========================================================
-        #  NUEVA SECCIÓN: CREAR RESERVA
-        # ==========================================================
-        st.subheader("🎟️ Reservar viaje")
         num_tickets = st.number_input("Cantidad de pasajes", min_value=1, max_value=20, value=1, step=1)
 
         if st.button("📝 Crear reserva", type="secondary", use_container_width=True):
-            # Si se optimizó por tiempo, el total_cost del resultado es en horas,
-            # no en euros. Hay que recalcular el costo real usando la matriz de costos.
-            real_cost = result["total_cost"]  # por defecto (cuando optimize_by == "cost")
+            # El costo ya está en euros gracias al cálculo anterior
+            real_cost = selected['total_cost']
 
-            if optimize_by == "time":
-                # Obtener la matriz de COSTOS (€) para calcular el costo real del viaje
-                cost_matrix_data = get_matrix_from_api(transport_mode, "cost")
-                if cost_matrix_data:
-                    all_cities_cost = cost_matrix_data["cities"]
-                    cost_matrix = cost_matrix_data["matrix"]
-                    route = result["optimal_route"]
-                    real_cost = 0.0
-                    for i in range(len(route) - 1):
-                        if route[i] in all_cities_cost and route[i+1] in all_cities_cost:
-                            ci = all_cities_cost.index(route[i])
-                            cj = all_cities_cost.index(route[i+1])
-                            val = cost_matrix[ci][cj]
-                            if val != -1.0:  # -1.0 representa "sin conexión"
-                                real_cost += val
             itinerary = {
                 "type": "multidestino",
                 "transport_mode": transport_mode,
                 "optimize_by": optimize_by,
                 "cities": st.session_state.selected_cities,
-                "optimal_route": result["optimal_route"],
-                "total_cost": real_cost,           # ✅ siempre en euros
-                "total_time": result["total_cost"] if optimize_by == "time" else None,  # opcional
+                "optimal_route": selected['route'],
+                "route_type": selected['type'],
+                "total_cost": real_cost,
+                "total_time": None,
             }
 
             if num_tickets == 1:
@@ -652,9 +725,12 @@ if page == "🌍 Ruta Multidestino":
                 if reservation:
                     st.success(f"Reserva creada correctamente ✅ ID: {reservation['reservation_id'][:12]}...")
                     st.balloons()
-                    st.session_state.tsp_result = None
+                    # Limpiar todo
                     st.session_state.selected_cities = []
-                    # ✅ Limpiar caché de recomendaciones al finalizar la reserva
+                    st.session_state.tsp_result = None
+                    st.session_state.user_route_result = None
+                    st.session_state.optimized_route_result = None
+                    st.session_state.selected_route_for_booking = None
                     st.session_state.city_recommendations = {}
                     st.session_state.page = "📋 Mis Reservas"
                     st.rerun()
@@ -668,9 +744,12 @@ if page == "🌍 Ruta Multidestino":
                 if response:
                     st.success(f"🧩 Lote creado correctamente ({response['count']} reservas en cola)")
                     st.balloons()
-                    st.session_state.tsp_result = None
+                    # Limpiar todo
                     st.session_state.selected_cities = []
-                    # ✅ Limpiar caché de recomendaciones al finalizar el lote
+                    st.session_state.tsp_result = None
+                    st.session_state.user_route_result = None
+                    st.session_state.optimized_route_result = None
+                    st.session_state.selected_route_for_booking = None
                     st.session_state.city_recommendations = {}
                     st.session_state.page = "📋 Mis Reservas"
                     st.rerun()
