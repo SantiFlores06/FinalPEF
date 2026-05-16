@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from contextlib import asynccontextmanager, suppress
 from app.data.routes_fixed import ROUTES_FIXED
 import asyncio
 import logging
@@ -27,11 +28,31 @@ logger = logging.getLogger(__name__)
 # ==========================================================
 # CONFIGURACIÓN PRINCIPAL
 # ==========================================================
+ 
+async def batch_loop():
+    """Ejecuta procesamiento periodico de lotes."""
+    while True:
+        await asyncio.sleep(10) # Revisa cada 10 segundos
+        await batch_processor._trigger_processing()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Iniciando loop de procesamiento de lotes en background...")
+    task = asyncio.create_task(batch_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
 
 app = FastAPI(
     title="Travel Planner API",
     description="Sistema de planificación de viajes multidestino con optimización algorítmica",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configuración CORS
@@ -482,7 +503,6 @@ async def get_system_stats():
     }
 
 # 💡 Procesamiento automático de batches cada X segundos
-@app.on_event("startup")
 async def start_batch_loop():
     """Ejecuta procesamiento periódico de lotes."""
     logger.info("⏰ Iniciando loop de procesamiento de lotes en background...")

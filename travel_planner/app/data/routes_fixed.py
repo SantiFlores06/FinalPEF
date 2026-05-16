@@ -6,7 +6,7 @@ import math
 from itertools import permutations
 
 # ==========================================
-# CIUDADES (coordenadas aproximadas)
+# CIUDADES (coordenadas aproximadas reales)
 # ==========================================
 CITIES = {
     "Madrid": (40.4, -3.7),
@@ -63,7 +63,7 @@ def distancia(c1, c2):
 
 
 # ==========================================
-# GENERADOR DE RUTAS
+# GENERADOR DE RUTAS(ficticias pero plausibles)
 # ==========================================
 def generar_rutas():
     rutas = []
@@ -110,9 +110,9 @@ def generar_rutas():
         # AVIÓN ✈️
         # =========================
         costo_avion = d * 0.30
-        tiempo_avion = d / 700 + 0.8  # incluye check-in
+        tiempo_avion = d / 700 + 0.8  
 
-        # 🔥 clave: vuelos largos más caros (para Dijkstra)
+       
         if d > 1500:
             costo_avion *= 1.7
 

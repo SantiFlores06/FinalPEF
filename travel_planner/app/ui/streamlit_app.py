@@ -296,6 +296,13 @@ if "tsp_result" not in st.session_state:
 if "selected_cities" not in st.session_state:
     st.session_state.selected_cities = []
 
+if "clear_selected_cities" not in st.session_state:
+    st.session_state.clear_selected_cities = False
+
+if st.session_state.clear_selected_cities:
+    st.session_state.selected_cities = []
+    st.session_state.clear_selected_cities = False
+
 if "last_transport" not in st.session_state:
     st.session_state.last_transport = None
 
@@ -389,12 +396,11 @@ if page == "🌍 Ruta Multidestino":
 
     # Selector múltiple de ciudades (máximo 10)
     st.subheader("📍 Seleccionar ciudades (máximo 10)")
-    st.session_state.selected_cities = st.multiselect(
+    st.multiselect(
         "Elige las ciudades que quieres visitar:",
         available_cities,
-        default=st.session_state.selected_cities,
         max_selections=10,
-        key="cities_selector"
+        key="selected_cities"
     )
 
     col1, col2, col3 = st.columns([0.4, 0.3, 0.3])
@@ -726,7 +732,7 @@ if page == "🌍 Ruta Multidestino":
                     st.success(f"Reserva creada correctamente ✅ ID: {reservation['reservation_id'][:12]}...")
                     st.balloons()
                     # Limpiar todo
-                    st.session_state.selected_cities = []
+                    st.session_state.clear_selected_cities = True
                     st.session_state.tsp_result = None
                     st.session_state.user_route_result = None
                     st.session_state.optimized_route_result = None
@@ -745,7 +751,7 @@ if page == "🌍 Ruta Multidestino":
                     st.success(f"🧩 Lote creado correctamente ({response['count']} reservas en cola)")
                     st.balloons()
                     # Limpiar todo
-                    st.session_state.selected_cities = []
+                    st.session_state.clear_selected_cities = True
                     st.session_state.tsp_result = None
                     st.session_state.user_route_result = None
                     st.session_state.optimized_route_result = None

@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel Planner Multidestino — Presentación</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080d1a;
+    --bg2: #0c1220;
+    --card: #101828;
+    --card2: #162035;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --accent3: #8b5cf6;
+    --green: #22c55e;
+    --gold: #f59e0b;
+    --text: #e8edf8;
+    --muted: #7a8eaa;
+    --border: rgba(59,130,246,0.13);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+    background-size: 64px 64px;
+    pointer-events:none; z-index:0;
+  }
+
+  /* SLIDE BASE */
+  .slide {
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5rem 6rem;
+  }
+  .slide-alt { background: var(--bg2); }
+
+  /* NAV DOTS */
+  .nav-dots {
+    position: fixed;
+    right: 1.5rem; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column;
+    gap: 0.7rem; z-index: 200;
+  }
+  .dot-nav {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: rgba(59,130,246,0.2);
+    border: 1px solid rgba(59,130,246,0.3);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .dot-nav.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(59,130,246,0.5);
+  }
+
+  /* SLIDE NUMBER */
+  .slide-num {
+    position: absolute;
+    top: 2rem; right: 5rem;
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+  }
+
+  /* SLIDE TAG */
+  .slide-tag {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: rgba(59,130,246,0.07);
+    border: 1px solid rgba(59,130,246,0.18);
+    border-radius: 999px;
+    padding: 0.28rem 0.85rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 1.25rem;
+  }
+
+  /* TYPOGRAPHY */
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.4rem, 4.5vw, 3.8rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 1rem;
+  }
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin-bottom: 0.4rem;
+  }
+  h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.4rem;
+  }
+  .grad {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .grad2 {
+    background: linear-gradient(135deg, var(--accent3), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  p { font-size: 0.82rem; color: var(--muted); line-height: 1.75; }
+  strong { color: var(--text); font-weight: 500; }
+  code { color: var(--accent2); font-size: 0.76rem; }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.35rem;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: rgba(59,130,246,0.28); }
+  .ca { border-top: 2px solid var(--accent); }
+  .cg { border-top: 2px solid var(--green); }
+  .cp { border-top: 2px solid var(--accent3); }
+  .co { border-top: 2px solid var(--gold); }
+
+  /* TAGS */
+  .tag {
+    display: inline-block;
+    font-size: 0.58rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+  }
+  .tb { background:rgba(59,130,246,0.09); color:var(--accent); border:1px solid rgba(59,130,246,0.2); }
+  .tc { background:rgba(6,182,212,0.09); color:var(--accent2); border:1px solid rgba(6,182,212,0.2); }
+  .tp { background:rgba(139,92,246,0.09); color:#a78bfa; border:1px solid rgba(139,92,246,0.2); }
+  .tg { background:rgba(34,197,94,0.09); color:var(--green); border:1px solid rgba(34,197,94,0.2); }
+  .to { background:rgba(245,158,11,0.09); color:var(--gold); border:1px solid rgba(245,158,11,0.2); }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #050a12;
+    border: 1px solid rgba(59,130,246,0.12);
+    border-radius: 8px;
+    padding: 1.1rem 1.3rem;
+    font-size: 0.72rem;
+    line-height: 1.75;
+    color: #94a3b8;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .kw { color: #7dd3fc; }
+  .fn { color: #86efac; }
+  .cm { color: #475569; }
+  .st { color: #fca5a5; }
+  .num { color: #fde68a; }
+
+  /* GRIDS */
+  .g2   { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
+  .g3   { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.1rem; }
+  .g4   { display:grid; grid-template-columns:repeat(4,1fr); gap:0.9rem; }
+  .g6040 { display:grid; grid-template-columns:1.35fr 1fr; gap:2.2rem; align-items:start; }
+  .g4060 { display:grid; grid-template-columns:1fr 1.35fr; gap:2.2rem; align-items:start; }
+
+  /* FLOW */
+  .flow-row { display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap; }
+  .flow-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+  .flow-arr { color: var(--accent2); font-size: 0.9rem; }
+
+  /* STATUS */
+  .status-flow { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+  .sb { padding:0.28rem 0.75rem; border-radius:999px; font-size:0.63rem; letter-spacing:0.05em; }
+  .sp { background:rgba(245,158,11,0.13); color:var(--gold); border:1px solid rgba(245,158,11,0.28); }
+  .sr { background:rgba(59,130,246,0.13); color:var(--accent); border:1px solid rgba(59,130,246,0.28); }
+  .sc { background:rgba(34,197,94,0.13); color:var(--green); border:1px solid rgba(34,197,94,0.28); }
+  .sf { background:rgba(239,68,68,0.13); color:#f87171; border:1px solid rgba(239,68,68,0.28); }
+  .sk { background:rgba(148,163,184,0.08); color:#94a3b8; border:1px solid rgba(148,163,184,0.18); }
+  .sa { color:var(--muted); font-size:0.75rem; }
+
+  /* ENDPOINTS */
+  .ep-list { display:flex; flex-direction:column; gap:0.42rem; }
+  .ep-item {
+    display:flex; align-items:center; gap:0.7rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.7rem;
+  }
+  .ep-m { font-family:'Syne',sans-serif; font-size:0.58rem; font-weight:700; padding:0.12rem 0.45rem; border-radius:4px; min-width:36px; text-align:center; }
+  .get  { background:rgba(34,197,94,0.1); color:var(--green); }
+  .post { background:rgba(59,130,246,0.1); color:var(--accent); }
+  .del  { background:rgba(239,68,68,0.1); color:#f87171; }
+  .ep-path { color:var(--text); font-family:'DM Mono',monospace; }
+  .ep-desc { color:var(--muted); margin-left:auto; font-size:0.63rem; }
+
+  /* ORB */
+  .orb { position:absolute; border-radius:50%; filter:blur(80px); pointer-events:none; }
+
+  /* DIVIDER */
+  .div { width:36px; height:2px; background:linear-gradient(90deg,var(--accent),var(--accent2)); margin:0.9rem 0; }
+
+  /* REVEAL */
+  .reveal { opacity:0; transform:translateY(16px); transition:opacity 0.5s ease, transform 0.5s ease; }
+  .reveal.visible { opacity:1; transform:none; }
+  .stagger > * { opacity:0; transform:translateY(12px); transition:opacity 0.42s ease, transform 0.42s ease; }
+  .stagger.visible > *:nth-child(1){opacity:1;transform:none;transition-delay:.00s}
+  .stagger.visible > *:nth-child(2){opacity:1;transform:none;transition-delay:.07s}
+  .stagger.visible > *:nth-child(3){opacity:1;transform:none;transition-delay:.14s}
+  .stagger.visible > *:nth-child(4){opacity:1;transform:none;transition-delay:.21s}
+  .stagger.visible > *:nth-child(5){opacity:1;transform:none;transition-delay:.28s}
+  .stagger.visible > *:nth-child(6){opacity:1;transform:none;transition-delay:.35s}
+  .stagger.visible > *:nth-child(7){opacity:1;transform:none;transition-delay:.42s}
+  .stagger.visible > *:nth-child(8){opacity:1;transform:none;transition-delay:.49s}
+  .stagger.visible > *:nth-child(9){opacity:1;transform:none;transition-delay:.56s}
+  .stagger.visible > *:nth-child(10){opacity:1;transform:none;transition-delay:.63s}
+  .stagger.visible > *:nth-child(11){opacity:1;transform:none;transition-delay:.70s}
+
+  .mb1 { margin-bottom:0.9rem; }
+  .mb2 { margin-bottom:1.4rem; }
+  .mb3 { margin-bottom:2rem; }
+</style>
+</head>
+<body>
+
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ══════════════════════════════════════
+  S1 — PORTADA
+══════════════════════════════════════ -->
+<section class="slide" id="s1" data-label="Portada">
+  <div class="orb" style="width:550px;height:550px;background:rgba(59,130,246,0.07);top:-120px;left:-160px;"></div>
+  <div class="orb" style="width:380px;height:380px;background:rgba(139,92,246,0.06);bottom:-80px;right:-80px;"></div>
+  <div class="slide-num">01 / 09</div>
+
+  <div class="reveal">
+    <div class="slide-tag">Proyecto Final · Ingeniería de Software</div>
+    <h1>Travel Planner<br><span class="grad">Multidestino</span></h1>
+    <div class="div"></div>
+    <p style="max-width:560px;font-size:0.88rem;margin-bottom:2.2rem;">
+      Sistema integral de planificación de viajes que combina <strong>algoritmos clásicos de optimización</strong> (Dijkstra + TSP), una API REST con FastAPI, interfaz gráfica con Streamlit, caché LRU, reservas asincrónicas con asyncio y recomendaciones con IA usando Gemini.
+    </p>
+    <div class="g4" style="max-width:660px;">
+      <div class="card" style="text-align:center;padding:1.1rem;">
+        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent);">29</div>
+        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">tests pasando</div>
+      </div>
+      <div class="card" style="text-align:center;padding:1.1rem;">
+        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent2);">11</div>
+        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">endpoints API</div>
+      </div>
+      <div class="card" style="text-align:center;padding:1.1rem;">
+        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent3);">3</div>
+        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">transportes</div>
+      </div>
+      <div class="card" style="text-align:center;padding:1.1rem;">
+        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--gold);">5</div>
+        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">estados reserva</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S2 — OBJETIVO
+══════════════════════════════════════ -->
+<section class="slide slide-alt" id="s2" data-label="Objetivo">
+  <div class="slide-num">02 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">¿Qué resuelve?</div>
+    <h2>Objetivo del<br><span class="grad">proyecto</span></h2>
+  </div>
+  <div class="g6040 reveal">
+    <div>
+      <p class="mb2">El usuario elige <strong>varias ciudades europeas</strong>, un medio de transporte y si quiere minimizar costo o tiempo de viaje. El sistema calcula dos rutas: la que el usuario armó en el orden elegido, y la <strong>ruta óptima</strong> calculada automáticamente mediante TSP.</p>
+      <p class="mb2">Ambas rutas se muestran comparadas con sus costos totales, para que el usuario pueda tomar una decisión informada. Luego puede <strong>crear una reserva</strong> que pasa por un flujo asincrónico de confirmación con estados visibles en tiempo real.</p>
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Flujo principal</div>
+        <div class="flow-row">
+          <div class="flow-box">Elegir ciudades</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-box">Calcular rutas</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-box">Comparar</div>
+          <div class="flow-arr">→</div>
+          <div class="flow-box">Reservar</div>
+        </div>
+      </div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Transportes</div>
+      <div style="display:flex;gap:0.5rem;">
+        <span class="tag tb">🚗 Auto</span>
+        <span class="tag tc">✈ Avión</span>
+        <span class="tag tp">🚆 Tren</span>
+      </div>
+    </div>
+    <div>
+      <div class="card ca mb1">
+        <h3>Criterios de optimización</h3>
+        <p style="margin-top:0.5rem;">El usuario puede elegir entre <strong>minimizar el costo total</strong> o <strong>minimizar el tiempo</strong> de traslado. Esto cambia el peso de las aristas del grafo antes de correr los algoritmos, dando resultados diferentes para el mismo conjunto de ciudades.</p>
+      </div>
+      <div class="card cp mb1">
+        <h3>Validador de itinerarios</h3>
+        <p style="margin-top:0.5rem;"><code>itinerary_validator.py</code> aplica reglas sobre el itinerario generado: presupuesto máximo, duración máxima, cantidad de segmentos, ciudades requeridas o prohibidas, tipos de transporte permitidos y consistencia de horarios.</p>
+      </div>
+      <div class="card">
+        <h3>Resultado comparativo</h3>
+        <p style="margin-top:0.5rem;">La interfaz muestra lado a lado la ruta del usuario y la óptima, con la diferencia de costo o tiempo. Si la optimizada es significativamente mejor, lo resalta.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S3 — ALGORITMOS
+══════════════════════════════════════ -->
+<section class="slide" id="s3" data-label="Algoritmos">
+  <div class="orb" style="width:320px;height:320px;background:rgba(139,92,246,0.07);top:5%;right:-40px;"></div>
+  <div class="slide-num">03 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">app/core/</div>
+    <h2>Algoritmos de<br><span class="grad2">optimización</span></h2>
+  </div>
+  <div class="g2 reveal stagger">
+    <div>
+      <div class="card ca mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>Dijkstra — Camino mínimo</h3>
+          <span class="tag tb">graph.py</span>
+        </div>
+        <p class="mb2">Implementado sobre un <strong>grafo dirigido de ciudades</strong>. Cada arista tiene peso de costo y de tiempo, más una etiqueta de tipo de transporte. Antes de ejecutar la búsqueda se puede filtrar por transporte, descartando aristas que no corresponden.</p>
+        <p class="mb2">Usa una <strong>min-heap (cola de prioridad)</strong> para explorar siempre el nodo con menor costo acumulado primero. Se detiene al alcanzar el destino.</p>
+        <div class="code-block"><span class="kw">class</span> <span class="fn">Route</span>:
+  destino:    <span class="kw">str</span>
+  costo:      <span class="kw">float</span>
+  tiempo:     <span class="kw">float</span>
+  transporte: <span class="kw">str</span>   <span class="cm"># auto | tren | avion</span>
+
+<span class="cm"># Llamada al algoritmo</span>
+grafo.<span class="fn">dijkstra</span>(
+  origen=<span class="st">"Madrid"</span>, destino=<span class="st">"Roma"</span>,
+  criterio=<span class="st">"costo"</span>, transporte=<span class="st">"tren"</span>
+)</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:0.4rem;">Complejidad temporal</h3>
+        <p><strong>O((V + E) log V)</strong> con min-heap, donde V = ciudades, E = rutas. Eficiente para el grafo europeo que maneja el sistema.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card cp mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>TSP Held-Karp (DP + bitmask)</h3>
+          <span class="tag tp">tsp_dp.py</span>
+        </div>
+        <p class="mb2">Resuelve el <strong>Problema del Viajante</strong> para múltiples destinos. Usa programación dinámica con bitmask para representar el subconjunto de ciudades visitadas, y memoización para evitar recalcular estados ya computados.</p>
+        <p class="mb2">El estado del DP es <strong>dp[mask][i]</strong> = costo mínimo de llegar a la ciudad <em>i</em> habiendo visitado exactamente las ciudades indicadas en el bitmask. Al final reconstruye el camino recorriendo las decisiones almacenadas.</p>
+        <div class="code-block"><span class="cm"># Estado del DP</span>
+dp[mask][i] = costo_min_para_llegar
+  a ciudad[i] habiendo visitado
+  ciudades en {mask}
+
+<span class="cm"># Transición</span>
+<span class="kw">for</span> j en ciudades no visitadas:
+  dp[mask | (1&lt;&lt;j)][j] =
+    min(dp[mask][i] + dist[i][j])
+
+<span class="cm"># Complejidad</span>
+Tiempo: O(n² · 2ⁿ)
+Espacio: O(n · 2ⁿ)</div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:0.4rem;">Tour cerrado vs abierto</h3>
+        <p>El solver soporta ambas variantes: con <strong>regreso al origen</strong> (tour cerrado, el clásico TSP) y <strong>sin regreso</strong> (tour abierto), según lo que necesite el itinerario del usuario.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S4 — DATOS Y GRAFO
+══════════════════════════════════════ -->
+<section class="slide slide-alt" id="s4" data-label="Datos">
+  <div class="slide-num">04 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">app/data/ · app/core/graph.py</div>
+    <h2>Generación de rutas<br><span class="grad">y grafo de ciudades</span></h2>
+  </div>
+  <div class="g4060 reveal stagger">
+    <div>
+      <div class="card co mb1">
+        <h3 style="margin-bottom:0.6rem;">¿De dónde vienen los datos?</h3>
+        <p><code>routes_fixed.py</code> genera automáticamente rutas entre ciudades europeas a partir de <strong>coordenadas geográficas reales</strong>. Usa la fórmula de Haversine para calcular la distancia real sobre la esfera terrestre entre cada par de ciudades.</p>
+      </div>
+      <div class="code-block mb1"><span class="kw">def</span> <span class="fn">haversine</span>(lat1, lon1, lat2, lon2):
+  R = <span class="num">6371</span>  <span class="cm"># radio Tierra en km</span>
+  dlat = radians(lat2 - lat1)
+  dlon = radians(lon2 - lon1)
+  a = sin(dlat/<span class="num">2</span>)**<span class="num">2</span> + cos(lat1) \
+    * cos(lat2) * sin(dlon/<span class="num">2</span>)**<span class="num">2</span>
+  <span class="kw">return</span> R * <span class="num">2</span> * asin(sqrt(a))
+
+<span class="cm"># Genera costo y tiempo por transporte</span>
+costo_avion  = distancia * FACTOR_AVION
+tiempo_tren  = distancia / VELOCIDAD_TREN</div>
+      <p style="font-size:0.78rem;">A partir de la distancia se derivan el <strong>costo estimado</strong> y el <strong>tiempo de viaje</strong> para cada tipo de transporte, generando una red coherente sin depender de APIs externas.</p>
+    </div>
+    <div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.65rem;letter-spacing:0.1em;text-transform:uppercase;">Estructura del grafo</div>
+      <div class="card mb1" style="padding:1.1rem;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.65rem;align-items:center;">
+          <span style="font-size:0.78rem;">Nodos (ciudades)</span>
+          <span class="tag tc">Madrid, París, Roma…</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.65rem;align-items:center;">
+          <span style="font-size:0.78rem;">Aristas (rutas)</span>
+          <span class="tag tb">dirigidas, con peso doble</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.65rem;align-items:center;">
+          <span style="font-size:0.78rem;">Peso por arista</span>
+          <span class="tag tp">costo · tiempo · transporte</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.78rem;">Filtro pre-algoritmo</span>
+          <span class="tag to">por tipo de transporte</span>
+        </div>
+      </div>
+      <div class="card ca mb1">
+        <h3 style="margin-bottom:0.5rem;">Matriz de costos para TSP</h3>
+        <p>Los mismos datos alimentan la <strong>matriz n×n</strong> requerida por Held-Karp. El endpoint <code>/routes/matrix</code> la expone para que la UI la solicite y la muestre visualmente al usuario.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:0.5rem;">Sin dependencias externas</h3>
+        <p>Todo el sistema de datos funciona offline. No depende de APIs de mapas ni servicios de terceros para generar las rutas base.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S5 — API REST
+══════════════════════════════════════ -->
+<section class="slide" id="s5" data-label="API">
+  <div class="orb" style="width:280px;height:280px;background:rgba(6,182,212,0.05);bottom:5%;left:-40px;"></div>
+  <div class="slide-num">05 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">app/api/server.py · FastAPI + Uvicorn</div>
+    <h2>API REST —<br><span class="grad">capa de servicios</span></h2>
+  </div>
+  <div class="g6040 reveal stagger">
+    <div class="ep-list">
+      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/health</span> <span class="ep-desc">Estado del servidor</span></div>
+      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/routes/matrix</span> <span class="ep-desc">Matriz de costos por transporte</span></div>
+      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/routes/shortest</span> <span class="ep-desc">Dijkstra entre dos ciudades</span></div>
+      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/routes/compare</span> <span class="ep-desc">Ruta usuario vs ruta óptima</span></div>
+      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/routes/optimize-multi</span> <span class="ep-desc">TSP — orden óptimo de destinos</span></div>
+      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/itinerary/plan</span> <span class="ep-desc">Planificación con validaciones</span></div>
+      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/reservations</span> <span class="ep-desc">Crear reserva individual</span></div>
+      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/reservations/batch</span> <span class="ep-desc">Lote de reservas simultáneas</span></div>
+      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/reservations/user/{id}</span> <span class="ep-desc">Historial por usuario</span></div>
+      <div class="ep-item"><span class="ep-m del">DEL</span> <span class="ep-path">/reservations/{id}</span> <span class="ep-desc">Cancelar reserva</span></div>
+      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/stats</span> <span class="ep-desc">Estadísticas del sistema</span></div>
+    </div>
+    <div>
+      <div class="card ca mb1">
+        <h3 style="margin-bottom:0.5rem;">Documentación automática</h3>
+        <p>FastAPI genera <strong>Swagger UI</strong> en <code>http://127.0.0.1:8000/docs</code> Todos los endpoints son explorables e invocables desde el navegador sin cliente adicional.</p>
+      </div>
+      <div class="card mb1">
+        <h3 style="margin-bottom:0.5rem;">Background task en startup</h3>
+        <p>Al iniciar, la API lanza un <strong>loop de batch</strong> en segundo plano usando el <code>lifespan</code> de FastAPI. Procesa lotes de reservas acumuladas sin bloquear los endpoints activos.</p>
+      </div>
+      <div class="card cg">
+        <h3 style="margin-bottom:0.5rem;">Caché integrado en API</h3>
+        <p>Rutas calculadas y optimizaciones se guardan en el <strong>LRU Cache local</strong>. Consultas repetidas (mismas ciudades, mismo transporte) se responden sin recalcular los algoritmos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S6 — RESERVAS Y ASYNC
+══════════════════════════════════════ -->
+<section class="slide slide-alt" id="s6" data-label="Reservas">
+  <div class="slide-num">06 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">app/booking/ · asyncio</div>
+    <h2>Sistema de reservas<br><span class="grad">asincrónico y batch</span></h2>
+  </div>
+  <div class="g4060 reveal stagger">
+    <div>
+      <div class="card co mb1">
+        <h3 style="margin-bottom:0.6rem;">¿Por qué async?</h3>
+        <p>Las reservas simulan operaciones reales con proveedores externos: confirmación, validaciones, notificaciones. Estas operaciones pueden tardar varios segundos. Con <strong>asyncio</strong> el servidor no se bloquea mientras espera — sigue atendiendo otras peticiones en paralelo.</p>
+      </div>
+      <div class="card mb1">
+        <h3 style="margin-bottom:0.6rem;">Procesamiento batch</h3>
+        <p><code>batching.py</code> agrupa múltiples reservas y las procesa juntas en un lote. Ideal para simular carga masiva sin saturar la respuesta inmediata del servidor. El loop corre en background y drena la cola de a tandas.</p>
+      </div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Ciclo de vida — camino feliz</div>
+      <div class="status-flow mb1">
+        <div class="sb sp">pending</div>
+        <span class="sa">→</span>
+        <div class="sb sr">processing</div>
+        <span class="sa">→</span>
+        <div class="sb sc">confirmed</div>
+      </div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Camino de error / cancelación</div>
+      <div class="status-flow mb1">
+        <div class="sb sp">pending</div>
+        <span class="sa">→</span>
+        <div class="sb sr">processing</div>
+        <span class="sa">→</span>
+        <div class="sb sf">failed</div>
+      </div>
+      <div class="status-flow">
+        <div class="sb sp">pending</div>
+        <span class="sa">→</span>
+        <div class="sb sk">cancelled</div>
+      </div>
+    </div>
+    <div>
+      <div class="code-block"><span class="cm"># reservations.py — flujo async</span>
+<span class="kw">async def</span> <span class="fn">process_reservation</span>(res_id: <span class="kw">str</span>):
+  res = reservations[res_id]
+  res.status = <span class="st">"processing"</span>
+
+  <span class="cm"># simula confirmación con proveedor</span>
+  <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="num">1.5</span>)
+
+  <span class="kw">if</span> <span class="fn">confirmado</span>(res):
+    res.status = <span class="st">"confirmed"</span>
+    <span class="kw">await</span> <span class="fn">send_notification</span>(res)
+  <span class="kw">else</span>:
+    res.status = <span class="st">"failed"</span>
+
+<span class="cm"># batching.py — loop en background</span>
+<span class="kw">async def</span> <span class="fn">batch_loop</span>():
+  <span class="kw">while</span> <span class="kw">True</span>:
+    lote = cola[:<span class="num">BATCH_SIZE</span>]
+    tasks = [<span class="fn">process_reservation</span>(r)
+             <span class="kw">for</span> r <span class="kw">in</span> lote]
+    <span class="kw">await</span> asyncio.<span class="fn">gather</span>(*tasks)
+    <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(INTERVALO)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S7 — CACHÉ
+══════════════════════════════════════ -->
+<section class="slide" id="s7" data-label="Caché">
+  <div class="slide-num">07 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">app/caches/</div>
+    <h2>Estrategia de<br><span class="grad">caché</span></h2>
+  </div>
+  <div class="g2 reveal stagger">
+    <div>
+      <div class="card ca mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>LRU Cache local</h3>
+          <span class="tag tb">lru_cache.py</span>
+        </div>
+        <p class="mb2">Implementado <strong>desde cero</strong> sin librerías externas. Mantiene los resultados de cálculos recientes en memoria. Cuando supera la capacidad configurada, <strong>descarta el elemento menos recientemente usado</strong> (Least Recently Used).</p>
+        <p class="mb2">Incluye una variante con <strong>TTL</strong> (Time To Live): las entradas expiran automáticamente tras un tiempo configurado, evitando que datos desactualizados persistan en caché indefinidamente.</p>
+        <p class="mb2">También se provee un <strong>decorador</strong> <code>@lru_cache</code> para aplicar caché fácilmente a cualquier función del sistema.</p>
+        <div class="code-block"><span class="cm"># Uso como decorador</span>
+<span class="kw">@lru_cache</span>(capacity=<span class="num">128</span>, ttl=<span class="num">300</span>)
+<span class="kw">def</span> <span class="fn">calcular_ruta</span>(origen, destino,
+                   criterio, transporte):
+  <span class="cm"># cálculo costoso sólo la 1ra vez</span>
+  <span class="kw">return</span> dijkstra(origen, destino)</div>
+      </div>
+    </div>
+    <div>
+      <div class="card cp mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>Redis Cache (distribuido)</h3>
+          <span class="tag tp">redis_cache.py</span>
+        </div>
+        <p class="mb2">Alternativa implementada para escenarios donde <strong>múltiples instancias</strong> de la API comparten el mismo caché. Requiere un servidor Redis corriendo externamente.</p>
+        <p>La lógica de la aplicación es <strong>idéntica en ambos casos</strong>: el módulo de caché es intercambiable. Se activa Redis simplemente cambiando la configuración, sin tocar los algoritmos ni los endpoints.</p>
+      </div>
+      <div class="card cg">
+        <h3 style="margin-bottom:0.6rem;">¿Qué se cachea?</h3>
+        <div style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.4rem;">
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.76rem;">
+            <span class="tag tg">✓</span>
+            Resultados de Dijkstra por par origen–destino
+          </div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.76rem;">
+            <span class="tag tg">✓</span>
+            Optimizaciones TSP por conjunto de ciudades
+          </div>
+          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.76rem;">
+            <span class="tag tg">✓</span>
+            Matrices de costos por tipo de transporte
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S8 — UI + IA + TESTS
+══════════════════════════════════════ -->
+<section class="slide slide-alt" id="s8" data-label="UI & Tests">
+  <div class="slide-num">08 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">app/ui/ · app/ai/ · app/tests/</div>
+    <h2>Interfaz, IA<br><span class="grad">y cobertura de tests</span></h2>
+  </div>
+  <div class="g3 reveal stagger">
+    <div>
+      <div class="card ca" style="height:100%;">
+        <h3 style="margin-bottom:0.7rem;">Interfaz Streamlit</h3>
+        <p class="mb2">La UI corre en <code>localhost:8501</code> y consume la API REST en <code>localhost:8000</code>. <strong>La API debe estar activa</strong> antes de abrir la interfaz.</p>
+        <p style="margin-bottom:1rem;">Desde una sola pantalla el usuario puede:</p>
+        <div style="display:flex;flex-direction:column;gap:0.35rem;">
+          <div style="font-size:0.74rem;">→ Seleccionar transporte y criterio de optimización</div>
+          <div style="font-size:0.74rem;">→ Elegir múltiples ciudades</div>
+          <div style="font-size:0.74rem;">→ Ver matriz de costos</div>
+          <div style="font-size:0.74rem;">→ Comparar su ruta vs la óptima</div>
+          <div style="font-size:0.74rem;">→ Crear reservas individuales o en lote</div>
+          <div style="font-size:0.74rem;">→ Consultar historial y estados</div>
+          <div style="font-size:0.74rem;">→ Ver estadísticas del sistema</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card cp" style="height:100%;">
+        <h3 style="margin-bottom:0.7rem;">Recomendaciones IA</h3>
+        <p class="mb2"><code>app/ai/gemini_recommendations.py</code> integra la API de <strong>Google Gemini</strong> para generar sugerencias de lugares y atracciones relacionadas con las ciudades seleccionadas en el itinerario.</p>
+        <p class="mb2">Requiere configurar la variable de entorno:</p>
+        <div class="code-block" style="margin-bottom:1rem;">$env:GOOGLE_API_KEY=<span class="st">"TU_API_KEY"</span></div>
+        <p>Si la clave no está configurada, el módulo de IA queda inactivo pero <strong>el resto del sistema funciona con normalidad</strong>. Cálculo de rutas y reservas son completamente independientes.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card cg" style="height:100%;">
+        <h3 style="margin-bottom:0.5rem;">Suite de tests — Pytest</h3>
+        <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:var(--green);margin-bottom:0.3rem;">29 passed</div>
+        <p style="margin-bottom:1rem;font-size:0.74rem;">Ejecutado con <code>pytest</code> + pytest-asyncio para pruebas de código asincrónico. Genera reporte HTML de cobertura automáticamente.</p>
+        <div style="display:flex;flex-direction:column;gap:0.32rem;">
+          <div style="font-size:0.72rem;color:var(--text);">✓ Dijkstra y caminos mínimos</div>
+          <div style="font-size:0.72rem;color:var(--text);">✓ TSP tour cerrado y abierto</div>
+          <div style="font-size:0.72rem;color:var(--text);">✓ Validaciones de itinerario</div>
+          <div style="font-size:0.72rem;color:var(--text);">✓ LRU Cache y TTL</div>
+          <div style="font-size:0.72rem;color:var(--text);">✓ Reservas asincrónicas</div>
+          <div style="font-size:0.72rem;color:var(--text);">✓ Procesamiento batch</div>
+          <div style="font-size:0.72rem;color:var(--text);">✓ Endpoints de FastAPI</div>
+        </div>
+        <div style="margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border);">
+          <span class="tag tg">htmlcov/index.html</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S9 — RESUMEN FINAL
+══════════════════════════════════════ -->
+<section class="slide" id="s9" data-label="Resumen">
+  <div class="orb" style="width:480px;height:480px;background:rgba(59,130,246,0.06);bottom:-100px;right:-100px;"></div>
+  <div class="slide-num">09 / 09</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">Conclusión</div>
+    <h2>Lo que integra<br><span class="grad">el proyecto</span></h2>
+  </div>
+  <div class="g3 reveal stagger" style="max-width:1000px;">
+    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
+      <div style="font-size:1.4rem;flex-shrink:0;">🔭</div>
+      <div>
+        <h3 style="margin-bottom:0.4rem;">Algoritmos clásicos</h3>
+        <p>Dijkstra con min-heap para caminos mínimos y Held-Karp (TSP + bitmask DP) para optimización de rutas multidestino.</p>
+      </div>
+    </div>
+    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
+      <div style="font-size:1.4rem;flex-shrink:0;">📐</div>
+      <div>
+        <h3 style="margin-bottom:0.4rem;">Generación de datos</h3>
+        <p>Rutas entre ciudades europeas usando coordenadas reales y la fórmula de Haversine. Sin APIs externas de mapas.</p>
+      </div>
+    </div>
+    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
+      <div style="font-size:1.4rem;flex-shrink:0;">⚡</div>
+      <div>
+        <h3 style="margin-bottom:0.4rem;">API REST completa</h3>
+        <p>FastAPI con 11 endpoints, documentación Swagger automática, background tasks y validación de parámetros.</p>
+      </div>
+    </div>
+    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
+      <div style="font-size:1.4rem;flex-shrink:0;">🔄</div>
+      <div>
+        <h3 style="margin-bottom:0.4rem;">Reservas asincrónicas</h3>
+        <p>asyncio con estados tracked, procesamiento individual y batch en background sin bloquear el servidor.</p>
+      </div>
+    </div>
+    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
+      <div style="font-size:1.4rem;flex-shrink:0;">🗄️</div>
+      <div>
+        <h3 style="margin-bottom:0.4rem;">Caché multicapa</h3>
+        <p>LRU local con TTL implementado desde cero + Redis como alternativa distribuida, intercambiables sin cambiar lógica.</p>
+      </div>
+    </div>
+    <div class="card cg" style="display:flex;gap:0.9rem;align-items:flex-start;">
+      <div style="font-size:1.4rem;flex-shrink:0;">✓</div>
+      <div>
+        <h3 style="margin-bottom:0.4rem;">29 tests · Cobertura HTML</h3>
+        <p>Pytest cubre algoritmos, caché, async, batch y endpoints. Reporte de cobertura generado automáticamente.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsContainer = document.getElementById('navDots');
+
+  slides.forEach((slide, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot-nav';
+    dot.title = slide.dataset.label || `Slide ${i+1}`;
+    dot.addEventListener('click', () => slide.scrollIntoView({ behavior: 'smooth' }));
+    dotsContainer.appendChild(dot);
+  });
+
+  const dotEls = document.querySelectorAll('.dot-nav');
+
+  const revealObs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.reveal, .stagger').forEach(el => revealObs.observe(el));
+
+  const slideObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting && e.intersectionRatio > 0.45) {
+        const idx = Array.from(slides).indexOf(e.target);
+        dotEls.forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+    });
+  }, { threshold: 0.45 });
+
+  slides.forEach(s => slideObs.observe(s));
+</script>
+</body>
+</html>
