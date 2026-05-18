@@ -119,7 +119,7 @@ def get_all_cities_with_transport(transport_type: str) -> Set[str]:
     return sorted(list(cities))
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def check_api_health() -> bool:
     """Verifica si la API está disponible."""
     try:
@@ -128,7 +128,7 @@ def check_api_health() -> bool:
     except Exception:
         return False
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_matrix_from_api(transport_mode: str, optimize_by: str) -> Optional[Dict]:
     """Obtiene matriz de costos o tiempos desde el backend."""
     try:
@@ -240,7 +240,7 @@ def compare_routes(origin: str, destination: str, transport_type: str, optimize_
         st.error(f"Error comparando rutas: {e}")
         return None
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=10, show_spinner=False)
 def get_system_stats() -> Dict:
     """Obtiene estadísticas del sistema."""
     try:
@@ -333,6 +333,10 @@ PAGES = ["🏠 Inicio", "🌍 Ruta Multidestino", "📋 Mis Reservas", "📊 Est
 if "page" not in st.session_state:
     st.session_state.page = "🏠 Inicio"
 
+if "pending_page" in st.session_state:
+    st.session_state.page = st.session_state.pending_page
+    del st.session_state.pending_page
+
 
 # ==========================================================
 # ENCABEZADO PRINCIPAL
@@ -354,17 +358,13 @@ else:
 with st.sidebar:
     st.header("🚀 Travel Planner")
    
-    selected = st.radio(
+    page = st.radio(
         "Selecciona una opción:",
         PAGES,
-        index=PAGES.index(st.session_state.page),
-        key="nav",
+        key="page",
     )
-    st.session_state.page = selected
     st.divider()
     st.info(f"👤 Usuario: {st.session_state.user_id[:12]}...")
-
-page = st.session_state.page
 
 # ==========================================================
 #  PÁGINA: RUTA MULTIDESTINO
@@ -738,7 +738,7 @@ if page == "🌍 Ruta Multidestino":
                     st.session_state.optimized_route_result = None
                     st.session_state.selected_route_for_booking = None
                     st.session_state.city_recommendations = {}
-                    st.session_state.page = "📋 Mis Reservas"
+                    st.session_state.pending_page = "📋 Mis Reservas"
                     st.rerun()
             else:
                 batch_payload = [
@@ -757,7 +757,7 @@ if page == "🌍 Ruta Multidestino":
                     st.session_state.optimized_route_result = None
                     st.session_state.selected_route_for_booking = None
                     st.session_state.city_recommendations = {}
-                    st.session_state.page = "📋 Mis Reservas"
+                    st.session_state.pending_page = "📋 Mis Reservas"
                     st.rerun()
 
 

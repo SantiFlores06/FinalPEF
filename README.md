@@ -55,6 +55,4 @@ travel_planner/
 │       ├── test_graph.py
 │       ├── test_tsp.py
 ├── requirements.txt
-├── Dockerfile
-├── tox.ini / pytest.ini
-└── README.md
+└── pytest.ini

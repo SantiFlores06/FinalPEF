@@ -262,7 +262,7 @@
 <section class="slide" id="s1" data-label="Portada">
   <div class="orb" style="width:550px;height:550px;background:rgba(59,130,246,0.07);top:-120px;left:-160px;"></div>
   <div class="orb" style="width:380px;height:380px;background:rgba(139,92,246,0.06);bottom:-80px;right:-80px;"></div>
-  <div class="slide-num">01 / 09</div>
+  <div class="slide-num">01 / 11</div>
 
   <div class="reveal">
     <div class="slide-tag">Proyecto Final · Ingeniería de Software</div>
@@ -296,7 +296,7 @@
   S2 — OBJETIVO
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s2" data-label="Objetivo">
-  <div class="slide-num">02 / 09</div>
+  <div class="slide-num">02 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">¿Qué resuelve?</div>
     <h2>Objetivo del<br><span class="grad">proyecto</span></h2>
@@ -341,12 +341,65 @@
   </div>
 </section>
 
+
+<!-- ══════════════════════════════════════
+  S3 — CÓMO SE COMPLEMENTAN LOS ALGORITMOS
+══════════════════════════════════════ -->
+<section class="slide" id="s3-integracion" data-label="Integración">
+  <div class="orb" style="width:360px;height:360px;background:rgba(6,182,212,0.06);top:8%;right:-70px;"></div>
+  <div class="slide-num">03 / 11</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">Explicación inicial · ruta simple vs multidestino</div>
+    <h2>Cómo trabaja<br><span class="grad">el optimizador</span></h2>
+  </div>
+  <div class="g6040 reveal stagger">
+    <div>
+      <p class="mb2">El sistema no usa un único algoritmo para todo. Separa el problema en dos niveles: primero calcula <strong>caminos mínimos entre puntos</strong> y después optimiza el <strong>orden completo de visita</strong> cuando hay varias ciudades.</p>
+      <p class="mb2">Para una ruta puntual, por ejemplo <strong>Madrid → Roma</strong>, se usa Dijkstra. Para un recorrido con varias ciudades, por ejemplo <strong>Madrid → París → Roma → Berlín</strong>, se usa TSP para encontrar el mejor orden posible.</p>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Flujo algorítmico</div>
+      <div class="flow-row mb2">
+        <div class="flow-box">Ciudades seleccionadas</div>
+        <div class="flow-arr">→</div>
+        <div class="flow-box">Matriz costo/tiempo</div>
+        <div class="flow-arr">→</div>
+        <div class="flow-box">TSP</div>
+        <div class="flow-arr">→</div>
+        <div class="flow-box">Ruta óptima</div>
+      </div>
+      <div class="card cg">
+        <h3 style="margin-bottom:0.5rem;">Idea para explicarlo oralmente</h3>
+        <p>“Dijkstra me responde cuál es el mejor camino entre dos ciudades. TSP me responde en qué orden conviene visitar muchas ciudades. Por eso se complementan dentro del planificador.”</p>
+      </div>
+    </div>
+    <div>
+      <div class="card ca mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>Dijkstra</h3>
+          <span class="tag tb">1 origen → 1 destino</span>
+        </div>
+        <p>Se aplica sobre el grafo de ciudades. Cada conexión tiene costo, tiempo y transporte. El algoritmo encuentra el camino mínimo usando una cola de prioridad.</p>
+      </div>
+      <div class="card cp mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>TSP / Held-Karp</h3>
+          <span class="tag tp">1 origen → N ciudades</span>
+        </div>
+        <p>Se usa cuando el usuario selecciona múltiples destinos. Evalúa combinaciones con programación dinámica, bitmasking y memoización para minimizar costo o tiempo total.</p>
+      </div>
+      <div class="card co">
+        <h3 style="margin-bottom:0.5rem;">Aclaración importante</h3>
+        <p>En este proyecto ambos algoritmos están integrados en la API, pero para el TSP la matriz se arma desde los datos generados en <code>routes_fixed.py</code>, no desde una ejecución all-pairs de Dijkstra.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════════════════════════════
   S3 — ALGORITMOS
 ══════════════════════════════════════ -->
 <section class="slide" id="s3" data-label="Algoritmos">
   <div class="orb" style="width:320px;height:320px;background:rgba(139,92,246,0.07);top:5%;right:-40px;"></div>
-  <div class="slide-num">03 / 09</div>
+  <div class="slide-num">04 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/core/</div>
     <h2>Algoritmos de<br><span class="grad2">optimización</span></h2>
@@ -407,11 +460,71 @@ Espacio: O(n · 2ⁿ)</div>
   </div>
 </section>
 
+
+<!-- ══════════════════════════════════════
+  S5 — DÓNDE ESTÁ EN EL CÓDIGO
+══════════════════════════════════════ -->
+<section class="slide slide-alt" id="s5-codigo-algoritmos" data-label="Código algoritmos">
+  <div class="slide-num">05 / 11</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">Archivos reales detectados</div>
+    <h2>Dónde aparece<br><span class="grad">en el código</span></h2>
+  </div>
+  <div class="g2 reveal stagger">
+    <div>
+      <div class="card ca mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>Dijkstra — <code>graph.py</code></h3>
+          <span class="tag tb">TravelGraph</span>
+        </div>
+        <p class="mb1">La clase <code>TravelGraph</code> representa las ciudades como nodos y las rutas como aristas ponderadas.</p>
+        <div class="code-block"><span class="kw">def</span> <span class="fn">dijkstra</span>(source, target, weight, transport_type):
+  priority_queue = [(<span class="num">0</span>, source)]
+
+  <span class="kw">while</span> priority_queue:
+    current_distance, current_node = heapq.heappop(priority_queue)
+
+    <span class="kw">for</span> route <span class="kw">in</span> graph[current_node]:
+      edge_weight = getattr(route, weight)
+      new_distance = current_distance + edge_weight</div>
+        <p style="margin-top:0.8rem;">En la defensa: <strong>“cada vez que encuentra una ruta mejor, actualiza la distancia y el predecesor para reconstruir el camino final.”</strong></p>
+      </div>
+      <div class="card cg">
+        <h3 style="margin-bottom:0.5rem;">Endpoints relacionados</h3>
+        <p><code>/routes/shortest</code> calcula un camino mínimo. <code>/routes/compare</code> compara la ruta del usuario contra una ruta optimizada usando Dijkstra con filtro de transporte.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card cp mb1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
+          <h3>TSP — <code>tsp_dp.py</code></h3>
+          <span class="tag tp">TSPSolver</span>
+        </div>
+        <p class="mb1">La clase <code>TSPSolver</code> implementa Held-Karp. Usa un bitmask para saber qué ciudades ya fueron visitadas.</p>
+        <div class="code-block"><span class="kw">if</span> mask == (<span class="num">1</span> &lt;&lt; n) - <span class="num">1</span>:
+  <span class="kw">return</span> cost[pos][start]  <span class="cm"># tour cerrado</span>
+
+<span class="kw">for</span> next_city <span class="kw">in</span> range(n):
+  <span class="kw">if</span> mask &amp; (<span class="num">1</span> &lt;&lt; next_city):
+    <span class="kw">continue</span>
+
+  new_mask = mask | (<span class="num">1</span> &lt;&lt; next_city)
+  best = min(best, cost[pos][next_city] + tsp(new_mask, next_city))</div>
+        <p style="margin-top:0.8rem;">En la defensa: <strong>“no elige simplemente la ciudad más cercana; evalúa subproblemas y guarda el mejor resultado global.”</strong></p>
+      </div>
+      <div class="card co">
+        <h3 style="margin-bottom:0.5rem;">Endpoint relacionado</h3>
+        <p><code>/routes/optimize-multi</code> recibe la matriz y las ciudades seleccionadas, ejecuta <code>TSPSolver.solve()</code> y devuelve la ruta óptima.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════════════════════════════
   S4 — DATOS Y GRAFO
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s4" data-label="Datos">
-  <div class="slide-num">04 / 09</div>
+  <div class="slide-num">06 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/data/ · app/core/graph.py</div>
     <h2>Generación de rutas<br><span class="grad">y grafo de ciudades</span></h2>
@@ -472,7 +585,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
 ══════════════════════════════════════ -->
 <section class="slide" id="s5" data-label="API">
   <div class="orb" style="width:280px;height:280px;background:rgba(6,182,212,0.05);bottom:5%;left:-40px;"></div>
-  <div class="slide-num">05 / 09</div>
+  <div class="slide-num">07 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/api/server.py · FastAPI + Uvicorn</div>
     <h2>API REST —<br><span class="grad">capa de servicios</span></h2>
@@ -512,7 +625,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
   S6 — RESERVAS Y ASYNC
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s6" data-label="Reservas">
-  <div class="slide-num">06 / 09</div>
+  <div class="slide-num">08 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/booking/ · asyncio</div>
     <h2>Sistema de reservas<br><span class="grad">asincrónico y batch</span></h2>
@@ -580,7 +693,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
   S7 — CACHÉ
 ══════════════════════════════════════ -->
 <section class="slide" id="s7" data-label="Caché">
-  <div class="slide-num">07 / 09</div>
+  <div class="slide-num">09 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/caches/</div>
     <h2>Estrategia de<br><span class="grad">caché</span></h2>
@@ -637,7 +750,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
   S8 — UI + IA + TESTS
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s8" data-label="UI & Tests">
-  <div class="slide-num">08 / 09</div>
+  <div class="slide-num">10 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/ui/ · app/ai/ · app/tests/</div>
     <h2>Interfaz, IA<br><span class="grad">y cobertura de tests</span></h2>
@@ -695,7 +808,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
 ══════════════════════════════════════ -->
 <section class="slide" id="s9" data-label="Resumen">
   <div class="orb" style="width:480px;height:480px;background:rgba(59,130,246,0.06);bottom:-100px;right:-100px;"></div>
-  <div class="slide-num">09 / 09</div>
+  <div class="slide-num">11 / 11</div>
   <div class="reveal mb3">
     <div class="slide-tag">Conclusión</div>
     <h2>Lo que integra<br><span class="grad">el proyecto</span></h2>
