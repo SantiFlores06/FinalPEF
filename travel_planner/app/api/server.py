@@ -96,6 +96,7 @@ class RouteRequest(BaseModel):
     origin: str
     destination: str
     optimize_by: str = Field(default="cost", description="Criterio: cost o time")
+    transport_type: str = Field(default="auto", description="Tipo de transporte: auto, tren o avión")
 
 
 class RouteResponse(BaseModel):
@@ -226,7 +227,16 @@ async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
 
 @app.post("/routes/shortest", response_model=RouteResponse)
 async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = Depends(get_populated_graph)):
-    cache_key = f"{request.origin}_{request.destination}_{request.optimize_by}"
+    valid_transports = {route[4] for route in ROUTES_FIXED}
+    valid_metrics = {"cost", "time"}
+
+    if request.transport_type not in valid_transports:
+        raise HTTPException(status_code=400, detail="Tipo de transporte inválido")
+
+    if request.optimize_by not in valid_metrics:
+        raise HTTPException(status_code=400, detail="Criterio de optimización inválido")
+
+    cache_key = f"{request.origin}_{request.destination}_{request.optimize_by}_{request.transport_type}"
 
     cached = route_cache.get(cache_key)
     if cached:
@@ -237,7 +247,8 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
         path, cost = graph.find_shortest_path(
             request.origin,
             request.destination,
-            weight=request.optimize_by
+            weight=request.optimize_by,
+            transport_type=request.transport_type
         )
         if not path:
             raise HTTPException(status_code=404, detail="Ruta no encontrada")

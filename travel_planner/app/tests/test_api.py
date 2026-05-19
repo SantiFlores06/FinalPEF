@@ -51,6 +51,7 @@ def test_shortest_route_endpoint_caches_second_request(client):
         "origin": "Madrid",
         "destination": "Barcelona",
         "optimize_by": "cost",
+        "transport_type": "auto",
     }
 
     first = client.post("/routes/shortest", json=request)
@@ -66,3 +67,42 @@ def test_shortest_route_endpoint_caches_second_request(client):
     assert first_payload["cached"] is False
     assert second_payload["cached"] is True
     assert second_payload["path"] == first_payload["path"]
+
+
+def test_shortest_route_endpoint_filters_by_transport_and_allows_layover(client):
+    request = {
+        "origin": "Madrid",
+        "destination": "Berlín",
+        "optimize_by": "cost",
+        "transport_type": "auto",
+    }
+
+    response = client.post("/routes/shortest", json=request)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["path"] == ["Madrid", "Zúrich", "Berlín"]
+    assert payload["total_cost"] == 345
+
+
+def test_shortest_route_cache_separates_transport_type(client):
+    base_request = {
+        "origin": "Madrid",
+        "destination": "Berlín",
+        "optimize_by": "cost",
+    }
+
+    auto = client.post(
+        "/routes/shortest",
+        json={**base_request, "transport_type": "auto"},
+    )
+    tren = client.post(
+        "/routes/shortest",
+        json={**base_request, "transport_type": "tren"},
+    )
+
+    assert auto.status_code == 200
+    assert tren.status_code == 200
+    assert auto.json()["path"] == ["Madrid", "Zúrich", "Berlín"]
+    assert tren.json()["path"] == ["Madrid", "París", "Berlín"]
+    assert tren.json()["cached"] is False

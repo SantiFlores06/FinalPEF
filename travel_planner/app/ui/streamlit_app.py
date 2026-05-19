@@ -169,6 +169,34 @@ def optimize_multi_destination(
         return None
 
 
+def calculate_shortest_route(
+    origin: str,
+    destination: str,
+    transport_type: str,
+    optimize_by: str,
+) -> Optional[Dict]:
+    """Calcula el camino mínimo entre dos ciudades usando Dijkstra."""
+    try:
+        response = requests.post(
+            f"{API_URL}/routes/shortest",
+            json={
+                "origin": origin,
+                "destination": destination,
+                "optimize_by": optimize_by,
+                "transport_type": transport_type,
+            },
+            timeout=10,
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Error calculando ruta mínima: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error calculando ruta mínima: {e}")
+        return None
+
+
 def create_reservation(user_id: str, itinerary: Dict) -> Optional[Dict]:
     """Crea una nueva reserva individual."""
     try:
@@ -480,13 +508,53 @@ if page == "🌍 Ruta Multidestino":
                         "total_time": user_route_time
                     }
 
-                    # Calcular ruta económica optimizada
-                    with st.spinner("Estimando ruta económica..."):
-                        optimized_result = optimize_multi_destination(
-                            st.session_state.selected_cities,
-                            submatrix_cost if optimize_by == "cost" else submatrix_time,
-                            return_to_start
-                        )
+                    # Con 2 ciudades corresponde Dijkstra; con 3 o mas corresponde TSP.
+                    if len(st.session_state.selected_cities) == 2:
+                        origin = st.session_state.selected_cities[0]
+                        destination = st.session_state.selected_cities[1]
+
+                        with st.spinner("Calculando camino minimo con Dijkstra..."):
+                            outbound = calculate_shortest_route(
+                                origin,
+                                destination,
+                                transport_mode,
+                                optimize_by,
+                            )
+
+                            optimized_result = None
+                            if outbound:
+                                optimal_route = outbound["path"]
+                                total_metric = outbound["total_cost"]
+
+                                if return_to_start:
+                                    inbound = calculate_shortest_route(
+                                        destination,
+                                        origin,
+                                        transport_mode,
+                                        optimize_by,
+                                    )
+                                    if inbound:
+                                        optimal_route = optimal_route + inbound["path"][1:]
+                                        total_metric += inbound["total_cost"]
+                                    else:
+                                        st.error("No se pudo calcular el regreso al origen")
+
+                                optimized_result = {
+                                    "optimal_route": optimal_route,
+                                    "total_cost": total_metric,
+                                    "computation_time": 0.0,
+                                    "cached": outbound.get("cached", False),
+                                    "recommendations": [],
+                                    "algorithm": "dijkstra",
+                                }
+                    else:
+                        # Calcular ruta economica optimizada
+                        with st.spinner("Estimando ruta economica con TSP..."):
+                            optimized_result = optimize_multi_destination(
+                                st.session_state.selected_cities,
+                                submatrix_cost if optimize_by == "cost" else submatrix_time,
+                                return_to_start
+                            )
 
                     if optimized_result:
                         st.session_state.optimized_route_result = optimized_result

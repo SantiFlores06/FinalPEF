@@ -367,7 +367,6 @@
         <div class="flow-box">Ruta óptima</div>
       </div>
       <div class="card cg">
-        <h3 style="margin-bottom:0.5rem;">Idea para explicarlo oralmente</h3>
         <p>“Dijkstra me responde cuál es el mejor camino entre dos ciudades. TSP me responde en qué orden conviene visitar muchas ciudades. Por eso se complementan dentro del planificador.”</p>
       </div>
     </div>
@@ -487,7 +486,7 @@ Espacio: O(n · 2ⁿ)</div>
     <span class="kw">for</span> route <span class="kw">in</span> graph[current_node]:
       edge_weight = getattr(route, weight)
       new_distance = current_distance + edge_weight</div>
-        <p style="margin-top:0.8rem;">En la defensa: <strong>“cada vez que encuentra una ruta mejor, actualiza la distancia y el predecesor para reconstruir el camino final.”</strong></p>
+        <p style="margin-top:0.8rem;"><strong>“cada vez que encuentra una ruta mejor, actualiza la distancia y el predecesor para reconstruir el camino final.”</strong></p>
       </div>
       <div class="card cg">
         <h3 style="margin-bottom:0.5rem;">Endpoints relacionados</h3>
@@ -570,7 +569,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
       </div>
       <div class="card ca mb1">
         <h3 style="margin-bottom:0.5rem;">Matriz de costos para TSP</h3>
-        <p>Los mismos datos alimentan la <strong>matriz n×n</strong> requerida por Held-Karp. El endpoint <code>/routes/matrix</code> la expone para que la UI la solicite y la muestre visualmente al usuario.</p>
+        <p>Los mismos datos alimentan la <strong>matriz n×n</strong> requerida por Held-Karp. El endpoint <code>/routes/matrix</code> la expone para que la UI la solicite.</p>
       </div>
       <div class="card">
         <h3 style="margin-bottom:0.5rem;">Sin dependencias externas</h3>
@@ -764,7 +763,6 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
         <div style="display:flex;flex-direction:column;gap:0.35rem;">
           <div style="font-size:0.74rem;">→ Seleccionar transporte y criterio de optimización</div>
           <div style="font-size:0.74rem;">→ Elegir múltiples ciudades</div>
-          <div style="font-size:0.74rem;">→ Ver matriz de costos</div>
           <div style="font-size:0.74rem;">→ Comparar su ruta vs la óptima</div>
           <div style="font-size:0.74rem;">→ Crear reservas individuales o en lote</div>
           <div style="font-size:0.74rem;">→ Consultar historial y estados</div>
