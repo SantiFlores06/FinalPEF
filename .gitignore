@@ -5,3 +5,11 @@ venv/
 # Ignorar archivos temporales
 __pycache__/
 *.pyc
+
+# Devlog y archivos de trabajo interno
+DEVLOG.md
+IDEAS.md
+NOTAS_INFORME.md
+
+# Memorias de Claude
+memory/

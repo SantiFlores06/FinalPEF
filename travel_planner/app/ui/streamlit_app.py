@@ -3,13 +3,21 @@ streamlit_app.py - Interfaz gráfica para el sistema de planificación de viajes
 UI interactiva construida con Streamlit.
 """
 
+import sys
+import os
+# Agrega travel_planner/ al path para que 'app' sea importable
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import streamlit as st
 import requests
 import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Optional, Set
-from app.data.routes_fixed import ROUTES_FIXED
+import folium
+from streamlit_folium import st_folium
+from app.data.routes_fixed import ROUTES_FIXED, CITIES
 from app.ai.gemini_recommendations import generate_city_recommendations, generate_itinerary_summary
+from app.core.tsp_genetic import GeneticTSP
 
 
 # ==========================================================
@@ -31,53 +39,99 @@ API_URL = "http://localhost:8000"
 st.markdown(
 """
 <style>
-.main-header {
-    font-size: 3rem;
-    color: #1E88E5;
-    text-align: center;
-    padding: 1rem 0;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+html, body, [class*="css"], .stApp {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+
+.main-header {
+    font-size: 2.7rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #1a56db 0%, #0ea5e9 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    padding: 1.2rem 0 0.3rem;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+}
+
+h2 { font-weight: 700 !important; color: #0f172a !important; letter-spacing: -0.2px; }
+h3 { font-weight: 600 !important; color: #1e293b !important; }
+
+.algo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+}
+.badge-dijkstra  { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.badge-held-karp { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.badge-genetic   { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
+
 .res-card {
-    background-color: #f9fafc;
-    border: 1px solid #d1d9e6;
-    border-radius: 16px;
-    padding: 1rem 1.5rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.2rem 1.5rem;
     margin-bottom: 1rem;
-    box-shadow: 0px 3px 10px rgba(0,0,0,0.05);
-    transition: transform 0.2s ease-in-out;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .res-card:hover {
-    transform: scale(1.01);
-    box-shadow: 0px 6px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(15,23,42,0.10);
 }
-.res-header {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #1565C0;
-}
-.res-sub {
-    font-size: 0.9rem;
-    color: #555;
-}
+.res-header { font-size: 1.05rem; font-weight: 700; color: #1e40af; }
+.res-sub    { font-size: 0.85rem; color: #64748b; }
+
 .res-badge {
     display: inline-block;
-    padding: 0.25rem 0.6rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 0.74rem;
     font-weight: 600;
     color: white;
+    letter-spacing: 0.4px;
 }
-.status-pending { background-color: #fbc02d; }
-.status-processing { background-color: #1E88E5; }
-.status-confirmed { background-color: #43a047; }
-.status-failed { background-color: #e53935; }
-.status-cancelled { background-color: #757575; }
+.status-pending    { background: #f59e0b; }
+.status-processing { background: #3b82f6; }
+.status-confirmed  { background: #10b981; }
+.status-failed     { background: #ef4444; }
+.status-cancelled  { background: #94a3b8; }
+
 .success-box {
-    padding: 1rem;
-    border-radius: 0.5rem;
-    background-color: #F0F8FF;
-    border-left: 5px solid #1E88E5;
+    padding: 1rem 1.2rem;
+    border-radius: 10px;
+    background: #f0f9ff;
+    border-left: 4px solid #3b82f6;
 }
+
+[data-testid="stSidebar"] > div:first-child {
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+}
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] p {
+    color: #cbd5e1 !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #f1f5f9 !important;
+}
+
+[data-testid="stMetricValue"] { font-weight: 700 !important; }
+[data-testid="stMetricLabel"] { font-size: 0.8rem !important; color: #64748b !important; }
+
+hr { border-color: #e2e8f0 !important; }
 </style>
 """,
 unsafe_allow_html=True
@@ -278,6 +332,17 @@ def get_system_stats() -> Dict:
         return {}
 
 
+def algo_badge_html(algorithm: str, elapsed_ms: float = 0) -> str:
+    configs = {
+        "dijkstra":  ("🔵 Dijkstra", "badge-dijkstra"),
+        "tsp":       ("🟢 Held-Karp (exacto)", "badge-held-karp"),
+        "genetic":   ("🧬 Algoritmo Genético", "badge-genetic"),
+    }
+    label, css = configs.get(algorithm, ("Algoritmo", "badge-dijkstra"))
+    time_str = f" &nbsp;·&nbsp; {elapsed_ms:.0f} ms" if elapsed_ms > 0 else ""
+    return f'<span class="algo-badge {css}">{label}{time_str}</span>'
+
+
 def show_city_recommendations(cities: List[str]):
     """
     Muestra recomendaciones de lugares a visitar en cada ciudad del itinerario.
@@ -356,6 +421,12 @@ if "optimized_route_result" not in st.session_state:
 if "selected_route_for_booking" not in st.session_state:
     st.session_state.selected_route_for_booking = None
 
+if "ga_result" not in st.session_state:
+    st.session_state.ga_result = None
+
+if "cost_submatrix" not in st.session_state:
+    st.session_state.cost_submatrix = None
+
 
 PAGES = ["🏠 Inicio", "🌍 Ruta Multidestino", "📋 Mis Reservas", "📊 Estadísticas"]
 if "page" not in st.session_state:
@@ -404,9 +475,8 @@ if page == "🌍 Ruta Multidestino":
     transport_mode = st.selectbox("🚗 Tipo de transporte", ["auto", "avión", "tren"])
     optimize_by = st.selectbox("⚖️ Optimizar por", ["cost", "time"], format_func=lambda x: "Costo (€)" if x == "cost" else "Tiempo (h)")
 
-    # Si cambia el transporte o criterio de optimización, resetear los resultados
+    # Si cambia el transporte o criterio de optimización, resetear resultados pero NO las ciudades
     if st.session_state.last_transport != transport_mode or st.session_state.last_optimize_by != optimize_by:
-        st.session_state.selected_cities = []
         st.session_state.tsp_result = None
         st.session_state.user_route_result = None
         st.session_state.optimized_route_result = None
@@ -414,6 +484,8 @@ if page == "🌍 Ruta Multidestino":
         st.session_state.last_transport = transport_mode
         st.session_state.last_optimize_by = optimize_by
         st.session_state.city_recommendations = {}
+        st.session_state.ga_result = None
+        st.session_state.cost_submatrix = None
 
     # Obtener todas las ciudades disponibles para este transporte
     available_cities = get_all_cities_with_transport(transport_mode)
@@ -422,12 +494,24 @@ if page == "🌍 Ruta Multidestino":
         st.error(f"No hay ciudades disponibles para transporte en {transport_mode}")
         st.stop()
 
-    # Selector múltiple de ciudades (máximo 10)
-    st.subheader("📍 Seleccionar ciudades (máximo 10)")
+    # Filtrar ciudades seleccionadas que no existan en el nuevo transporte
+    if st.session_state.selected_cities:
+        valid = [c for c in st.session_state.selected_cities if c in available_cities]
+        if len(valid) != len(st.session_state.selected_cities):
+            st.session_state.selected_cities = valid
+
+    MAX_HELD_KARP = 12  # umbral: sobre este número de ciudades usamos AG
+
+    # Selector múltiple de ciudades
+    st.subheader("📍 Seleccionar ciudades")
+    st.caption(
+        f"Hasta {MAX_HELD_KARP} ciudades → Held-Karp (exacto). "
+        f"Más de {MAX_HELD_KARP} → Algoritmo Genético (heurístico, sin límite práctico)."
+    )
     st.multiselect(
         "Elige las ciudades que quieres visitar:",
         available_cities,
-        max_selections=10,
+        max_selections=25,
         key="selected_cities"
     )
 
@@ -508,6 +592,10 @@ if page == "🌍 Ruta Multidestino":
                         "total_time": user_route_time
                     }
 
+                    # Guardar submatrix para uso posterior del AG
+                    st.session_state.cost_submatrix = submatrix_cost if optimize_by == "cost" else submatrix_time
+                    st.session_state.ga_result = None
+
                     # Con 2 ciudades corresponde Dijkstra; con 3 o mas corresponde TSP.
                     if len(st.session_state.selected_cities) == 2:
                         origin = st.session_state.selected_cities[0]
@@ -547,14 +635,47 @@ if page == "🌍 Ruta Multidestino":
                                     "recommendations": [],
                                     "algorithm": "dijkstra",
                                 }
-                    else:
-                        # Calcular ruta economica optimizada
-                        with st.spinner("Estimando ruta economica con TSP..."):
+                    elif len(st.session_state.selected_cities) <= MAX_HELD_KARP:
+                        # Held-Karp exacto (viable hasta ~12 ciudades)
+                        with st.spinner("Calculando ruta óptima con Held-Karp (TSP exacto)..."):
                             optimized_result = optimize_multi_destination(
                                 st.session_state.selected_cities,
                                 submatrix_cost if optimize_by == "cost" else submatrix_time,
                                 return_to_start
                             )
+                    else:
+                        # Demasiadas ciudades para Held-Karp → AG directamente
+                        n_sel = len(st.session_state.selected_cities)
+                        _submatrix = submatrix_cost if optimize_by == "cost" else submatrix_time
+                        st.info(
+                            f"Con {n_sel} ciudades, Held-Karp necesitaría 2^{n_sel} = {2**n_sel:,} estados — inviable. "
+                            f"Activando Algoritmo Genético (400 generaciones)..."
+                        )
+                        _ga = GeneticTSP(
+                            cost_matrix=_submatrix,
+                            city_names=st.session_state.selected_cities,
+                            population_size=200,
+                            generations=400,
+                            mutation_rate=0.02,
+                            tournament_size=5,
+                            elitism=2,
+                        )
+                        _ga_bar = st.progress(0, text="Generación 0 / 400")
+                        def _ga_cb(gen, total, best, _bar=_ga_bar):
+                            _bar.progress(gen / total, text=f"Generación {gen} / {total}  —  Mejor: {best:.2f} €")
+                        _ga_cost, _ga_idx = _ga.solve(start_city=0, return_to_start=return_to_start, progress_callback=_ga_cb)
+                        _ga_bar.empty()
+                        _ga_route = _ga.get_route_with_names(_ga_idx)
+                        optimized_result = {
+                            "optimal_route": _ga_route,
+                            "total_cost": _ga_cost,
+                            "computation_time": _ga.elapsed_ms,
+                            "cached": False,
+                            "recommendations": [],
+                            "algorithm": "genetic",
+                            "ga_history": _ga.history,
+                            "ga_elapsed_ms": _ga.elapsed_ms,
+                        }
 
                     if optimized_result:
                         st.session_state.optimized_route_result = optimized_result
@@ -611,46 +732,29 @@ if page == "🌍 Ruta Multidestino":
             st.info(" → ".join(user_result['route']))
             
             # Detalle de costos y tiempo por segmento
-            with st.expander("🔍 Ver detalles de costo y tiempo"):
-                total_cost_detail = 0.0
-                total_time_detail = 0.0
-                
+            with st.expander("🔍 Ver detalles por segmento"):
+                _rows_user = []
                 for i in range(len(user_result['route']) - 1):
-                    city_from = user_result['route'][i]
-                    city_to = user_result['route'][i + 1]
-                    
-                    segment_cost = None
-                    segment_time = None
-                    
-                    # Obtener costo
-                    if city_from in all_cities_for_cost and city_to in all_cities_for_cost:
-                        idx_from = all_cities_for_cost.index(city_from)
-                        idx_to = all_cities_for_cost.index(city_to)
-                        cost = cost_matrix[idx_from][idx_to]
-                        if cost != -1.0:
-                            segment_cost = cost
-                            total_cost_detail += cost
-                    
-                    # Obtener tiempo
-                    if city_from in all_cities_for_time and city_to in all_cities_for_time:
-                        idx_from = all_cities_for_time.index(city_from)
-                        idx_to = all_cities_for_time.index(city_to)
-                        time = time_matrix[idx_from][idx_to]
-                        if time != -1.0:
-                            segment_time = time
-                            total_time_detail += time
-                    
-                    # Mostrar segmento con ambas métricas
-                    if segment_cost is not None and segment_time is not None:
-                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} € | {segment_time:.1f}h")
-                    elif segment_cost is not None:
-                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} €")
-                    elif segment_time is not None:
-                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_time:.1f}h")
-                
-                st.divider()
-                st.text(f"**Total: {total_cost_detail:.2f} € | {total_time_detail:.1f}h**")
-            
+                    _cf, _ct = user_result['route'][i], user_result['route'][i + 1]
+                    _sc, _st = None, None
+                    if _cf in all_cities_for_cost and _ct in all_cities_for_cost:
+                        _c = cost_matrix[all_cities_for_cost.index(_cf)][all_cities_for_cost.index(_ct)]
+                        _sc = _c if _c != -1.0 else None
+                    if _cf in all_cities_for_time and _ct in all_cities_for_time:
+                        _t = time_matrix[all_cities_for_time.index(_cf)][all_cities_for_time.index(_ct)]
+                        _st = _t if _t != -1.0 else None
+                    _rows_user.append({"#": i + 1, "Origen": _cf, "Destino": _ct, "Costo (€)": _sc, "Tiempo (h)": _st})
+                if _rows_user:
+                    _df_user_seg = pd.DataFrame(_rows_user)
+                    st.dataframe(
+                        _df_user_seg.style
+                            .format({"Costo (€)": "{:.2f}", "Tiempo (h)": "{:.1f}"}, na_rep="—")
+                            .highlight_max(subset=["Costo (€)"], color="#fee2e2", axis=0)
+                            .highlight_min(subset=["Costo (€)"], color="#d1fae5", axis=0),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
             if st.button("✓ Seleccionar esta ruta", key="select_user_route", use_container_width=True):
                 st.session_state.selected_route_for_booking = {
                     "route": user_result['route'],
@@ -660,9 +764,13 @@ if page == "🌍 Ruta Multidestino":
                 st.success("✅ Ruta seleccionada para reserva")
                 st.rerun()
 
-        # Columna 2: Ruta Económica
+        # Columna 2: Ruta Económica u Heurística (AG)
         with col2:
-            st.markdown("### 💰 Ruta Económica (Optimizada)")
+            _col2_label = "🧬 Ruta AG — Heurística" if opt_result.get("algorithm") == "genetic" else "💰 Ruta Económica (Optimizada)"
+            st.markdown(f"### {_col2_label}")
+            _badge_algo = opt_result.get("algorithm", "tsp")
+            _badge_ms = opt_result.get("ga_elapsed_ms", opt_result.get("computation_time", 0))
+            st.markdown(algo_badge_html(_badge_algo, _badge_ms), unsafe_allow_html=True)
             
             # Mostrar costo en euros siempre
             opt_cost_euros = opt_result['total_cost']
@@ -686,45 +794,28 @@ if page == "🌍 Ruta Multidestino":
             st.info(" → ".join(opt_result['optimal_route']))
             
             # Detalle de costos y tiempo por segmento
-            with st.expander("🔍 Ver detalles de costo y tiempo"):
-                total_cost_detail = 0.0
-                total_time_detail = 0.0
-                
+            with st.expander("🔍 Ver detalles por segmento"):
+                _rows_opt = []
                 for i in range(len(opt_result['optimal_route']) - 1):
-                    city_from = opt_result['optimal_route'][i]
-                    city_to = opt_result['optimal_route'][i + 1]
-                    
-                    segment_cost = None
-                    segment_time = None
-                    
-                    # Obtener costo
-                    if city_from in all_cities_for_cost and city_to in all_cities_for_cost:
-                        idx_from = all_cities_for_cost.index(city_from)
-                        idx_to = all_cities_for_cost.index(city_to)
-                        cost = cost_matrix[idx_from][idx_to]
-                        if cost != -1.0:
-                            segment_cost = cost
-                            total_cost_detail += cost
-                    
-                    # Obtener tiempo
-                    if city_from in all_cities_for_time and city_to in all_cities_for_time:
-                        idx_from = all_cities_for_time.index(city_from)
-                        idx_to = all_cities_for_time.index(city_to)
-                        time = time_matrix[idx_from][idx_to]
-                        if time != -1.0:
-                            segment_time = time
-                            total_time_detail += time
-                    
-                    # Mostrar segmento con ambas métricas
-                    if segment_cost is not None and segment_time is not None:
-                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} € | {segment_time:.1f}h")
-                    elif segment_cost is not None:
-                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_cost:.2f} €")
-                    elif segment_time is not None:
-                        st.text(f"{i+1}. {city_from} → {city_to}: {segment_time:.1f}h")
-                
-                st.divider()
-                st.text(f"**Total: {total_cost_detail:.2f} € | {total_time_detail:.1f}h**")
+                    _cf, _ct = opt_result['optimal_route'][i], opt_result['optimal_route'][i + 1]
+                    _sc, _st = None, None
+                    if _cf in all_cities_for_cost and _ct in all_cities_for_cost:
+                        _c = cost_matrix[all_cities_for_cost.index(_cf)][all_cities_for_cost.index(_ct)]
+                        _sc = _c if _c != -1.0 else None
+                    if _cf in all_cities_for_time and _ct in all_cities_for_time:
+                        _t = time_matrix[all_cities_for_time.index(_cf)][all_cities_for_time.index(_ct)]
+                        _st = _t if _t != -1.0 else None
+                    _rows_opt.append({"#": i + 1, "Origen": _cf, "Destino": _ct, "Costo (€)": _sc, "Tiempo (h)": _st})
+                if _rows_opt:
+                    _df_opt_seg = pd.DataFrame(_rows_opt)
+                    st.dataframe(
+                        _df_opt_seg.style
+                            .format({"Costo (€)": "{:.2f}", "Tiempo (h)": "{:.1f}"}, na_rep="—")
+                            .highlight_max(subset=["Costo (€)"], color="#fee2e2", axis=0)
+                            .highlight_min(subset=["Costo (€)"], color="#d1fae5", axis=0),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
             
             # Calcular ahorro
             savings = user_cost_euros - opt_cost_euros
@@ -744,7 +835,196 @@ if page == "🌍 Ruta Multidestino":
                 st.success("✅ Ruta seleccionada para reserva")
                 st.rerun()
 
+        # ----------------------------------------------------------
+        # MÉTRICAS DE AHORRO + GRÁFICO COMPARATIVO
+        # ----------------------------------------------------------
         st.divider()
+        st.subheader("📊 Resumen Comparativo")
+        _savings = user_cost_euros - opt_cost_euros
+        _savings_pct = (_savings / user_cost_euros * 100) if user_cost_euros > 0 else 0
+        _label_opt_chart = "AG Heurístico" if opt_result.get("algorithm") == "genetic" else "Held-Karp (Óptimo)"
+
+        _ms1, _ms2, _ms3 = st.columns(3)
+        _ms1.metric("Tu Ruta", f"{user_cost_euros:.2f} €")
+        _ms2.metric(_label_opt_chart, f"{opt_cost_euros:.2f} €",
+                    delta=f"{opt_cost_euros - user_cost_euros:.2f} €", delta_color="inverse")
+        _ms3.metric("Diferencia", f"{abs(_savings):.2f} €",
+                    delta=f"{abs(_savings_pct):.1f}%",
+                    delta_color="normal" if _savings >= 0 else "off")
+
+        _df_chart = pd.DataFrame(
+            {"Costo (€)": [user_cost_euros, opt_cost_euros]},
+            index=["Tu Ruta", _label_opt_chart],
+        )
+        st.bar_chart(_df_chart, horizontal=True, color=["#1a56db"])
+
+        st.divider()
+
+        # ----------------------------------------------------------
+        # MAPA INTERACTIVO DE RUTAS
+        # ----------------------------------------------------------
+        st.subheader("🗺️ Visualización en Mapa")
+
+        def build_route_map(route: List[str], line_color: str, label: str, seg_costs: List[float] = None) -> folium.Map:
+            coords = [(CITIES[c][0], CITIES[c][1]) for c in route if c in CITIES]
+            if not coords:
+                return None
+            center = [sum(p[0] for p in coords) / len(coords), sum(p[1] for p in coords) / len(coords)]
+            m = folium.Map(location=center, zoom_start=5, tiles="CartoDB positron")
+            seen: set = set()
+            stop_num = 0
+            for i, city in enumerate(route):
+                if city not in CITIES:
+                    continue
+                lat, lon = CITIES[city]
+                is_start = i == 0
+                is_end = i == len(route) - 1 and city == route[0]
+                if is_start or is_end:
+                    icon = folium.Icon(color="red", icon="home", prefix="fa")
+                elif city in seen:
+                    continue
+                else:
+                    icon = folium.Icon(color="blue", icon="circle", prefix="fa")
+                next_cost = ""
+                if seg_costs and i < len(seg_costs) and not is_end:
+                    next_cost = f"<br><span style='color:#64748b;font-size:11px'>➡ sig. tramo: {seg_costs[i]:.0f} €</span>"
+                popup_html = (
+                    f"<div style='font-family:Inter,sans-serif;min-width:130px'>"
+                    f"<b style='font-size:13px'>{city}</b>"
+                    f"<br><span style='color:#64748b;font-size:11px'>Parada #{stop_num + 1}</span>"
+                    f"{next_cost}</div>"
+                )
+                folium.Marker(
+                    [lat, lon],
+                    popup=folium.Popup(popup_html, max_width=200),
+                    tooltip=f"#{stop_num + 1} {city}",
+                    icon=icon,
+                ).add_to(m)
+                seen.add(city)
+                stop_num += 1
+            polyline_coords = [(CITIES[c][0], CITIES[c][1]) for c in route if c in CITIES]
+            folium.PolyLine(polyline_coords, color=line_color, weight=4, opacity=0.85, tooltip=label).add_to(m)
+            return m
+
+        def _get_seg_costs(route: List[str]) -> List[float]:
+            costs = []
+            for i in range(len(route) - 1):
+                cf, ct = route[i], route[i + 1]
+                if cf in all_cities_for_cost and ct in all_cities_for_cost:
+                    c = cost_matrix[all_cities_for_cost.index(cf)][all_cities_for_cost.index(ct)]
+                    costs.append(c if c != -1.0 else 0.0)
+                else:
+                    costs.append(0.0)
+            return costs
+
+        _opt_tab_label = "🧬 Ruta AG" if opt_result.get("algorithm") == "genetic" else "💰 Ruta Optimizada (TSP)"
+        map_tab1, map_tab2 = st.tabs(["🎯 Tu Ruta", _opt_tab_label])
+
+        with map_tab1:
+            m1 = build_route_map(user_result["route"], "#1a56db", "Tu ruta", _get_seg_costs(user_result["route"]))
+            if m1:
+                st_folium(m1, width=None, height=430, key="map_user_route", returned_objects=[])
+            else:
+                st.info("No se encontraron coordenadas para las ciudades seleccionadas.")
+
+        with map_tab2:
+            _opt_color = "#e53935" if opt_result.get("algorithm") == "genetic" else "#059669"
+            m2 = build_route_map(opt_result["optimal_route"], _opt_color, _opt_tab_label, _get_seg_costs(opt_result["optimal_route"]))
+            if m2:
+                st_folium(m2, width=None, height=430, key="map_opt_route", returned_objects=[])
+            else:
+                st.info("No se encontraron coordenadas para las ciudades seleccionadas.")
+
+        st.divider()
+
+        # ----------------------------------------------------------
+        # SECCIÓN DE ALGORITMO GENÉTICO
+        # ----------------------------------------------------------
+        n_cities = len(st.session_state.selected_cities)
+        algo_used = opt_result.get("algorithm", "tsp")
+
+        if algo_used == "genetic":
+            # AG fue el solver principal (muchas ciudades)
+            st.subheader("🧬 Convergencia del Algoritmo Genético")
+            n_sel = n_cities
+            st.caption(
+                f"Con {n_sel} ciudades, Held-Karp necesitaría explorar 2^{n_sel:,} = "
+                f"{2**n_sel:,} estados — computacionalmente inviable. "
+                f"El AG encontró una solución en {opt_result.get('ga_elapsed_ms', 0):.0f} ms."
+            )
+            if "ga_history" in opt_result and opt_result["ga_history"]:
+                df_hist = pd.DataFrame(opt_result["ga_history"]).set_index("generation")
+                st.line_chart(df_hist[["best_cost", "avg_cost"]])
+            st.divider()
+
+        elif n_cities >= 3 and algo_used != "dijkstra" and st.session_state.cost_submatrix is not None:
+            # Held-Karp fue el solver → ofrecer comparación opcional con AG
+            st.subheader("⚡ Algoritmo Genético vs Held-Karp")
+            st.caption(
+                f"Con {n_cities} ciudades, Held-Karp es exacto y rápido. "
+                "¿Querés ver cómo se compara el AG heurístico?"
+            )
+
+            if st.button("🧬 Ejecutar Algoritmo Genético", type="secondary", use_container_width=True):
+                ga_solver = GeneticTSP(
+                    cost_matrix=st.session_state.cost_submatrix,
+                    city_names=st.session_state.selected_cities,
+                    population_size=150,
+                    generations=300,
+                    mutation_rate=0.02,
+                    tournament_size=5,
+                    elitism=2,
+                )
+                _opt_bar = st.progress(0, text="Generación 0 / 300")
+                def _opt_cb(gen, total, best, _bar=_opt_bar):
+                    _bar.progress(gen / total, text=f"Generación {gen} / {total}  —  Mejor: {best:.2f} €")
+                ga_cost, ga_route_idx = ga_solver.solve(start_city=0, return_to_start=return_to_start, progress_callback=_opt_cb)
+                _opt_bar.empty()
+                ga_route_names = ga_solver.get_route_with_names(ga_route_idx)
+
+                st.session_state.ga_result = {
+                    "cost": ga_cost,
+                    "route": ga_route_names,
+                    "history": ga_solver.history,
+                    "elapsed_ms": ga_solver.elapsed_ms,
+                }
+                st.rerun()
+
+            if st.session_state.ga_result:
+                ga = st.session_state.ga_result
+                hk_cost = opt_result["total_cost"]
+                diff = ga["cost"] - hk_cost
+                diff_pct = (diff / hk_cost * 100) if hk_cost > 0 else 0
+
+                col_ga1, col_ga2, col_ga3 = st.columns(3)
+                col_ga1.metric("AG — Mejor ruta encontrada", f"{ga['cost']:.2f} €")
+                col_ga2.metric("Held-Karp (exacto)", f"{hk_cost:.2f} €")
+                col_ga3.metric("Diferencia", f"{diff:+.2f} € ({diff_pct:+.1f}%)", delta_color="inverse")
+
+                st.info(f"🗺️ Ruta AG: {' → '.join(ga['route'])}")
+                st.caption(f"⏱️ AG ejecutado en {ga['elapsed_ms']:.0f} ms")
+
+                st.markdown("**Convergencia del AG** (costo por generación)")
+                df_hist = pd.DataFrame(ga["history"]).set_index("generation")
+                st.line_chart(df_hist[["best_cost", "avg_cost"]])
+
+                if diff <= 0:
+                    st.success("✅ El AG encontró una ruta igual o mejor que Held-Karp.")
+                elif diff_pct < 5:
+                    st.info(f"ℹ️ El AG está a solo {diff_pct:.1f}% del óptimo exacto.")
+                else:
+                    st.warning(
+                        f"⚠️ El AG está {diff_pct:.1f}% por encima del óptimo. "
+                        "Más generaciones o mayor población pueden acercarlo."
+                    )
+
+                map_tab3, = st.tabs(["🧬 Ruta del AG"])
+                with map_tab3:
+                    m3 = build_route_map(ga["route"], "#e53935", "Ruta AG")
+                    if m3:
+                        st_folium(m3, width=None, height=380, key="map_ga_route", returned_objects=[])
+
+            st.divider()
 
         # Mostrar recomendaciones de la IA (si hay)
         if "recommendations" in opt_result and opt_result["recommendations"]:
@@ -833,17 +1113,31 @@ if page == "🌍 Ruta Multidestino":
 #  INICIO
 # ==========================================================
 elif page == "🏠 Inicio":
-    st.header("🏠 Bienvenido al Sistema de Planificación de Viajes")
-    st.info("Usa el menú lateral para navegar entre las funciones disponibles.")
+    st.markdown("## Bienvenido al Planificador de Viajes Europeo")
+    st.markdown("Optimizá rutas entre **53 ciudades de Europa**, compará algoritmos de optimización y realizá reservas — todo en un solo lugar.")
+    st.divider()
 
-    st.subheader("Funcionalidades Principales")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("- **🌍 Ruta Multidestino**: Optimiza tu viaje por múltiples ciudades usando el Algoritmo del Viajante (TSP).")
-        st.markdown("- **📋 Mis Reservas**: Visualiza el estado en tiempo real de todas tus reservas.")
-    with col2:
-        st.markdown("- **📊 Estadísticas**: Monitorea el rendimiento del sistema, el estado del caché y el procesamiento de lotes.")
-        st.markdown("- **🧠 Recomendaciones IA**: Recibe sugerencias de destinos similares basadas en tu ruta calculada.")
+    _fc1, _fc2, _fc3, _fc4 = st.columns(4)
+    _fc1.info("**🌍 Ruta Multidestino**\n\nOptimización TSP con Dijkstra, Held-Karp y Algoritmos Genéticos.")
+    _fc2.info("**📋 Mis Reservas**\n\nEstado en tiempo real de reservas individuales y en lote.")
+    _fc3.info("**📊 Estadísticas**\n\nCaché LRU, rendimiento y procesamiento batch asíncrono.")
+    _fc4.info("**🧠 IA Gemini**\n\nRecomendaciones personalizadas de destinos y lugares.")
+
+    st.divider()
+    st.markdown(f"#### 🗺️ {len(CITIES)} ciudades disponibles en Europa")
+    _m_home = folium.Map(location=[50.5, 10.0], zoom_start=4, tiles="CartoDB positron")
+    for _city, (_lat, _lon) in CITIES.items():
+        folium.CircleMarker(
+            location=[_lat, _lon],
+            radius=6,
+            color="#1a56db",
+            fill=True,
+            fill_color="#1a56db",
+            fill_opacity=0.75,
+            tooltip=_city,
+            popup=folium.Popup(f"<b>{_city}</b>", max_width=120),
+        ).add_to(_m_home)
+    st_folium(_m_home, width=None, height=430, key="home_city_map", returned_objects=[])
 
 
 # ==========================================================
