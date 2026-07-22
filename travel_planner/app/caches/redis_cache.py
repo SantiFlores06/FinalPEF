@@ -143,13 +143,22 @@ class RedisCache:
             logger.error(f"Error almacenando {key}: {e}")
             return False
     
+    def put(self, key: str, value: Any) -> bool:
+        """
+        Alias de set() para exponer la misma interfaz que LRUCache.
+
+        Permite que la API use route_cache.put(...) sin importar si el
+        backend real es Redis o el LRU en memoria.
+        """
+        return self.set(key, value)
+
     def delete(self, key: str) -> bool:
         """
         Elimina una clave del cache.
-        
+
         Args:
             key: Clave a eliminar.
-        
+
         Returns:
             True si se eliminó.
         """

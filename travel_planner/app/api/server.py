@@ -18,7 +18,7 @@ import time # Importar time para el profiling
 from app.core.graph import TravelGraph
 from app.core.tsp_dp import TSPSolver
 from app.core.itinerary_validator import ItineraryConstraints
-from app.caches.lru_cache import LRUCache
+from app.caches.cache_backend import get_cache_backend
 from app.booking.reservations import ReservationManager
 from app.booking.batching import ReservationBatchProcessor
 
@@ -66,7 +66,7 @@ app.add_middleware(
 
 # Instancias globales
 travel_graph = TravelGraph()
-route_cache = LRUCache(capacity=100)
+route_cache = get_cache_backend(capacity=100)
 reservation_manager = ReservationManager(max_concurrent=10)
 batch_processor = ReservationBatchProcessor(
     batch_size=20, 
