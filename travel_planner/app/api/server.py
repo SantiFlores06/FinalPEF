@@ -77,12 +77,6 @@ batch_processor = ReservationBatchProcessor(
 # ==========================================================
 # MODELOS Pydantic (Corregidos)
 # ==========================================================
-class AIRecommendation(BaseModel):
-    """Modelo para una sola recomendación de IA"""
-    destination_id: str
-    destination_name: str
-    similarity: float
-
 class RouteComparison(BaseModel):
     """Modelo para comparar rutas directa vs económica"""
     origin: str
@@ -105,7 +99,6 @@ class RouteResponse(BaseModel):
     path: List[str]
     total_cost: float
     cached: bool = False
-    recommendations: List[AIRecommendation] = [] # Ya estaba aquí
 
 class TSPRequest(BaseModel):
     cities: List[str] = Field(..., min_length=2)
@@ -117,8 +110,7 @@ class TSPResponse(BaseModel):
     optimal_route: List[str]
     total_cost: float
     computation_time: float
-    cached: bool = False                 
-    recommendations: List[AIRecommendation] = [] 
+    cached: bool = False
 
 class ItineraryRequest(BaseModel):
     user_id: str
@@ -512,21 +504,6 @@ async def get_system_stats():
         "batch_processor": batch_processor.get_stats(),
         "timestamp": datetime.now().isoformat()
     }
-
-# 💡 Procesamiento automático de batches cada X segundos
-async def start_batch_loop():
-    """Ejecuta procesamiento periódico de lotes."""
-    logger.info("⏰ Iniciando loop de procesamiento de lotes en background...")
-    
-    async def loop():
-        while True:
-            await asyncio.sleep(10) # Revisa cada 10 segundos
-            
-            # CORRECCIÓN: Llamar a la función que SÍ existe en tu batching.py
-            await batch_processor._trigger_processing()
-
-    asyncio.create_task(loop())
-
 
 # ==========================================================
 # MAIN (para ejecutar localmente)
