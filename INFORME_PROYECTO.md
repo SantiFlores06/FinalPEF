@@ -114,9 +114,9 @@ La carpeta `app/caches` contiene dos tipos de cache.
 
 `lru_cache.py` implementa un cache LRU local. Guarda resultados recientes y elimina el elemento menos usado cuando supera la capacidad. Tambien incluye una variante con TTL y un decorador para cachear funciones.
 
-`redis_cache.py` implementa un cache distribuido usando Redis. Esta pensado para escenarios donde varias instancias de la aplicacion comparten cache. Para usarlo realmente haria falta tener Redis corriendo.
+`redis_cache.py` implementa un cache distribuido usando Redis. Esta pensado para escenarios donde varias instancias de la aplicacion comparten cache.
 
-En la API actualmente se usa el cache LRU local para guardar rutas y optimizaciones repetidas.
+`cache_backend.py` es un selector de backend: segun la variable de entorno `CACHE_BACKEND` intenta usar Redis y, si no esta disponible (paquete ausente o servidor caido), cae automaticamente al cache LRU en memoria. Asi la API funciona igual con o sin Redis corriendo. La API usa este selector, por lo que por defecto guarda rutas y optimizaciones repetidas en el LRU local y puede escalar a Redis sin tocar codigo.
 
 ### AI
 
@@ -273,3 +273,23 @@ un archivo `.env` local. Se agrego `.env` al `.gitignore` para que nunca se suba
 repositorio. Como accion complementaria del equipo, la clave anterior debe revocarse en
 Google AI Studio y reemplazarse por una nueva: dado que la credencial vieja quedo en el
 historial de commits, revocarla es lo que la neutraliza definitivamente.
+
+### Fase 1 - Higiene del repositorio
+
+Se limpio el repositorio y se integro Redis de forma real:
+
+- **Redis integrado con fallback.** Se agrego `app/caches/cache_backend.py`, un selector
+  que usa Redis cuando esta configurado (`CACHE_BACKEND=redis`) y cae al LRU en memoria si
+  Redis no esta disponible. La API pasa a usar este selector en lugar de instanciar el LRU
+  directamente. Con esto el cache distribuido deja de ser codigo muerto sin dejar de
+  funcionar cuando no hay un servidor Redis levantado.
+- **Codigo muerto eliminado.** Se quito `start_batch_loop()` de `server.py` (nunca se
+  llamaba; el arranque real usa `batch_loop()` en el `lifespan`), el modelo
+  `AIRecommendation` y los campos `recommendations` de las respuestas (nunca se poblaban),
+  y el directorio huerfano `app/ml/`.
+- **Ignorados de git.** Se agregaron `.env`, `**/.venv/`, `.coverage` y `htmlcov/` al
+  `.gitignore`, y se quito `.coverage` del control de versiones. Los entornos virtuales ya
+  no se versionan.
+- **README actualizado.** El arbol de directorios del README ahora refleja la estructura
+  real: incluye `core/tsp_genetic.py`, `data/`, `ai/gemini_recommendations.py` y
+  `caches/cache_backend.py`, y ya no menciona el inexistente `ml/recommender.py`.

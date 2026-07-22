@@ -36,23 +36,28 @@ travel_planner/
 ├── app/
 │   ├── __init__.py
 │   ├── core/
-│   │   ├── graph.py               # Dijkstra, representación de grafo
-│   │   ├── tsp_dp.py              # DP estilo viajante con memoización
-│   │   ├── itinerary_validator.py # validaciones y business rules
+│   │   ├── graph.py                 # Dijkstra, representación de grafo
+│   │   ├── tsp_dp.py                # Held-Karp (DP + bitmask + memoización)
+│   │   ├── tsp_genetic.py           # TSP con algoritmo genético (heurístico)
+│   │   ├── itinerary_validator.py   # validaciones y business rules
+│   ├── data/
+│   │   ├── routes_fixed.py          # rutas europeas generadas (Haversine)
 │   ├── caches/
-│   │   ├── lru_cache.py
-│   │   ├── redis_cache.py
+│   │   ├── lru_cache.py             # LRU + TTL en memoria
+│   │   ├── redis_cache.py           # caché distribuido (Redis)
+│   │   ├── cache_backend.py         # selector de backend con fallback a LRU
 │   ├── booking/
-│   │   ├── reservations.py        # lógica reservas (async)
-│   │   ├── batching.py
+│   │   ├── reservations.py          # lógica de reservas (async)
+│   │   ├── batching.py              # procesamiento por lotes
+│   ├── ai/
+│   │   ├── gemini_recommendations.py # recomendaciones con Gemini
 │   ├── api/
-│   │   ├── server.py              # FastAPI/Flask endpoints
+│   │   ├── server.py                # FastAPI endpoints
 │   ├── ui/
-│   │   ├── streamlit_app.py       # GUI rápida
-│   ├── ml/
-│   │   ├── recommender.py         # IA recomendador
+│   │   ├── streamlit_app.py         # interfaz Streamlit
 │   └── tests/
 │       ├── test_graph.py
 │       ├── test_tsp.py
+│       ├── ...                      # (ver carpeta tests/ para la suite completa)
 ├── requirements.txt
 └── pytest.ini
