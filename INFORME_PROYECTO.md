@@ -35,6 +35,8 @@ La carpeta `app/core` contiene la logica algoritmica del sistema.
 
 `tsp_dp.py` implementa el problema del viajante usando programacion dinamica con bitmasking y memoizacion. Sirve para calcular el orden optimo para visitar varias ciudades. El algoritmo usado es una variante de Held-Karp, adecuada para una cantidad moderada de ciudades.
 
+`tsp_genetic.py` resuelve el mismo problema del viajante pero con un algoritmo genetico (heuristico): seleccion por torneo, Order Crossover, mutacion por intercambio y elitismo. A diferencia de Held-Karp, que es exacto pero crece como O(n^2 * 2^n), el genetico escala a muchas mas ciudades a cambio de no garantizar el optimo. La aplicacion usa Held-Karp para pocas ciudades y el genetico cuando la cantidad crece.
+
 `itinerary_validator.py` contiene reglas de validacion de itinerarios: presupuesto maximo, duracion maxima, cantidad de segmentos, ciudades requeridas, ciudades prohibidas, tipos de transporte permitidos, escalas y consistencia de horarios.
 
 ### Data
@@ -131,7 +133,9 @@ La carpeta `app/tests` contiene pruebas con Pytest.
 Actualmente cubren:
 
 - Dijkstra y rutas cortas.
-- TSP con tour cerrado y abierto.
+- TSP exacto (Held-Karp) con tour cerrado y abierto.
+- TSP con algoritmo genetico: permutacion valida, determinismo con semilla fija,
+  convergencia al optimo de Held-Karp, monotonia del elitismo y casos borde.
 - Validaciones de itinerarios.
 - Cache LRU y TTL.
 - Reservas asincronicas.
@@ -148,7 +152,7 @@ pytest
 El resultado esperado actualmente es:
 
 ```text
-29 passed
+33 passed, 1 skipped
 ```
 
 ## Flujo esperado de uso
@@ -293,3 +297,19 @@ Se limpio el repositorio y se integro Redis de forma real:
 - **README actualizado.** El arbol de directorios del README ahora refleja la estructura
   real: incluye `core/tsp_genetic.py`, `data/`, `ai/gemini_recommendations.py` y
   `caches/cache_backend.py`, y ya no menciona el inexistente `ml/recommender.py`.
+
+### Fase 2 - Cobertura de tests del algoritmo genetico
+
+Se agrego `app/tests/test_tsp_genetic.py`, que antes no existia. El algoritmo genetico
+pasaba de tener 0% de cobertura a 94%. Los tests verifican:
+
+- **Permutacion valida:** el tour visita las 5 ciudades una sola vez y cierra en el origen.
+- **Determinismo:** con la misma semilla, dos corridas dan el mismo costo y la misma ruta.
+- **Calidad:** en 5 ciudades el genetico alcanza el optimo exacto que calcula Held-Karp.
+- **Elitismo:** el mejor costo por generacion nunca empeora (monotono no creciente).
+- **Casos borde:** una ciudad, dos ciudades y una matriz con ciudad inalcanzable (costo
+  infinito) sin que el algoritmo se rompa.
+
+Estos tests son la red de seguridad para cualquier refactor futuro del genetico (por
+ejemplo, mover la seleccion de algoritmo al backend). La suite completa pasa de
+`26 passed` a `33 passed, 1 skipped`.
