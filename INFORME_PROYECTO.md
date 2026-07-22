@@ -258,3 +258,18 @@ La cobertura total puede verse baja porque tambien se mide la interfaz Streamlit
 El proyecto es una aplicacion de planificacion de viajes multidestino. Usa rutas generadas entre ciudades europeas, Dijkstra para caminos cortos, TSP con programacion dinamica para optimizar multiples destinos, FastAPI para exponer servicios, Streamlit para la interfaz, cache para acelerar consultas repetidas y procesamiento asincronico/batch para manejar reservas.
 
 El flujo principal deberia permitir seleccionar ciudades una sola vez, calcular rutas, comparar costos, elegir una opcion y crear una reserva.
+
+## Cambios recientes (Fases 0-2)
+
+Esta seccion documenta las mejoras aplicadas al proyecto siguiendo el plan de mejoras
+(`PLAN_MEJORAS.md`), organizado en fases atomicas.
+
+### Fase 0 - Seguridad
+
+Se elimino la clave de API de Gemini que estaba escrita en un comentario del codigo
+fuente (`app/ai/gemini_recommendations.py`). A partir de ahora la clave se toma
+unicamente de la variable de entorno `GOOGLE_API_KEY`, que cada integrante configura en
+un archivo `.env` local. Se agrego `.env` al `.gitignore` para que nunca se suba al
+repositorio. Como accion complementaria del equipo, la clave anterior debe revocarse en
+Google AI Studio y reemplazarse por una nueva: dado que la credencial vieja quedo en el
+historial de commits, revocarla es lo que la neutraliza definitivamente.

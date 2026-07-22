@@ -1,6 +1,14 @@
 # Ignorar entorno virtual
 .venv/
 venv/
+**/.venv/
+
+# Credenciales y variables de entorno
+.env
+
+# Reportes de cobertura
+.coverage
+htmlcov/
 
 # Ignorar archivos temporales
 __pycache__/
