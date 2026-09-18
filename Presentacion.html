@@ -262,18 +262,18 @@
 <section class="slide" id="s1" data-label="Portada">
   <div class="orb" style="width:550px;height:550px;background:rgba(59,130,246,0.07);top:-120px;left:-160px;"></div>
   <div class="orb" style="width:380px;height:380px;background:rgba(139,92,246,0.06);bottom:-80px;right:-80px;"></div>
-  <div class="slide-num">01 / 11</div>
+  <div class="slide-num">01 / 14</div>
 
   <div class="reveal">
     <div class="slide-tag">Proyecto Final · Ingeniería de Software</div>
     <h1>Travel Planner<br><span class="grad">Multidestino</span></h1>
     <div class="div"></div>
     <p style="max-width:560px;font-size:0.88rem;margin-bottom:2.2rem;">
-      Sistema integral de planificación de viajes que combina <strong>algoritmos clásicos de optimización</strong> (Dijkstra + TSP), una API REST con FastAPI, interfaz gráfica con Streamlit, caché LRU, reservas asincrónicas con asyncio y recomendaciones con IA usando Gemini.
+      Sistema integral de planificación de viajes que combina <strong>algoritmos clásicos de optimización</strong> (Dijkstra + TSP exacto y genético), una API REST con FastAPI, interfaz gráfica con Streamlit, caché LRU, reservas asincrónicas con asyncio y recomendaciones con IA usando Gemini.
     </p>
     <div class="g4" style="max-width:660px;">
       <div class="card" style="text-align:center;padding:1.1rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent);">29</div>
+        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent);">33</div>
         <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">tests pasando</div>
       </div>
       <div class="card" style="text-align:center;padding:1.1rem;">
@@ -296,7 +296,7 @@
   S2 — OBJETIVO
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s2" data-label="Objetivo">
-  <div class="slide-num">02 / 11</div>
+  <div class="slide-num">02 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">¿Qué resuelve?</div>
     <h2>Objetivo del<br><span class="grad">proyecto</span></h2>
@@ -347,7 +347,7 @@
 ══════════════════════════════════════ -->
 <section class="slide" id="s3-integracion" data-label="Integración">
   <div class="orb" style="width:360px;height:360px;background:rgba(6,182,212,0.06);top:8%;right:-70px;"></div>
-  <div class="slide-num">03 / 11</div>
+  <div class="slide-num">03 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">Explicación inicial · ruta simple vs multidestino</div>
     <h2>Cómo trabaja<br><span class="grad">el optimizador</span></h2>
@@ -398,7 +398,7 @@
 ══════════════════════════════════════ -->
 <section class="slide" id="s3" data-label="Algoritmos">
   <div class="orb" style="width:320px;height:320px;background:rgba(139,92,246,0.07);top:5%;right:-40px;"></div>
-  <div class="slide-num">04 / 11</div>
+  <div class="slide-num">04 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/core/</div>
     <h2>Algoritmos de<br><span class="grad2">optimización</span></h2>
@@ -461,10 +461,146 @@ Espacio: O(n · 2ⁿ)</div>
 
 
 <!-- ══════════════════════════════════════
+  S3A — POR QUÉ GENÉTICO
+══════════════════════════════════════ -->
+<section class="slide" id="s3-porque" data-label="Por qué Genético">
+  <div class="orb" style="width:320px;height:320px;background:rgba(139,92,246,0.06);top:10%;left:-60px;"></div>
+  <div class="slide-num">05 / 14</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">Justificación de la elección</div>
+    <h2>¿Por qué<br><span class="grad2">Algoritmo Genético?</span></h2>
+  </div>
+  <div class="g6040 reveal stagger">
+    <div>
+      <p class="mb2">Para reemplazar a Held-Karp en 13+ ciudades había varias familias de heurísticos posibles. La decisión no fue "cualquier heurístico sirve" — se comparó contra las alternativas más directas antes de elegir cuál implementar.</p>
+      <div class="card co mb1">
+        <h3 style="margin-bottom:0.6rem;">Alternativas consideradas</h3>
+        <div style="display:flex;flex-direction:column;gap:0.55rem;">
+          <div><strong style="color:var(--text);">Nearest Neighbor</strong> <span class="tag to" style="margin-left:0.4rem;">greedy · O(n²)</span><p style="margin-top:0.25rem;">Construye una única solución y nunca la mejora. Rápido, pero la calidad depende del punto de partida y no hay margen de ajuste.</p></div>
+          <div><strong style="color:var(--text);">2-Opt</strong> <span class="tag to" style="margin-left:0.4rem;">mejora local · O(n²)/iter</span><p style="margin-top:0.25rem;">Mejora un tour existente intercambiando aristas, pero queda atrapado en óptimos locales sin forma de escapar.</p></div>
+          <div><strong style="color:var(--text);">Recocido Simulado</strong> <span class="tag to" style="margin-left:0.4rem;">metaheurístico · O(iter)</span><p style="margin-top:0.25rem;">Explora una sola solución a la vez, aceptando empeoras controladas. No aprovecha diversidad poblacional.</p></div>
+        </div>
+      </div>
+      <div class="card cg">
+        <p>“Un heurístico poblacional no busca una única respuesta — mantiene muchas en simultáneo y deja que compitan. Eso es lo que hace al Genético distinto de un greedy o de una mejora local.”</p>
+      </div>
+    </div>
+    <div>
+      <div class="card cp mb1">
+        <h3 style="margin-bottom:0.6rem;">Por qué se eligió el Genético</h3>
+        <div style="display:flex;flex-direction:column;gap:0.55rem;">
+          <div><strong style="color:var(--text);">Poblacional, no de una sola solución</strong><p style="margin-top:0.2rem;">Evoluciona 150–200 individuos en paralelo por generación; el cruce (OX) combina buenas subrutas de padres distintos en vez de partir de una sola.</p></div>
+          <div><strong style="color:var(--text);">Nunca pierde lo mejor encontrado</strong><p style="margin-top:0.2rem;">El elitismo pasa los 2 mejores individuos intactos a la siguiente generación — a diferencia de 2-Opt o Recocido Simulado, no hay riesgo de retroceder.</p></div>
+          <div><strong style="color:var(--text);">Extensible sin tocar el algoritmo</strong><p style="margin-top:0.2rem;">El fitness (1/costo) podría sumar restricciones reales — presupuesto, tiempo, ciudades prohibidas — sin cambiar selección, cruce ni mutación.</p></div>
+          <div><strong style="color:var(--text);">Demostrable en vivo</strong><p style="margin-top:0.2rem;">La evolución generación a generación es visual y medible: <code>history</code> guarda <code>best_cost</code> y <code>avg_cost</code> por generación, graficado en la UI con barra de progreso en tiempo real.</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:0.4rem;">Trade-off asumido</h3>
+        <p>A cambio de esa flexibilidad y escalabilidad, el Genético <strong>no garantiza el óptimo</strong>. El Laboratorio existe justamente para medir ese costo: el gap de optimalidad frente a Held-Karp.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S3B — ALGORITMO GENÉTICO
+══════════════════════════════════════ -->
+<section class="slide slide-alt" id="s3-genetico" data-label="Algoritmo Genético">
+  <div class="orb" style="width:340px;height:340px;background:rgba(139,92,246,0.07);bottom:5%;left:-60px;"></div>
+  <div class="slide-num">06 / 14</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">app/core/tsp_genetic.py · clase GeneticTSP</div>
+    <h2>Algoritmo Genético —<br><span class="grad2">TSP heurístico</span></h2>
+  </div>
+  <div class="g6040 reveal stagger">
+    <div>
+      <p class="mb2">Held-Karp es exacto pero <strong>explota exponencialmente</strong>: con 20 ciudades son 20² × 2²⁰ ≈ <strong>419 millones de estados</strong>, inviable en una UI web. El genético resuelve el mismo problema con complejidad <strong>O(generaciones × población × n)</strong>, totalmente controlable.</p>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Lógica de umbral (routing)</div>
+      <div class="flow-row mb2">
+        <div class="flow-box">2 ciudades → Dijkstra</div>
+        <div class="flow-arr">·</div>
+        <div class="flow-box">3–12 → Held-Karp</div>
+        <div class="flow-arr">·</div>
+        <div class="flow-box">13–25 → Genético</div>
+      </div>
+      <div class="card cp mb1">
+        <h3>Codificación (cromosoma)</h3>
+        <p style="margin-top:0.4rem;">Permutación de índices de ciudades. <code>[0, 3, 1, 2]</code> = Madrid → Viena → Barcelona → Roma → (Madrid). Fitness = 1 / costo total del tour.</p>
+      </div>
+      <div class="card co">
+        <h3 style="margin-bottom:0.4rem;">Constante de corte</h3>
+        <p><code>MAX_HELD_KARP = 12</code>. Con n=12 son ~590K operaciones (~500ms); con n=20, ~419M — el corte evita que la UI se congele.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card ca mb1">
+        <h3 style="margin-bottom:0.6rem;">Operadores evolutivos</h3>
+        <div style="display:flex;flex-direction:column;gap:0.55rem;">
+          <div><strong style="color:var(--text);">Selección — Torneo</strong><p style="margin-top:0.2rem;">5 candidatos al azar, gana el de menor costo.</p></div>
+          <div><strong style="color:var(--text);">Cruce — Order Crossover (OX)</strong><p style="margin-top:0.2rem;">Toma un segmento del padre 1 y rellena con el orden del padre 2, sin repetir ciudades. La ciudad inicial queda siempre fija.</p></div>
+          <div><strong style="color:var(--text);">Mutación — Swap</strong><p style="margin-top:0.2rem;">Intercambia dos ciudades al azar. Probabilidad 2%.</p></div>
+          <div><strong style="color:var(--text);">Elitismo</strong><p style="margin-top:0.2rem;">Los 2 mejores individuos pasan directo a la próxima generación — la mejor solución nunca se pierde.</p></div>
+        </div>
+      </div>
+      <div class="code-block"><span class="cm"># Order Crossover (OX)</span>
+parent1: [0, 1, 2, 3, 4]
+parent2: [0, 3, 1, 4, 2]
+segmento [1:3] de parent1 → [1, 2]
+hijo:    [0, 3, 1, 2, 4]  <span class="cm"># relleno de parent2</span>
+
+<span class="cm"># Parámetros (13+ ciudades, solver principal)</span>
+population_size = <span class="num">200</span>
+generations     = <span class="num">400</span>
+mutation_rate   = <span class="num">0.02</span>
+elitism         = <span class="num">2</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  S3C — LABORATORIO DE COMPARACIÓN
+══════════════════════════════════════ -->
+<section class="slide" id="s3-benchmark" data-label="Laboratorio">
+  <div class="orb" style="width:300px;height:300px;background:rgba(34,197,94,0.06);top:10%;right:-50px;"></div>
+  <div class="slide-num">07 / 14</div>
+  <div class="reveal mb3">
+    <div class="slide-tag">⚗️ Página "Laboratorio" · app/ui/streamlit_app.py</div>
+    <h2>Comparación empírica:<br><span class="grad">exacto vs heurístico</span></h2>
+  </div>
+  <div class="g6040 reveal stagger">
+    <div>
+      <p class="mb2">Página nueva que enfrenta <strong>Held-Karp</strong> contra el <strong>genético</strong> con ciudades reales tomadas de <code>routes_fixed</code>, con semilla reproducible. No depende de la API: arma la matriz de costos y corre ambos algoritmos directamente en la UI.</p>
+      <div class="card ca mb1">
+        <h3>Comparación puntual</h3>
+        <p style="margin-top:0.4rem;">Para un <code>n</code> elegido, corre ambos y muestra costo, tiempo (ms) y <strong>gap de optimalidad</strong> del genético contra el óptimo. Por encima de n=12, Held-Karp queda descartado y se informa que sería inviable (2ⁿ estados).</p>
+      </div>
+      <div class="card cp">
+        <h3>Benchmark completo</h3>
+        <p style="margin-top:0.4rem;">Corre n = 4…14 y grafica el tiempo con <strong>eje Y logarítmico</strong> (Altair). Extrapola Held-Karp con su complejidad teórica <code>t = C·n²·2ⁿ</code> para estimar el <strong>punto de cruce</strong> (~n=16) donde el heurístico pasa a ser más rápido.</p>
+      </div>
+    </div>
+    <div>
+      <div class="code-block mb1"><span class="cm"># Extrapolación calibrada con el último punto medido</span>
+C = hk_ms_medido / (n² · 2ⁿ)
+<span class="kw">for</span> k <span class="kw">in</span> range(n_medido, <span class="num">18</span>):
+  proyectado[k] = C * k**<span class="num">2</span> * <span class="num">2</span>**k
+
+<span class="cm"># Cruce: primer k donde el exacto proyectado</span>
+<span class="cm"># supera al promedio del genético</span></div>
+      <div class="card cg">
+        <h3 style="margin-bottom:0.5rem;">Hallazgo pedagógico</h3>
+        <p>El genético tiene un <strong>costo fijo alto</strong> (población × generaciones): para pocas ciudades Held-Karp es más rápido además de exacto. La ventaja del heurístico no es la velocidad con n chico — es que <strong>sigue siendo viable</strong> cuando el exacto ya no puede correr.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
   S5 — DÓNDE ESTÁ EN EL CÓDIGO
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s5-codigo-algoritmos" data-label="Código algoritmos">
-  <div class="slide-num">05 / 11</div>
+  <div class="slide-num">08 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">Archivos reales detectados</div>
     <h2>Dónde aparece<br><span class="grad">en el código</span></h2>
@@ -523,7 +659,7 @@ Espacio: O(n · 2ⁿ)</div>
   S4 — DATOS Y GRAFO
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s4" data-label="Datos">
-  <div class="slide-num">06 / 11</div>
+  <div class="slide-num">09 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/data/ · app/core/graph.py</div>
     <h2>Generación de rutas<br><span class="grad">y grafo de ciudades</span></h2>
@@ -584,7 +720,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
 ══════════════════════════════════════ -->
 <section class="slide" id="s5" data-label="API">
   <div class="orb" style="width:280px;height:280px;background:rgba(6,182,212,0.05);bottom:5%;left:-40px;"></div>
-  <div class="slide-num">07 / 11</div>
+  <div class="slide-num">10 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/api/server.py · FastAPI + Uvicorn</div>
     <h2>API REST —<br><span class="grad">capa de servicios</span></h2>
@@ -624,7 +760,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
   S6 — RESERVAS Y ASYNC
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s6" data-label="Reservas">
-  <div class="slide-num">08 / 11</div>
+  <div class="slide-num">11 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/booking/ · asyncio</div>
     <h2>Sistema de reservas<br><span class="grad">asincrónico y batch</span></h2>
@@ -692,7 +828,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
   S7 — CACHÉ
 ══════════════════════════════════════ -->
 <section class="slide" id="s7" data-label="Caché">
-  <div class="slide-num">09 / 11</div>
+  <div class="slide-num">12 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/caches/</div>
     <h2>Estrategia de<br><span class="grad">caché</span></h2>
@@ -749,7 +885,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
   S8 — UI + IA + TESTS
 ══════════════════════════════════════ -->
 <section class="slide slide-alt" id="s8" data-label="UI & Tests">
-  <div class="slide-num">10 / 11</div>
+  <div class="slide-num">13 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">app/ui/ · app/ai/ · app/tests/</div>
     <h2>Interfaz, IA<br><span class="grad">y cobertura de tests</span></h2>
@@ -806,7 +942,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
 ══════════════════════════════════════ -->
 <section class="slide" id="s9" data-label="Resumen">
   <div class="orb" style="width:480px;height:480px;background:rgba(59,130,246,0.06);bottom:-100px;right:-100px;"></div>
-  <div class="slide-num">11 / 11</div>
+  <div class="slide-num">14 / 14</div>
   <div class="reveal mb3">
     <div class="slide-tag">Conclusión</div>
     <h2>Lo que integra<br><span class="grad">el proyecto</span></h2>
@@ -815,8 +951,8 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
     <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
       <div style="font-size:1.4rem;flex-shrink:0;">🔭</div>
       <div>
-        <h3 style="margin-bottom:0.4rem;">Algoritmos clásicos</h3>
-        <p>Dijkstra con min-heap para caminos mínimos y Held-Karp (TSP + bitmask DP) para optimización de rutas multidestino.</p>
+        <h3 style="margin-bottom:0.4rem;">Algoritmos clásicos y heurísticos</h3>
+        <p>Dijkstra con min-heap para caminos mínimos, Held-Karp (TSP + bitmask DP) para pocas ciudades y Algoritmo Genético (OX, torneo, elitismo) cuando la cantidad de ciudades hace inviable al exacto.</p>
       </div>
     </div>
     <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
