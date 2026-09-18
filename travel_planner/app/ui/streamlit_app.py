@@ -8,9 +8,12 @@ import os
 # Agrega travel_planner/ al path para que 'app' sea importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+import time
+import random
 import streamlit as st
 import requests
 import pandas as pd
+import altair as alt
 from datetime import datetime
 from typing import List, Dict, Optional, Set
 import folium
@@ -18,6 +21,7 @@ from streamlit_folium import st_folium
 from app.data.routes_fixed import ROUTES_FIXED, CITIES
 from app.ai.gemini_recommendations import generate_city_recommendations, generate_itinerary_summary
 from app.core.tsp_genetic import GeneticTSP
+from app.core.tsp_dp import TSPSolver
 
 
 # ==========================================================
@@ -428,7 +432,46 @@ if "cost_submatrix" not in st.session_state:
     st.session_state.cost_submatrix = None
 
 
-PAGES = ["🏠 Inicio", "🌍 Ruta Multidestino", "📋 Mis Reservas", "📊 Estadísticas"]
+# ==========================================================
+#  LABORATORIO: helpers para comparar Held-Karp vs Genético
+# ==========================================================
+HELD_KARP_MAX = 12  # límite práctico del exacto (crece como 2^n)
+
+
+@st.cache_data(show_spinner=False)
+def build_route_cost_lookup() -> Dict:
+    """Mapa (origen, destino, transporte) -> costo, construido desde ROUTES_FIXED."""
+    return {(o, d, t): c for (o, d, c, _time, t) in ROUTES_FIXED}
+
+
+def build_cost_matrix(city_names: List[str], transport: str) -> List[List[float]]:
+    """Matriz n×n de costos entre las ciudades dadas, para un transporte."""
+    lookup = build_route_cost_lookup()
+    n = len(city_names)
+    matrix = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                matrix[i][j] = float(lookup[(city_names[i], city_names[j], transport)])
+    return matrix
+
+
+def run_held_karp(matrix: List[List[float]], city_names: List[str]):
+    """Corre Held-Karp midiendo el tiempo. Devuelve (costo, tiempo_ms)."""
+    t0 = time.perf_counter()
+    cost, _route = TSPSolver(matrix, city_names).solve(start_city=0, return_to_start=True)
+    return cost, (time.perf_counter() - t0) * 1000
+
+
+def run_genetic(matrix: List[List[float]], city_names: List[str],
+                population: int = 150, generations: int = 300):
+    """Corre el genético. Devuelve (costo, tiempo_ms)."""
+    ga = GeneticTSP(matrix, city_names, population_size=population, generations=generations)
+    cost, _route = ga.solve(start_city=0, return_to_start=True)
+    return cost, ga.elapsed_ms
+
+
+PAGES = ["🏠 Inicio", "🌍 Ruta Multidestino", "📋 Mis Reservas", "📊 Estadísticas", "⚗️ Laboratorio"]
 if "page" not in st.session_state:
     st.session_state.page = "🏠 Inicio"
 
@@ -1260,3 +1303,180 @@ elif page == "📊 Estadísticas":
     processing = "✅ Procesando" if batch.get("processing") else "🟡 En espera"
     st.info(f"**Estado actual del procesador:** {processing}")
     st.caption(f"Última actualización: {stats.get('timestamp', '').split('.')[0].replace('T', ' a las ')}")
+
+# ==========================================================
+#  PÁGINA: LABORATORIO (Held-Karp exacto vs Genético heurístico)
+# ==========================================================
+elif page == "⚗️ Laboratorio":
+    st.header("⚗️ Laboratorio: Held-Karp vs Algoritmo Genético")
+    st.write(
+        "Compará el algoritmo **exacto** (Held-Karp, O(n²·2ⁿ)) contra el **heurístico** "
+        "(genético). La idea es ver empíricamente *dónde el exacto deja de escalar* y el "
+        "heurístico se vuelve la única opción práctica."
+    )
+
+    all_cities = sorted(CITIES.keys())
+
+    transport = st.selectbox("🚗 Transporte", ["auto", "tren", "avión"], key="lab_transport")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        n = st.slider("Cantidad de ciudades (n)", 2, 20, 8, key="lab_n")
+    with col_b:
+        seed = st.number_input("Semilla (reproducibilidad)", value=42, step=1, key="lab_seed")
+
+    st.caption(
+        f"Held-Karp corre solo hasta n={HELD_KARP_MAX}. Por encima, se muestra únicamente "
+        "el genético (el exacto se vuelve inviable)."
+    )
+
+    # ------------------------------------------------------
+    #  Bloque 1: comparación puntual para un n
+    # ------------------------------------------------------
+    if st.button("▶️ Comparar", type="primary", use_container_width=True):
+        rng = random.Random(int(seed))
+        city_names = rng.sample(all_cities, n)
+        matrix = build_cost_matrix(city_names, transport)
+
+        rows = []
+        hk_cost = None
+        with st.spinner("Ejecutando algoritmos..."):
+            if n <= HELD_KARP_MAX:
+                hk_cost, hk_ms = run_held_karp(matrix, city_names)
+                rows.append({
+                    "Algoritmo": "Held-Karp (exacto)",
+                    "Costo": round(hk_cost),
+                    "Tiempo (ms)": round(hk_ms, 2),
+                    "Gap %": 0.0,
+                })
+            else:
+                st.warning(
+                    f"⚠️ Held-Karp no es viable para n={n}: requeriría explorar 2^{n} "
+                    f"= {2 ** n:,} estados. Solo se ejecuta el genético."
+                )
+
+            ga_cost, ga_ms = run_genetic(matrix, city_names)
+
+        gap = None if hk_cost is None else (ga_cost - hk_cost) / hk_cost * 100
+        rows.append({
+            "Algoritmo": "Genético (heurístico)",
+            "Costo": round(ga_cost),
+            "Tiempo (ms)": round(ga_ms, 2),
+            "Gap %": None if gap is None else round(gap, 2),
+        })
+
+        st.subheader("Resultado")
+        st.caption("Ciudades: " + " · ".join(city_names))
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+        if hk_cost is not None:
+            if round(ga_cost) == round(hk_cost):
+                st.success(
+                    f"✅ El genético alcanzó el óptimo exacto (costo {round(hk_cost)})."
+                )
+            else:
+                st.info(
+                    f"El genético quedó a un **{gap:.2f}%** del óptimo "
+                    f"(exacto: {round(hk_cost)}, genético: {round(ga_cost)})."
+                )
+
+    st.divider()
+
+    # ------------------------------------------------------
+    #  Bloque 2: benchmark completo (n = 4 … 14)
+    # ------------------------------------------------------
+    st.subheader("📈 Benchmark completo")
+    st.caption(
+        "Corre ambos algoritmos para n = 4 … 14 y grafica el tiempo con **eje Y "
+        "logarítmico**. Ahí se ve la curva exponencial de Held-Karp despegar."
+    )
+
+    if st.button("🏁 Correr benchmark", use_container_width=True):
+        rng = random.Random(int(seed))
+        n_range = list(range(4, 15))
+        records = []
+        hk_points = {}   # n -> tiempo real (para calibrar la extrapolación)
+        ga_times = []
+        progress = st.progress(0.0, text="Corriendo benchmark...")
+
+        for idx, k in enumerate(n_range):
+            city_names = rng.sample(all_cities, k)
+            matrix = build_cost_matrix(city_names, transport)
+
+            if k <= HELD_KARP_MAX:
+                _c, hk_ms = run_held_karp(matrix, city_names)
+                records.append({"n": k, "Grupo": "Held-Karp", "Serie": "medido",
+                                "Tiempo (ms)": hk_ms})
+                hk_points[k] = hk_ms
+
+            _c, ga_ms = run_genetic(matrix, city_names)
+            records.append({"n": k, "Grupo": "Genético", "Serie": "medido",
+                            "Tiempo (ms)": ga_ms})
+            ga_times.append(ga_ms)
+
+            progress.progress((idx + 1) / len(n_range), text=f"n = {k}")
+
+        progress.empty()
+
+        # --- Extrapolación de Held-Karp: t(n) = C · n² · 2ⁿ ---
+        # C se calibra con el punto medido más grande (ley de complejidad conocida).
+        max_hk_n = max(hk_points)
+        C = hk_points[max_hk_n] / (max_hk_n ** 2 * 2 ** max_hk_n)
+        proj_max = 18
+        # Arranca en max_hk_n para que la línea punteada continúe la sólida.
+        for k in range(max_hk_n, proj_max):
+            records.append({"n": k, "Grupo": "Held-Karp", "Serie": "proyectado",
+                            "Tiempo (ms)": C * k ** 2 * 2 ** k})
+
+        # --- Referencia plana del genético (su costo es ~independiente de n) ---
+        ga_avg = sum(ga_times) / len(ga_times)
+        for k in range(max(n_range), proj_max):
+            records.append({"n": k, "Grupo": "Genético", "Serie": "proyectado",
+                            "Tiempo (ms)": ga_avg})
+
+        # --- Cruce estimado: dónde el HK proyectado supera al genético ---
+        crossover = next(
+            (k for k in range(max_hk_n, proj_max) if C * k ** 2 * 2 ** k >= ga_avg),
+            None,
+        )
+
+        df = pd.DataFrame(records)
+        chart = (
+            alt.Chart(df)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("n:Q", title="Cantidad de ciudades (n)"),
+                y=alt.Y(
+                    "Tiempo (ms):Q",
+                    title="Tiempo de ejecución (ms, escala log)",
+                    scale=alt.Scale(type="log"),
+                ),
+                color=alt.Color("Grupo:N", title="Algoritmo"),
+                strokeDash=alt.StrokeDash(
+                    "Serie:N", title="",
+                    sort=["medido", "proyectado"],
+                ),
+                tooltip=["n", "Grupo", "Serie",
+                         alt.Tooltip("Tiempo (ms):Q", format=".2f")],
+            )
+            .properties(height=420)
+        )
+        st.altair_chart(chart, use_container_width=True)
+
+        if crossover is not None:
+            st.info(
+                f"📍 **Cruce estimado en n ≈ {crossover}**: a partir de ahí el exacto "
+                f"(línea punteada, proyectada con t = C·n²·2ⁿ) tardaría más que el "
+                f"genético. Held-Karp se corta en n={HELD_KARP_MAX} porque más allá "
+                f"deja de ser viable en la práctica."
+            )
+
+        pivot = (
+            df[df["Serie"] == "medido"]
+            .pivot(index="n", columns="Grupo", values="Tiempo (ms)")
+            .round(2)
+        )
+        st.dataframe(pivot, use_container_width=True)
+        st.caption(
+            "Líneas sólidas = tiempos medidos. Líneas punteadas = extrapolación "
+            "(Held-Karp por su complejidad teórica; genético como referencia plana)."
+        )

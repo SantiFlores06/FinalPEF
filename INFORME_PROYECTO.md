@@ -263,7 +263,7 @@ El proyecto es una aplicacion de planificacion de viajes multidestino. Usa rutas
 
 El flujo principal deberia permitir seleccionar ciudades una sola vez, calcular rutas, comparar costos, elegir una opcion y crear una reserva.
 
-## Cambios recientes (Fases 0-2)
+## Cambios recientes
 
 Esta seccion documenta las mejoras aplicadas al proyecto siguiendo el plan de mejoras
 (`PLAN_MEJORAS.md`), organizado en fases atomicas.
@@ -313,3 +313,29 @@ pasaba de tener 0% de cobertura a 94%. Los tests verifican:
 Estos tests son la red de seguridad para cualquier refactor futuro del genetico (por
 ejemplo, mover la seleccion de algoritmo al backend). La suite completa pasa de
 `26 passed` a `33 passed, 1 skipped`.
+
+### Fase 4.B - Laboratorio de comparacion de algoritmos
+
+Se agrego una pagina nueva "Laboratorio" a la interfaz (`app/ui/streamlit_app.py`) que
+compara empiricamente el algoritmo exacto (Held-Karp) contra el heuristico (genetico).
+Es la demostracion central del tema de la materia: mostrar donde el exacto deja de
+escalar.
+
+La pagina no depende de la API: arma las matrices de costos directamente desde
+`routes_fixed` (ciudades europeas reales) para un subconjunto aleatorio de `n` ciudades,
+reproducible con una semilla. Tiene dos bloques:
+
+- **Comparacion puntual:** para un `n` elegido, corre ambos algoritmos y muestra una tabla
+  con costo encontrado, tiempo de ejecucion y gap de optimalidad del genetico respecto al
+  optimo exacto. Held-Karp corre solo hasta n=12; por encima se informa que es inviable
+  (2^n estados) y solo se ejecuta el genetico.
+- **Benchmark completo:** corre el rango n=4..14 y grafica el tiempo con eje Y logaritmico
+  (Altair). Como Held-Karp no puede correr mas alla de n=12, se agrega una extrapolacion
+  de su tiempo usando su complejidad teorica t = C * n^2 * 2^n (con C calibrado con el
+  ultimo punto medido), lo que permite estimar el punto de cruce donde el exacto pasaria a
+  ser mas lento que el heuristico (alrededor de n=16 con los parametros por defecto).
+
+Hallazgo pedagogico: el genetico tiene un costo fijo alto (poblacion x generaciones), asi
+que para pocas ciudades Held-Karp es mas rapido ademas de exacto. La ventaja del heuristico
+no es la velocidad para n chico, sino que sigue siendo viable cuando el exacto ya no puede
+correr por la explosion combinatoria.
