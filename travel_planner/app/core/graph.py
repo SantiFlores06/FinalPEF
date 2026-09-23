@@ -225,36 +225,6 @@ class TravelGraph:
         
         return path
     
-    def find_all_shortest_paths(
-        self,
-        origin: str,
-        weight: str = 'cost',
-        transport_type: Optional[str] = None
-    ) -> Dict[str, Tuple[List[str], float]]:
-        """
-        Encuentra todos los caminos más cortos desde un origen a todos los destinos.
-
-        Args:
-            origin: Ciudad de origen.
-            weight: Criterio de optimización.
-            transport_type: Tipo de transporte opcional para filtrar rutas.
-
-        Returns:
-            Diccionario donde la clave es el destino y el valor es una tupla
-            con (camino, distancia).
-        """
-        distances, predecessors = self.dijkstra(origin, weight=weight, transport_type=transport_type)
-
-        results = {}
-        for destination in self.vertices:
-            if destination == origin:
-                continue
-
-            path = self._reconstruct_path(predecessors, origin, destination)
-            results[destination] = (path, distances[destination])
-
-        return results
-    
     def get_route_details(self, path: List[str]) -> List[Dict]:
         """
         Obtiene los detalles completos de las rutas en un camino.

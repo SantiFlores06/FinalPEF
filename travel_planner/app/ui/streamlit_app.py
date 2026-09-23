@@ -19,7 +19,7 @@ from typing import List, Dict, Optional, Set
 import folium
 from streamlit_folium import st_folium
 from app.data.routes_fixed import ROUTES_FIXED, CITIES
-from app.ai.gemini_recommendations import generate_city_recommendations, generate_itinerary_summary
+from app.ai.gemini_recommendations import generate_city_recommendations
 from app.core.tsp_genetic import GeneticTSP
 from app.core.tsp_dp import TSPSolver
 
@@ -152,17 +152,6 @@ def log_to_console(message: str, level: str = "log"):
     console.{level}({safe_message});
     </script>
     """, unsafe_allow_html=True)
-
-
-def get_connected_cities(from_city: str, transport_type: str) -> Set[str]:
-    """
-    Obtiene las ciudades conectadas desde una ciudad específica dado un tipo de transporte.
-    """
-    connected = set()
-    for origin, destination, cost, time, transport in ROUTES_FIXED:
-        if origin == from_city and transport == transport_type:
-            connected.add(destination)
-    return connected
 
 
 def get_all_cities_with_transport(transport_type: str) -> Set[str]:
@@ -305,27 +294,6 @@ def cancel_reservation_api(reservation_id: str) -> bool:
         return False
 
 
-def compare_routes(origin: str, destination: str, transport_type: str, optimize_by: str) -> Optional[Dict]:
-    """Compara ruta directa vs ruta más económica."""
-    try:
-        response = requests.get(
-            f"{API_URL}/routes/compare",
-            params={
-                "origin": origin,
-                "destination": destination,
-                "transport": transport_type,
-                "optimize_by": optimize_by
-            },
-            timeout=10
-        )
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return None
-    except Exception as e:
-        st.error(f"Error comparando rutas: {e}")
-        return None
-
 @st.cache_data(ttl=10, show_spinner=False)
 def get_system_stats() -> Dict:
     """Obtiene estadísticas del sistema."""
@@ -387,9 +355,6 @@ def show_city_recommendations(cities: List[str]):
 if "user_id" not in st.session_state:
     st.session_state.user_id = "user_1"
 
-if "tsp_result" not in st.session_state:
-    st.session_state.tsp_result = None
-
 if "selected_cities" not in st.session_state:
     st.session_state.selected_cities = []
 
@@ -405,12 +370,6 @@ if "last_transport" not in st.session_state:
 
 if "last_optimize_by" not in st.session_state:
     st.session_state.last_optimize_by = None
-
-if "pending_city" not in st.session_state:
-    st.session_state.pending_city = None
-
-if "route_comparison" not in st.session_state:
-    st.session_state.route_comparison = None
 
 # ✅ Cache de recomendaciones por ciudad — persiste entre re-renders de Streamlit
 if "city_recommendations" not in st.session_state:
@@ -520,7 +479,6 @@ if page == "🌍 Ruta Multidestino":
 
     # Si cambia el transporte o criterio de optimización, resetear resultados pero NO las ciudades
     if st.session_state.last_transport != transport_mode or st.session_state.last_optimize_by != optimize_by:
-        st.session_state.tsp_result = None
         st.session_state.user_route_result = None
         st.session_state.optimized_route_result = None
         st.session_state.selected_route_for_booking = None
@@ -675,7 +633,6 @@ if page == "🌍 Ruta Multidestino":
                                     "total_cost": total_metric,
                                     "computation_time": 0.0,
                                     "cached": outbound.get("cached", False),
-                                    "recommendations": [],
                                     "algorithm": "dijkstra",
                                 }
                     elif len(st.session_state.selected_cities) <= MAX_HELD_KARP:
@@ -714,7 +671,6 @@ if page == "🌍 Ruta Multidestino":
                             "total_cost": _ga_cost,
                             "computation_time": _ga.elapsed_ms,
                             "cached": False,
-                            "recommendations": [],
                             "algorithm": "genetic",
                             "ga_history": _ga.history,
                             "ga_elapsed_ms": _ga.elapsed_ms,
@@ -1069,22 +1025,6 @@ if page == "🌍 Ruta Multidestino":
 
             st.divider()
 
-        # Mostrar recomendaciones de la IA (si hay)
-        if "recommendations" in opt_result and opt_result["recommendations"]:
-            st.subheader(f"🧠 IA: Basado en tu destino final ({opt_result['optimal_route'][-1]}), ¡quizás te interese!")
-            rec_list = opt_result["recommendations"]
-            num_cols = min(len(rec_list), 4)
-            if num_cols > 0:
-                cols = st.columns(num_cols)
-                for i, rec in enumerate(rec_list):
-                    if i < num_cols:
-                        with cols[i]:
-                            st.button(f"📍 {rec['destination_name']}",
-                                      help=f"Similitud: {rec['similarity']:.2f}",
-                                      key=f"rec_compare_{i}",
-                                      use_container_width=True)
-            st.divider()
-
         # Mostrar recomendaciones de lugares por ciudad
         if st.session_state.selected_route_for_booking:
             selected_route = st.session_state.selected_route_for_booking["route"]
@@ -1124,7 +1064,6 @@ if page == "🌍 Ruta Multidestino":
                     st.balloons()
                     # Limpiar todo
                     st.session_state.clear_selected_cities = True
-                    st.session_state.tsp_result = None
                     st.session_state.user_route_result = None
                     st.session_state.optimized_route_result = None
                     st.session_state.selected_route_for_booking = None
@@ -1143,7 +1082,6 @@ if page == "🌍 Ruta Multidestino":
                     st.balloons()
                     # Limpiar todo
                     st.session_state.clear_selected_cities = True
-                    st.session_state.tsp_result = None
                     st.session_state.user_route_result = None
                     st.session_state.optimized_route_result = None
                     st.session_state.selected_route_for_booking = None

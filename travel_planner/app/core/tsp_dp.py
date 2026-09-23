@@ -281,16 +281,6 @@ class BitMaskUtils:
         return (mask & (1 << city)) != 0
     
     @staticmethod
-    def visit_city(mask: int, city: int) -> int:
-        """Marca una ciudad como visitada."""
-        return mask | (1 << city)
-    
-    @staticmethod
-    def unvisit_city(mask: int, city: int) -> int:
-        """Marca una ciudad como no visitada."""
-        return mask & ~(1 << city)
-    
-    @staticmethod
     def count_visited(mask: int) -> int:
         """Cuenta cuántas ciudades están visitadas."""
         return bin(mask).count('1')

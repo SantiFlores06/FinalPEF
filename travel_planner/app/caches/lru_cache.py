@@ -196,24 +196,6 @@ class TTLCache(LRUCache):
         """Limpia cache y timestamps."""
         super().clear()
         self.timestamps.clear()
-    
-    def cleanup_expired(self) -> int:
-        """
-        Elimina todas las entradas expiradas.
-        
-        Returns:
-            Número de elementos eliminados.
-        """
-        current_time = time.time()
-        expired_keys = [
-            key for key, timestamp in self.timestamps.items()
-            if current_time - timestamp > self.ttl
-        ]
-        
-        for key in expired_keys:
-            self.delete(key)
-        
-        return len(expired_keys)
 
 
 def lru_cache_decorator(maxsize: int = 128):

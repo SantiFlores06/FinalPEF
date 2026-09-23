@@ -118,7 +118,6 @@ class ItineraryRequest(BaseModel):
     destinations: List[str]
     max_budget: float = 1000.0
     max_duration_hours: float = 72.0
-    transport_preferences: List[str] = ["tren", "avión", "bus"]
 
 class ReservationRequest(BaseModel):
     user_id: str
@@ -251,7 +250,6 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
             "path": path,
             "total_cost": cost,
             "cached": False,
-            "recommendations": []
         }
         
         route_cache.put(cache_key, result) # Guardar el resultado completo en caché
@@ -365,7 +363,6 @@ async def optimize_multi_destination(request: TSPRequest):
             "optimal_route": route,
             "total_cost": final_cost,
             "computation_time": elapsed,
-            "recommendations": [],
             "cached": False
         }
 

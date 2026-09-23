@@ -68,7 +68,6 @@ class ReservationManager:
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.reservations: Dict[str, Reservation] = {}
-        self.active_tasks: List[asyncio.Task] = []
     
     async def create_reservation(self, user_id: str, itinerary: Dict[str, Any]) -> Reservation:
         """

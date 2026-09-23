@@ -18,26 +18,6 @@ class TransportType(Enum):
     BARCO = "barco"
 
 
-class ValidationError(Exception):
-    """Excepción personalizada para errores de validación."""
-    pass
-
-
-@dataclass
-class TimeWindow:
-    """Ventana de tiempo para restricciones."""
-    start: datetime
-    end: datetime
-    
-    def duration_hours(self) -> float:
-        """Calcula la duración en horas."""
-        return (self.end - self.start).total_seconds() / 3600
-    
-    def overlaps_with(self, other: 'TimeWindow') -> bool:
-        """Verifica si hay solapamiento con otra ventana."""
-        return self.start < other.end and other.start < self.end
-
-
 @dataclass
 class RouteSegment:
     """Representa un segmento individual del itinerario."""

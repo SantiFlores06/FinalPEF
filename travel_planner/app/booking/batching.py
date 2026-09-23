@@ -22,7 +22,6 @@ class BatchItem:
     item_id: str
     data: Any
     future: asyncio.Future = field(default_factory=asyncio.Future)
-    added_at: datetime = field(default_factory=datetime.now)
 
 class BatchProcessor:
     """

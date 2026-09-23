@@ -6,8 +6,7 @@ Cache persistente ideal para sistemas con múltiples instancias/servidores.
 import redis
 import json
 import pickle
-from typing import Any, Optional, Dict, Callable, List
-from functools import wraps
+from typing import Any, Optional, Dict, List
 from datetime import timedelta
 import logging
 
@@ -325,47 +324,6 @@ class RedisCache:
             logger.info("Conexión con Redis cerrada")
         except Exception as e:
             logger.error(f"Error cerrando conexión: {e}")
-
-
-def redis_cache_decorator(
-    cache: RedisCache,
-    ttl: Optional[int] = None,
-    key_prefix: str = "func"
-):
-    """
-    Decorador para cachear resultados de funciones en Redis.
-    
-    Args:
-        cache: Instancia de RedisCache.
-        ttl: TTL específico para este cache.
-        key_prefix: Prefijo para las claves generadas.
-    
-    Example:
-        @redis_cache_decorator(redis_cache, ttl=600)
-        def buscar_ruta(origen, destino):
-            # Cálculo costoso
-            return resultado
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            # Crear clave única
-            cache_key = f"{key_prefix}:{func.__name__}:{str(args)}:{str(sorted(kwargs.items()))}"
-            
-            # Buscar en cache
-            result = cache.get(cache_key)
-            if result is not None:
-                logger.debug(f"Cache HIT: {cache_key}")
-                return result
-            
-            # Calcular y cachear
-            logger.debug(f"Cache MISS: {cache_key}")
-            result = func(*args, **kwargs)
-            cache.set(cache_key, result, ttl=ttl)
-            return result
-        
-        return wrapper
-    return decorator
 
 
 # Ejemplo de uso
