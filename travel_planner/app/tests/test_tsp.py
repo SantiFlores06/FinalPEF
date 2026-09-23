@@ -2,7 +2,7 @@
 test_tsp.py - Tests para el algoritmo TSP (Travelling Salesman Problem).
 """
 import pytest
-from app.core.tsp_dp import TSPSolver
+from app.core.tsp_dp import TSPSolver, choose_tsp_algorithm
 
 def test_tsp_3_cities(cost_matrix_3x3):
     """
@@ -46,3 +46,10 @@ def test_get_route_names():
     # Ruta 0 -> 1
     path_names = solver.get_route_with_names([0, 1])
     assert path_names == ["Casa", "Trabajo"]
+
+@pytest.mark.parametrize(
+    ("n_cities", "expected"),
+    [(3, "held_karp"), (12, "held_karp"), (13, "genetic"), (25, "genetic")],
+)
+def test_choose_tsp_algorithm_borders(n_cities, expected):
+    assert choose_tsp_algorithm(n_cities) == expected

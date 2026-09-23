@@ -4,7 +4,14 @@ Implementa el algoritmo de Held-Karp usando bitmasking y memoización.
 """
 
 from typing import Dict, List, Tuple, Optional
-import sys
+
+HELD_KARP_MAX = 12
+MAX_TSP_CITIES = 25
+
+
+def choose_tsp_algorithm(n_cities: int) -> str:
+    """Return the TSP algorithm suited to the given number of cities."""
+    return "held_karp" if n_cities <= HELD_KARP_MAX else "genetic"
 
 
 class TSPSolver:
@@ -19,7 +26,7 @@ class TSPSolver:
         Tiempo: O(n² × 2^n)
         Espacio: O(n × 2^n)
     
-    Adecuado para n ≤ 20 ciudades.
+    Práctico hasta HELD_KARP_MAX (12) ciudades.
     """
     
     def __init__(

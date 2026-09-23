@@ -4,19 +4,23 @@ API RESTful para el sistema de planificación de viajes multidestino.
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Literal, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager, suppress
-from app.data.routes_fixed import ROUTES_FIXED
+from app.data.routes_fixed import CITIES, ROUTES_FIXED
 import asyncio
+import copy
+import hashlib
 import logging
-import time # Importar time para el profiling
+from time import perf_counter
 
 # Imports de nuestros módulos
 from app.core.graph import TravelGraph
-from app.core.tsp_dp import TSPSolver
+from app.core.tsp_dp import HELD_KARP_MAX, MAX_TSP_CITIES, TSPSolver, choose_tsp_algorithm
+from app.core.tsp_genetic import GeneticTSP
 from app.core.itinerary_validator import ItineraryConstraints
 from app.caches.cache_backend import get_cache_backend
 from app.booking.reservations import ReservationManager
@@ -101,15 +105,18 @@ class RouteResponse(BaseModel):
     cached: bool = False
 
 class TSPRequest(BaseModel):
-    cities: List[str] = Field(..., min_length=2)
+    cities: List[str] = Field(..., min_length=2, max_length=MAX_TSP_CITIES)
     cost_matrix: List[List[float]]
     return_to_start: bool = True
+    algorithm: Optional[Literal["held_karp", "genetic"]] = None
 
 class TSPResponse(BaseModel):
-    """Modelo TSP Corregido"""
+    """Multi-destination route optimized by the TSP algorithm chosen by the server."""
+    algorithm: str
     optimal_route: List[str]
     total_cost: float
-    computation_time: float
+    elapsed_ms: float
+    history: Optional[List[Dict[str, Any]]] = None
     cached: bool = False
 
 class ItineraryRequest(BaseModel):
@@ -144,6 +151,13 @@ def get_populated_graph():
 
     logger.info(f"Grafo inicializado con {len(ROUTES_FIXED)} rutas fijas")
     return travel_graph
+
+
+def mark_as_cached(cached_result: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of a cached result flagged as cached, leaving the stored one intact."""
+    result = copy.deepcopy(cached_result)
+    result["cached"] = True
+    return result
 
 # ==========================================================
 # ENDPOINTS
@@ -231,8 +245,7 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
 
     cached = route_cache.get(cache_key)
     if cached:
-        cached["cached"] = True
-        return cached # Devuelve el resultado completo desde el caché
+        return mark_as_cached(cached)
 
     try:
         path, cost = graph.find_shortest_path(
@@ -255,6 +268,8 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
         route_cache.put(cache_key, result) # Guardar el resultado completo en caché
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -319,56 +334,130 @@ async def get_compare_routes(origin: str, destination: str, transport: str = "au
     except Exception as e:
         logger.error(f"Error comparando rutas: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================================
+# TSP MULTIDESTINO
+# ==========================================================
+
+GENETIC_POPULATION_SIZE = 200
+GENETIC_GENERATIONS = 400
+GENETIC_MUTATION_RATE = 0.02
+GENETIC_TOURNAMENT_SIZE = 5
+GENETIC_ELITISM = 2
+
+NO_FEASIBLE_ROUTE_DETAIL = "No existe una ruta que conecte todas las ciudades con el transporte elegido"
+
+
+def validate_matrix_matches_cities(cost_matrix: List[List[float]], cities: List[str]) -> None:
+    """Raise 422 unless the matrix is square and sized to the city list."""
+    n_cities = len(cities)
+    if len(cost_matrix) != n_cities or any(len(row) != n_cities for row in cost_matrix):
+        raise HTTPException(
+            status_code=422,
+            detail="La matriz de costos debe ser cuadrada y coincidir con las ciudades",
+        )
+
+
+def validate_known_cities(cities: List[str]) -> None:
+    """Raise 422 when any city is not in the catalog."""
+    unknown_cities = [city for city in cities if city not in CITIES]
+    if unknown_cities:
+        raise HTTPException(status_code=422, detail=f"Ciudades desconocidas: {', '.join(unknown_cities)}")
+
+
+def validate_forced_algorithm(algorithm: Optional[str], n_cities: int) -> None:
+    """Raise 422 when Held-Karp is forced beyond its safe size."""
+    if algorithm == "held_karp" and n_cities > HELD_KARP_MAX:
+        raise HTTPException(status_code=422, detail=f"Held-Karp solo admite hasta {HELD_KARP_MAX} ciudades")
+
+
+def validate_tsp_request(request: TSPRequest) -> None:
+    """Raise 422 when the TSP request is inconsistent or unsafe to solve."""
+    validate_matrix_matches_cities(request.cost_matrix, request.cities)
+    validate_known_cities(request.cities)
+    validate_forced_algorithm(request.algorithm, len(request.cities))
+
+
+def build_tsp_cache_key(request: TSPRequest, algorithm: str) -> str:
+    """Build a cache key unique to the cities, tour type, algorithm and cost matrix."""
+    matrix_hash = hashlib.md5(str(request.cost_matrix).encode()).hexdigest()
+    return f"multi_{'-'.join(request.cities)}_{request.return_to_start}_{algorithm}_{matrix_hash}"
+
+
+def replace_unreachable_with_inf(cost_matrix: List[List[float]]) -> List[List[float]]:
+    """Replace the JSON-safe -1.0 unreachable marker with infinity."""
+    return [[float("inf") if value == -1.0 else value for value in row] for row in cost_matrix]
+
+
+def solve_with_held_karp(matrix: List[List[float]], cities: List[str], return_to_start: bool) -> Dict[str, Any]:
+    """Solve the TSP exactly with Held-Karp."""
+    solver = TSPSolver(matrix, cities)
+    started_at = perf_counter()
+    total_cost, route = solver.solve(start_city=0, return_to_start=return_to_start)
+    elapsed_ms = (perf_counter() - started_at) * 1000
+    return {
+        "algorithm": "held_karp",
+        "optimal_route": solver.get_route_with_names(route),
+        "total_cost": total_cost,
+        "elapsed_ms": elapsed_ms,
+        "history": None,
+    }
+
+
+def solve_with_genetic(matrix: List[List[float]], cities: List[str], return_to_start: bool) -> Dict[str, Any]:
+    """Solve the TSP approximately with a genetic algorithm."""
+    solver = GeneticTSP(
+        matrix,
+        cities,
+        population_size=GENETIC_POPULATION_SIZE,
+        generations=GENETIC_GENERATIONS,
+        mutation_rate=GENETIC_MUTATION_RATE,
+        tournament_size=GENETIC_TOURNAMENT_SIZE,
+        elitism=GENETIC_ELITISM,
+    )
+    total_cost, route = solver.solve(start_city=0, return_to_start=return_to_start)
+    return {
+        "algorithm": "genetic",
+        "optimal_route": solver.get_route_with_names(route),
+        "total_cost": total_cost,
+        "elapsed_ms": solver.elapsed_ms,
+        "history": solver.history,
+    }
+
+
+TSP_SOLVERS = {
+    "held_karp": solve_with_held_karp,
+    "genetic": solve_with_genetic,
+}
+
+
+def solve_tsp(algorithm: str, matrix: List[List[float]], cities: List[str], return_to_start: bool) -> Dict[str, Any]:
+    """Solve the TSP with the named algorithm."""
+    return TSP_SOLVERS[algorithm](matrix, cities, return_to_start)
+
+
 @app.post("/routes/optimize-multi", response_model=TSPResponse)
 async def optimize_multi_destination(request: TSPRequest):
-    start = time.time()
-
-    # Crear hash de la matriz para hacer la clave del caché única por matriz
-    import hashlib
-    matrix_flat = []
-    for row in request.cost_matrix:
-        matrix_flat.extend(row)
-    matrix_str = str(matrix_flat)
-    matrix_hash = hashlib.md5(matrix_str.encode()).hexdigest()[:8]
-
-    cache_key = f"multi_{'-'.join(request.cities)}_{request.return_to_start}_{matrix_hash}"
+    validate_tsp_request(request)
+    algorithm = request.algorithm or choose_tsp_algorithm(len(request.cities))
+    cache_key = build_tsp_cache_key(request, algorithm)
 
     cached_result = route_cache.get(cache_key)
     if cached_result:
-        logger.info(f"🧠 Resultado obtenido desde cache: {cache_key}")
-        cached_result["cached"] = True
-        return cached_result
+        return mark_as_cached(cached_result)
 
     try:
-        # 1. CONVERSIÓN DE ENTRADA: -1.0 -> float('inf')
-        # El algoritmo TSP necesita 'inf' para funcionar, pero recibimos -1.0 del JSON
-        matrix_with_inf = [
-            [float('inf') if val == -1.0 else val for val in row]
-            for row in request.cost_matrix
-        ]
+        matrix = replace_unreachable_with_inf(request.cost_matrix)
+        result = await run_in_threadpool(solve_tsp, algorithm, matrix, request.cities, request.return_to_start)
+        if result["total_cost"] == float("inf"):
+            raise HTTPException(status_code=422, detail=NO_FEASIBLE_ROUTE_DETAIL)
 
-        # 2. Resolver TSP
-        solver = TSPSolver(cost_matrix=matrix_with_inf, city_names=request.cities)
-        min_cost, route_idx = solver.solve(start_city=0, return_to_start=request.return_to_start)
-        route = solver.get_route_with_names(route_idx)
-        elapsed = time.time() - start
-
-        # 3. CONVERSIÓN DE SALIDA: float('inf') -> None
-        # Si no hay solución, el costo es inf, pero JSON no lo soporta. Enviamos None.
-        final_cost = None
-        if min_cost != float('inf'):
-            final_cost = min_cost
-
-        result = {
-            "optimal_route": route,
-            "total_cost": final_cost,
-            "computation_time": elapsed,
-            "cached": False
-        }
-
-        route_cache.put(cache_key, result)
+        result["cached"] = False
+        route_cache.put(cache_key, copy.deepcopy(result))
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"❌ Error en optimize_multi_destination: {e}")
         raise HTTPException(status_code=500, detail=str(e))
