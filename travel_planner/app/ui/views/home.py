@@ -1,0 +1,29 @@
+"""Home page."""
+
+import streamlit as st
+
+from app.data.routes_fixed import CITIES
+from app.ui.maps import build_home_map, show_map
+
+FEATURES = [
+    ("Ruta Multidestino", "Optimización TSP con Dijkstra, Held-Karp y Algoritmos Genéticos."),
+    ("Mis Reservas", "Estado en tiempo real de reservas individuales y en lote."),
+    ("Estadísticas", "Caché LRU, rendimiento y procesamiento batch asíncrono."),
+    ("IA Gemini", "Recomendaciones personalizadas de destinos y lugares."),
+]
+
+
+def render_home() -> None:
+    """Render the welcome page with the feature overview and the city map."""
+    st.header("Bienvenido al Planificador de Viajes Europeo")
+    st.markdown(
+        f"Optimizá rutas entre **{len(CITIES)} ciudades de Europa**, compará algoritmos de "
+        "optimización y realizá reservas, todo en un solo lugar."
+    )
+    for column, (title, description) in zip(st.columns(len(FEATURES)), FEATURES):
+        with column.container(border=True):
+            st.markdown(f"**{title}**")
+            st.caption(description)
+    st.divider()
+    st.markdown(f"#### {len(CITIES)} ciudades disponibles en Europa")
+    show_map(build_home_map(), key="home_city_map")
