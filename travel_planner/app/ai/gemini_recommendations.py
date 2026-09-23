@@ -9,6 +9,7 @@ from typing import Optional
 
 try:
     from google import genai
+    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -40,8 +41,7 @@ def get_client():
         return None
 
 
-# Modelo recomendado actualmente (estable y gratuito en el tier free)
-GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 def generate_city_recommendations(city: str, country: str = None) -> Optional[str]:
     """
@@ -78,6 +78,9 @@ Responde SOLO las recomendaciones, sin introducción ni conclusión extra.
         response = client.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
+            config=types.GenerateContentConfig(
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)
+            ),
         )
 
         if response and response.text:
