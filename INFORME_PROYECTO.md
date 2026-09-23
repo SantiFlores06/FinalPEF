@@ -6,6 +6,33 @@ Este proyecto implementa un sistema de planificacion de viajes multidestino. La 
 
 El sistema combina algoritmos clasicos, API web, interfaz grafica, cache, procesamiento asincronico de reservas, procesamiento por lotes y recomendaciones con IA.
 
+## El problema: dos preguntas distintas
+
+El planificador tiene que responder dos preguntas que parecen iguales pero no lo son:
+
+1. **¿Cual es el camino mas barato entre dos ciudades?** Por ejemplo, de Madrid a Roma. Hay un origen y un destino. Es el problema de camino minimo y se resuelve con Dijkstra, de forma exacta y rapida: O((V + E) log V).
+
+2. **Si quiero visitar varias ciudades, ¿en que orden conviene recorrerlas?** Por ejemplo, Madrid, Paris, Roma y Berlin. Aca no alcanza con conocer el camino entre cada par: hay que elegir el orden completo del recorrido. Es el Problema del Viajante (TSP), que el enunciado pide como "programacion dinamica estilo viajante".
+
+La diferencia importa porque la cantidad de ordenes posibles crece de forma factorial. Fijando la ciudad de partida, con n ciudades hay (n-1)! recorridos distintos:
+
+| Ciudades | Ordenes posibles |
+|----------|------------------|
+| 4        | 6                |
+| 8        | 5.040            |
+| 12       | ~40 millones     |
+| 20       | ~1,2 x 10^17     |
+
+Por eso el sistema usa tres algoritmos, cada uno para su caso:
+
+| Situacion | Algoritmo | Motivo |
+|-----------|-----------|--------|
+| 2 ciudades | Dijkstra | Es un camino minimo, no hay orden que elegir |
+| 3 a 12 ciudades | Held-Karp | Exacto. La programacion dinamica evita probar todos los ordenes, pero igual crece como O(n^2 * 2^n) |
+| 13 o mas ciudades | Algoritmo genetico | Held-Karp deja de ser viable. El genetico encuentra una solucion muy buena, sin garantia de ser la optima, en un tiempo controlable |
+
+En una frase: Dijkstra dice como ir de una ciudad a otra; el TSP dice en que orden visitar todas. El algoritmo genetico existe porque, a partir de cierta cantidad de ciudades, calcular el orden exacto deja de ser posible en un tiempo razonable.
+
 ## Estructura principal
 
 El codigo importante esta dentro de:
