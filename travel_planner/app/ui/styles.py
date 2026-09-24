@@ -8,13 +8,19 @@ from streamlit.delta_generator import DeltaGenerator
 BASE_CSS = """
 html { font-size: 17px; }
 [data-testid="stHeading"] h2, [data-testid="stHeading"] h3 { color: #312E81; font-weight: 700; }
-[data-testid="stCaptionContainer"] { color: #4B5563; }
-hr { border-color: #E0E7FF; }
+[data-testid="stHeading"] h3 { border-left: 5px solid #7C3AED; padding-left: 0.65rem; }
+[data-testid="stCaptionContainer"] { color: #475569; }
+hr { border-color: #C3C9E8; }
 """
 
 SIDEBAR_CSS = """
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #1E1B4B 0%, #312E81 45%, #4338CA 100%);
+}
+[data-testid="stSidebar"][aria-expanded="true"] {
+    width: 232px !important;
+    min-width: 232px !important;
+    max-width: 232px !important;
 }
 [data-testid="stSidebar"] :is(h1, h2, h3, p, label, span, small) { color: #F8FAFC; }
 [data-testid="stSidebar"] hr { border-color: rgba(255, 255, 255, 0.25); }
@@ -47,24 +53,45 @@ HERO_CSS = """
 CARD_CSS = """
 [data-testid="stMetric"] {
     background: #FFFFFF;
-    border: 1px solid #E0E7FF;
+    border: 1px solid #C3C9E8;
     border-left: 5px solid #4F46E5;
     border-radius: 14px;
     padding: 0.9rem 1.1rem;
-    box-shadow: 0 4px 14px rgba(49, 46, 129, 0.08);
+    box-shadow: 0 6px 16px rgba(30, 27, 75, 0.12);
 }
-[data-testid="stMetricLabel"] p { color: #4B5563; font-weight: 600; }
+[data-testid="stMetricLabel"] p { color: #475569; font-weight: 600; }
 [data-testid="stMetricValue"] { color: #1E1B4B; font-weight: 700; }
-[data-testid="stElementContainer"]:has(.card-anchor) { display: none; }
+[data-testid="stElementContainer"]:has(:is(.card-anchor, .map-anchor)) { display: none; }
 [data-testid="stVerticalBlockBorderWrapper"]:has(
     > div > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] .card-anchor
 ) {
     background: #FFFFFF;
-    border: 1px solid #E0E7FF;
+    border: 1px solid #C3C9E8;
     border-top: 4px solid #7C3AED;
     border-radius: 16px;
-    box-shadow: 0 6px 18px rgba(49, 46, 129, 0.10);
+    box-shadow: 0 8px 22px rgba(30, 27, 75, 0.14);
 }
+[data-testid="stExpander"] details,
+[data-testid="stDataFrame"],
+[data-testid="stVegaLiteChart"] {
+    background: #FFFFFF;
+    border: 1px solid #C3C9E8;
+    border-radius: 12px;
+}
+[data-testid="stVegaLiteChart"] { padding: 0.6rem; box-shadow: 0 4px 12px rgba(30, 27, 75, 0.08); }
+"""
+
+MAP_FRAME_CSS = """
+[data-testid="stVerticalBlockBorderWrapper"]:has(
+    > div > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] .map-anchor
+) {
+    background: #FFFFFF;
+    border: 1px solid #A5B4FC;
+    border-radius: 16px;
+    padding: 0.4rem;
+    box-shadow: 0 8px 22px rgba(30, 27, 75, 0.16);
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.map-anchor) iframe { border-radius: 12px; }
 """
 
 BUTTON_CSS = """
@@ -105,15 +132,15 @@ BADGE_CSS = """
 RESERVATION_CSS = """
 .res-card {
     background: #FFFFFF;
-    border: 1px solid #E0E7FF;
+    border: 1px solid #C3C9E8;
     border-left: 5px solid #4F46E5;
     border-radius: 14px;
     padding: 1rem 1.25rem;
     margin-bottom: 1rem;
-    box-shadow: 0 4px 14px rgba(49, 46, 129, 0.08);
+    box-shadow: 0 6px 16px rgba(30, 27, 75, 0.12);
 }
 .res-header { font-size: 1.1rem; font-weight: 700; color: #1E1B4B; }
-.res-sub    { font-size: 0.85rem; color: #4B5563; margin-bottom: 0.6rem; }
+.res-sub    { font-size: 0.85rem; color: #475569; margin-bottom: 0.6rem; }
 
 .status-pill {
     display: inline-block;
@@ -131,10 +158,11 @@ RESERVATION_CSS = """
 """
 
 STYLESHEET = "<style>{}</style>".format(
-    "".join((BASE_CSS, SIDEBAR_CSS, HERO_CSS, CARD_CSS, BUTTON_CSS, BADGE_CSS, RESERVATION_CSS))
+    "".join((BASE_CSS, SIDEBAR_CSS, HERO_CSS, CARD_CSS, MAP_FRAME_CSS, BUTTON_CSS, BADGE_CSS, RESERVATION_CSS))
 )
 
-CARD_ANCHOR_HTML = '<span class="card-anchor"></span>'
+CARD_ANCHOR_CLASS = "card-anchor"
+MAP_ANCHOR_CLASS = "map-anchor"
 
 ALGORITHM_BADGES = {
     "dijkstra": ("Dijkstra", "badge-dijkstra"),
@@ -161,11 +189,21 @@ def render_page_header(title: str, subtitle: str = "") -> None:
     st.markdown(page_header_html(title, subtitle), unsafe_allow_html=True)
 
 
+def anchored_container(anchor_class: str) -> DeltaGenerator:
+    """Return a bordered container tagged with a hidden anchor, so the CSS can style it."""
+    container = st.container(border=True)
+    container.markdown(f'<span class="{anchor_class}"></span>', unsafe_allow_html=True)
+    return container
+
+
 def card_container() -> DeltaGenerator:
     """Return a bordered container styled as a white card."""
-    card = st.container(border=True)
-    card.markdown(CARD_ANCHOR_HTML, unsafe_allow_html=True)
-    return card
+    return anchored_container(CARD_ANCHOR_CLASS)
+
+
+def map_frame() -> DeltaGenerator:
+    """Return a framed container that sets a map apart from the page background."""
+    return anchored_container(MAP_ANCHOR_CLASS)
 
 
 def algo_badge_html(algorithm: str, elapsed_ms: float = 0.0) -> str:

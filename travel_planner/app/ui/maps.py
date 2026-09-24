@@ -7,6 +7,7 @@ import streamlit as st
 from streamlit_folium import st_folium
 
 from app.data.cities import CITIES, CITY_CATALOG
+from app.ui.styles import map_frame
 
 USER_ROUTE_COLOR = "#3B82F6"
 OPTIMAL_ROUTE_COLOR = "#10B981"
@@ -125,4 +126,5 @@ def show_map(folium_map: Optional[folium.Map], key: str) -> None:
     if folium_map is None:
         st.caption("No se encontraron coordenadas para las ciudades seleccionadas.")
         return
-    st_folium(folium_map, key=key, height=MAP_HEIGHT, use_container_width=True, returned_objects=[])
+    with map_frame():
+        st_folium(folium_map, key=key, height=MAP_HEIGHT, use_container_width=True, returned_objects=[])
