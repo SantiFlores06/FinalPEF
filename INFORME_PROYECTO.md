@@ -29,7 +29,9 @@ Por eso el sistema usa tres algoritmos, cada uno para su caso:
 |-----------|-----------|--------|
 | 2 ciudades | Dijkstra | Es un camino minimo, no hay orden que elegir |
 | 3 a 12 ciudades | Held-Karp | Exacto. La programacion dinamica evita probar todos los ordenes, pero igual crece como O(n^2 * 2^n) |
-| 13 o mas ciudades | Algoritmo genetico | Held-Karp deja de ser viable. El genetico encuentra una solucion muy buena, sin garantia de ser la optima, en un tiempo controlable |
+| 13 a 25 ciudades | Algoritmo genetico | Held-Karp deja de ser viable. El genetico encuentra una solucion muy buena, sin garantia de ser la optima, en un tiempo controlable |
+
+La eleccion la hace el servidor, no la interfaz: `POST /routes/optimize-multi` usa Held-Karp hasta `HELD_KARP_MAX` (12) ciudades y el genetico por encima, con un maximo de `MAX_TSP_CITIES` (25); un pedido mayor devuelve 422. Un campo opcional `algorithm` permite forzar el metodo. La respuesta incluye `algorithm`, `optimal_route`, `total_cost`, `elapsed_ms`, `history` y `cached`. Los itinerarios de 2 ciudades van por `POST /routes/shortest` (Dijkstra).
 
 En una frase: Dijkstra dice como ir de una ciudad a otra; el TSP dice en que orden visitar todas. El algoritmo genetico existe porque, a partir de cierta cantidad de ciudades, calcular el orden exacto deja de ser posible en un tiempo razonable.
 
@@ -62,7 +64,7 @@ La carpeta `app/core` contiene la logica algoritmica del sistema.
 
 `tsp_dp.py` implementa el problema del viajante usando programacion dinamica con bitmasking y memoizacion. Sirve para calcular el orden optimo para visitar varias ciudades. El algoritmo usado es una variante de Held-Karp, adecuada para una cantidad moderada de ciudades.
 
-`tsp_genetic.py` resuelve el mismo problema del viajante pero con un algoritmo genetico (heuristico): seleccion por torneo, Order Crossover, mutacion por intercambio y elitismo. A diferencia de Held-Karp, que es exacto pero crece como O(n^2 * 2^n), el genetico escala a muchas mas ciudades a cambio de no garantizar el optimo. La aplicacion usa Held-Karp para pocas ciudades y el genetico cuando la cantidad crece.
+`tsp_genetic.py` resuelve el mismo problema del viajante pero con un algoritmo genetico (heuristico): seleccion por torneo, Order Crossover, mutacion por intercambio y elitismo. A diferencia de Held-Karp, que es exacto pero crece como O(n^2 * 2^n), el genetico escala a muchas mas ciudades a cambio de no garantizar el optimo. El servidor usa Held-Karp para pocas ciudades y el genetico cuando la cantidad crece (ver `choose_tsp_algorithm` en `tsp_dp.py`).
 
 `itinerary_validator.py` contiene reglas de validacion de itinerarios: presupuesto maximo, duracion maxima, cantidad de segmentos, ciudades requeridas, ciudades prohibidas, tipos de transporte permitidos, escalas y consistencia de horarios.
 
@@ -87,18 +89,20 @@ POST /routes/optimize-multi
 POST /itinerary/plan
 POST /reservations
 POST /reservations/batch
+GET  /reservations/{reservation_id}
 GET  /reservations/user/{user_id}
 DELETE /reservations/{reservation_id}
 GET  /stats
+GET  /stats/algorithms
 ```
 
-La API se encarga de conectar los datos, los algoritmos, el cache y las reservas. Por ejemplo, cuando la interfaz pide una matriz de costos para tren, la API responde con las ciudades y la matriz correspondiente. Cuando la interfaz pide optimizar varias ciudades, la API llama al solver TSP.
+La API se encarga de conectar los datos, los algoritmos, el cache y las reservas. Por ejemplo, cuando la interfaz pide una matriz de costos para tren, la API responde con las ciudades y la matriz correspondiente. Cuando la interfaz pide optimizar varias ciudades, la API elige el algoritmo (Held-Karp o genetico) segun la cantidad de ciudades, lo ejecuta y registra el tiempo real de cada corrida no cacheada en `solver_metrics.py`, que se consulta en `GET /stats/algorithms`.
 
 Tambien usa un `lifespan` de FastAPI para iniciar un loop de procesamiento de lotes en background.
 
 ### UI
 
-`app/ui/streamlit_app.py` es la interfaz grafica hecha con Streamlit.
+`app/ui/streamlit_app.py` es el punto de entrada de la interfaz Streamlit; cada pagina vive en `app/ui/views/` y las llamadas HTTP en `app/ui/api_client.py`. La interfaz no elige el algoritmo: lo decide la API.
 
 Desde ahi el usuario puede:
 
@@ -179,7 +183,7 @@ pytest
 El resultado esperado actualmente es:
 
 ```text
-33 passed, 1 skipped
+76 passed
 ```
 
 ## Flujo esperado de uso

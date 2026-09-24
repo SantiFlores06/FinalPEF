@@ -523,7 +523,7 @@ Espacio: O(n · 2ⁿ)</div>
   <div class="g6040 reveal stagger">
     <div>
       <p class="mb2">Held-Karp es exacto pero <strong>explota exponencialmente</strong>: con 20 ciudades son 20² × 2²⁰ ≈ <strong>419 millones de estados</strong>, inviable en una UI web. El genético resuelve el mismo problema con complejidad <strong>O(generaciones × población × n)</strong>, totalmente controlable.</p>
-      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Lógica de umbral (routing)</div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Lógica de umbral (routing) — la decide el servidor</div>
       <div class="flow-row mb2">
         <div class="flow-box">2 ciudades → Dijkstra</div>
         <div class="flow-arr">·</div>
@@ -536,8 +536,8 @@ Espacio: O(n · 2ⁿ)</div>
         <p style="margin-top:0.4rem;">Permutación de índices de ciudades. <code>[0, 3, 1, 2]</code> = Madrid → Viena → Barcelona → Roma → (Madrid). Fitness = 1 / costo total del tour.</p>
       </div>
       <div class="card co">
-        <h3 style="margin-bottom:0.4rem;">Constante de corte</h3>
-        <p><code>MAX_HELD_KARP = 12</code>. Con n=12 son ~590K operaciones (~500ms); con n=20, ~419M — el corte evita que la UI se congele.</p>
+        <h3 style="margin-bottom:0.4rem;">Constante de corte (en el servidor)</h3>
+        <p><code>HELD_KARP_MAX = 12</code> y <code>MAX_TSP_CITIES = 25</code> (<code>app/core/tsp_dp.py</code>). <code>/routes/optimize-multi</code> elige el algoritmo con <code>choose_tsp_algorithm(n)</code>; más de 25 ciudades → 422. Un campo opcional <code>algorithm</code> permite forzarlo. La UI no decide: solo muestra el <code>algorithm</code> y el <code>elapsed_ms</code> que devuelve la API. Con n=12 son ~590K operaciones; con n=20, ~419M.</p>
       </div>
     </div>
     <div>
@@ -572,12 +572,12 @@ elitism         = <span class="num">2</span></div>
   <div class="orb" style="width:300px;height:300px;background:rgba(34,197,94,0.06);top:10%;right:-50px;"></div>
   <div class="slide-num">07 / 14</div>
   <div class="reveal mb3">
-    <div class="slide-tag">⚗️ Página "Laboratorio" · app/ui/streamlit_app.py</div>
+    <div class="slide-tag">⚗️ Página "Laboratorio" · app/ui/views/laboratory.py</div>
     <h2>Comparación empírica:<br><span class="grad">exacto vs heurístico</span></h2>
   </div>
   <div class="g6040 reveal stagger">
     <div>
-      <p class="mb2">Página nueva que enfrenta <strong>Held-Karp</strong> contra el <strong>genético</strong> con ciudades reales tomadas de <code>routes_fixed</code>, con semilla reproducible. No depende de la API: arma la matriz de costos y corre ambos algoritmos directamente en la UI.</p>
+      <p class="mb2">Página nueva que enfrenta <strong>Held-Karp</strong> contra el <strong>genético</strong> con ciudades reales tomadas de <code>routes_fixed</code>, con semilla reproducible. Este <strong>benchmark controlado</strong> no depende de la API: arma la matriz de costos y corre ambos algoritmos directamente en la UI. Arriba, la sección <strong>Estadísticas de uso real</strong> muestra los tiempos que el servidor midió en las rutas reales de los usuarios (<code>GET /stats/algorithms</code>, sin contar respuestas cacheadas).</p>
       <div class="card ca mb1">
         <h3>Comparación puntual</h3>
         <p style="margin-top:0.4rem;">Para un <code>n</code> elegido, corre ambos y muestra costo, tiempo (ms) y <strong>gap de optimalidad</strong> del genético contra el óptimo. Por encima de n=12, Held-Karp queda descartado y se informa que sería inviable (2ⁿ estados).</p>
@@ -656,7 +656,7 @@ C = hk_ms_medido / (n² · 2ⁿ)
       </div>
       <div class="card co">
         <h3 style="margin-bottom:0.5rem;">Endpoint relacionado</h3>
-        <p><code>/routes/optimize-multi</code> recibe la matriz y las ciudades seleccionadas, ejecuta <code>TSPSolver.solve()</code> y devuelve la ruta óptima.</p>
+        <p><code>/routes/optimize-multi</code> recibe la matriz y las ciudades seleccionadas, elige Held-Karp (<code>TSPSolver</code>, n ≤ 12) o el genético (<code>GeneticTSP</code>, n ≤ 25) y devuelve <code>algorithm</code>, <code>optimal_route</code>, <code>total_cost</code>, <code>elapsed_ms</code>, <code>history</code> y <code>cached</code>.</p>
       </div>
     </div>
   </div>
@@ -745,6 +745,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
       <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/reservations/user/{id}</span> <span class="ep-desc">Historial por usuario</span></div>
       <div class="ep-item"><span class="ep-m del">DEL</span> <span class="ep-path">/reservations/{id}</span> <span class="ep-desc">Cancelar reserva</span></div>
       <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/stats</span> <span class="ep-desc">Estadísticas del sistema</span></div>
+      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/stats/algorithms</span> <span class="ep-desc">Ejecuciones reales por algoritmo</span></div>
     </div>
     <div>
       <div class="card ca mb1">
@@ -780,7 +781,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
       </div>
       <div class="card mb1">
         <h3 style="margin-bottom:0.6rem;">Procesamiento batch</h3>
-        <p><code>batching.py</code> agrupa múltiples reservas y las procesa juntas en un lote. Ideal para simular carga masiva sin saturar la respuesta inmediata del servidor. El loop corre en background y drena la cola de a tandas.</p>
+        <p><code>batching.py</code> agrupa múltiples reservas y las procesa juntas en un lote. Ideal para simular carga masiva sin saturar la respuesta inmediata del servidor. Cada reserva encolada dispara un intento de procesamiento y el loop de fondo revisa la cola cada 0,5 s, así que el lote se confirma casi de inmediato; la UI refresca sola los estados pendientes.</p>
       </div>
       <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Ciclo de vida — camino feliz</div>
       <div class="status-flow mb1">
@@ -901,7 +902,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
     <div>
       <div class="card ca" style="height:100%;">
         <h3 style="margin-bottom:0.7rem;">Interfaz Streamlit</h3>
-        <p class="mb2">La UI corre en <code>localhost:8501</code> y consume la API REST en <code>localhost:8000</code>. <strong>La API debe estar activa</strong> antes de abrir la interfaz.</p>
+        <p class="mb2">La UI corre en <code>localhost:8501</code> y consume la API REST en <code>localhost:8000</code>. Es un cliente liviano: rutas, reservas y estadísticas se piden por HTTP y el algoritmo lo elige el servidor. <code>install_and_run.bat</code> levanta API y UI juntas.</p>
         <p style="margin-bottom:1rem;">Desde una sola pantalla el usuario puede:</p>
         <div style="display:flex;flex-direction:column;gap:0.35rem;">
           <div style="font-size:0.74rem;">→ Seleccionar transporte y criterio de optimización</div>
@@ -916,7 +917,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
     <div>
       <div class="card cp" style="height:100%;">
         <h3 style="margin-bottom:0.7rem;">Recomendaciones IA</h3>
-        <p class="mb2"><code>app/ai/gemini_recommendations.py</code> integra la API de <strong>Google Gemini</strong> para generar sugerencias de lugares y atracciones relacionadas con las ciudades seleccionadas en el itinerario.</p>
+        <p class="mb2"><code>app/ai/gemini_recommendations.py</code> integra la API de <strong>Google Gemini</strong> para generar sugerencias de lugares y atracciones relacionadas con las ciudades seleccionadas en el itinerario. Las ciudades se consultan <strong>en paralelo</strong> y las respuestas exitosas quedan en caché.</p>
         <p class="mb2">Requiere configurar la variable de entorno:</p>
         <div class="code-block" style="margin-bottom:1rem;">$env:GOOGLE_API_KEY=<span class="st">"TU_API_KEY"</span></div>
         <p>Si la clave no está configurada, el módulo de IA queda inactivo pero <strong>el resto del sistema funciona con normalidad</strong>. Cálculo de rutas y reservas son completamente independientes.</p>
@@ -925,7 +926,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
     <div>
       <div class="card cg" style="height:100%;">
         <h3 style="margin-bottom:0.5rem;">Suite de tests — Pytest</h3>
-        <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:var(--green);margin-bottom:0.3rem;">29 passed</div>
+        <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:var(--green);margin-bottom:0.3rem;">76 passed</div>
         <p style="margin-bottom:1rem;font-size:0.74rem;">Ejecutado con <code>pytest</code> + pytest-asyncio para pruebas de código asincrónico. Genera reporte HTML de cobertura automáticamente.</p>
         <div style="display:flex;flex-direction:column;gap:0.32rem;">
           <div style="font-size:0.72rem;color:var(--text);">✓ Dijkstra y caminos mínimos</div>
@@ -973,7 +974,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
       <div style="font-size:1.4rem;flex-shrink:0;">⚡</div>
       <div>
         <h3 style="margin-bottom:0.4rem;">API REST completa</h3>
-        <p>FastAPI con 11 endpoints, documentación Swagger automática, background tasks y validación de parámetros.</p>
+        <p>FastAPI con 14 endpoints, documentación Swagger automática, background tasks y validación de parámetros.</p>
       </div>
     </div>
     <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
@@ -993,7 +994,7 @@ tiempo_tren  = distancia / VELOCIDAD_TREN</div>
     <div class="card cg" style="display:flex;gap:0.9rem;align-items:flex-start;">
       <div style="font-size:1.4rem;flex-shrink:0;">✓</div>
       <div>
-        <h3 style="margin-bottom:0.4rem;">29 tests · Cobertura HTML</h3>
+        <h3 style="margin-bottom:0.4rem;">76 tests · Cobertura HTML</h3>
         <p>Pytest cubre algoritmos, caché, async, batch y endpoints. Reporte de cobertura generado automáticamente.</p>
       </div>
     </div>
