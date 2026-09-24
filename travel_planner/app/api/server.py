@@ -23,7 +23,7 @@ from app.core.tsp_genetic import GeneticTSP
 from app.caches.cache_backend import get_cache_backend
 from app.booking.reservations import ReservationManager
 from app.booking.batching import ReservationBatchProcessor
-from app.api.solver_metrics import SolverMetrics
+from app.api.solver_metrics import KnownOptima, SolverMetrics, genetic_convergence
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ app.add_middleware(
 travel_graph = TravelGraph()
 route_cache = get_cache_backend(capacity=100)
 solver_metrics = SolverMetrics()
+known_optima = KnownOptima()
 reservation_manager = ReservationManager(max_concurrent=MAX_CONCURRENT_RESERVATIONS)
 batch_processor = ReservationBatchProcessor(
     batch_size=BATCH_SIZE,
@@ -278,7 +279,7 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
         elapsed_ms = (perf_counter() - started_at) * 1000
         if not path:
             raise HTTPException(status_code=404, detail="Ruta no encontrada")
-        solver_metrics.record_run("dijkstra", SHORTEST_PATH_CITY_COUNT, elapsed_ms, cost)
+        solver_metrics.record_run("dijkstra", SHORTEST_PATH_CITY_COUNT, elapsed_ms, cost, hops=len(path) - 1)
 
         result = {
             "origin": request.origin,
@@ -421,10 +422,15 @@ def validate_tsp_request(request: TSPRequest) -> None:
     validate_forced_algorithm(request.algorithm, len(request.cities))
 
 
-def build_tsp_cache_key(request: TSPRequest, algorithm: str) -> str:
-    """Build a cache key unique to the cities, tour type, algorithm and cost matrix."""
+def build_problem_key(request: TSPRequest) -> str:
+    """Build a key unique to the cities, tour type and cost matrix of a TSP instance."""
     matrix_hash = hashlib.md5(str(request.cost_matrix).encode()).hexdigest()
-    return f"multi_{'-'.join(request.cities)}_{request.return_to_start}_{algorithm}_{matrix_hash}"
+    return f"{'-'.join(request.cities)}_{request.return_to_start}_{matrix_hash}"
+
+
+def build_tsp_cache_key(request: TSPRequest, algorithm: str) -> str:
+    """Build a cache key unique to the TSP instance and the algorithm that solves it."""
+    return f"multi_{algorithm}_{build_problem_key(request)}"
 
 
 def replace_unreachable_with_inf(cost_matrix: List[List[float]]) -> List[List[float]]:
@@ -468,6 +474,27 @@ def solve_with_genetic(matrix: List[List[float]], cities: List[str], return_to_s
     }
 
 
+def tsp_run_quality(algorithm: str, problem_key: str, result: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the genetic convergence and its gap to the exact optimum, when Held-Karp already solved it."""
+    if algorithm != "genetic":
+        return {}
+    return {
+        **genetic_convergence(result["history"]),
+        "gap_percent": known_optima.gap_percent(problem_key, result["total_cost"]),
+    }
+
+
+def record_tsp_run(request: TSPRequest, algorithm: str, result: Dict[str, Any]) -> None:
+    """Record a solved TSP, remembering exact optima so later genetic runs can be compared."""
+    problem_key = build_problem_key(request)
+    if algorithm == "held_karp":
+        known_optima.remember(problem_key, result["total_cost"])
+    solver_metrics.record_run(
+        algorithm, len(request.cities), result["elapsed_ms"], result["total_cost"],
+        **tsp_run_quality(algorithm, problem_key, result),
+    )
+
+
 TSP_SOLVERS = {
     "held_karp": solve_with_held_karp,
     "genetic": solve_with_genetic,
@@ -497,7 +524,7 @@ async def optimize_multi_destination(request: TSPRequest):
             raise HTTPException(status_code=422, detail=NO_FEASIBLE_ROUTE_DETAIL)
 
         result["cached"] = False
-        solver_metrics.record_run(algorithm, len(request.cities), result["elapsed_ms"], result["total_cost"])
+        record_tsp_run(request, algorithm, result)
         route_cache.put(cache_key, copy.deepcopy(result))
         return result
 

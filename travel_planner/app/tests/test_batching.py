@@ -108,3 +108,18 @@ def test_server_can_process_a_whole_batch_concurrently():
     assert server.BATCH_TIMEOUT_SECONDS <= 1
     assert server.BATCH_TICK_SECONDS <= 1
     assert server.reservation_manager.max_concurrent >= server.batch_processor.batch_size
+
+
+def test_batch_processor_records_size_and_latency_of_each_batch():
+    async def scenario():
+        processor = BatchProcessor(batch_size=2, timeout_seconds=30)
+
+        futures = [processor.add_item_sync(f"item_{index}", {}) for index in range(2)]
+        await asyncio.wait_for(asyncio.gather(*futures), timeout=1)
+
+        [batch] = processor.get_stats()["recent_batches"]
+        assert batch["size"] == 2
+        assert 0 < batch["avg_latency_ms"] <= batch["max_latency_ms"]
+        assert batch["timestamp"]
+
+    asyncio.run(scenario())

@@ -5,30 +5,22 @@ from typing import Any, Dict, List
 import altair as alt
 import pandas as pd
 import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 
-from app.ui.api_client import get_algorithm_stats
+from app.ui.api_client import get_algorithm_stats, get_system_stats
+from app.ui.charts import CHART_HEIGHT, algorithm_color_scale, algorithm_label
 from app.ui.formatting import format_timestamp
+from app.ui.views.usage_trends import render_reservation_latency, render_usage_trends
 
-ALGORITHM_LABELS = {"dijkstra": "Dijkstra", "held_karp": "Held-Karp", "genetic": "Genético"}
-ALGORITHM_COLORS = {"Dijkstra": "#2563EB", "Held-Karp": "#059669", "Genético": "#DB2777"}
 LATEST_RUNS_SHOWN = 15
-CHART_HEIGHT = 320
-
-
-def algorithm_label(algorithm: str) -> str:
-    return ALGORITHM_LABELS.get(algorithm, algorithm)
-
-
-def algorithm_color_scale() -> alt.Scale:
-    """Return the color scale that paints each algorithm like its badge."""
-    return alt.Scale(domain=list(ALGORITHM_COLORS), range=list(ALGORITHM_COLORS.values()))
 
 
 def render_usage_statistics() -> None:
     """Render the KPIs, charts and latest runs of the routes computed by the users."""
     st.subheader("Estadísticas de uso real")
     st.caption("Tiempos medidos por el servidor en cada ruta calculada; las respuestas desde caché no cuentan.")
-    st.button("Actualizar estadísticas", key="refresh_usage_stats")
+    if st.button("Actualizar estadísticas", key="refresh_usage_stats"):
+        get_system_stats.clear()
     stats = get_algorithm_stats()
     if not stats:
         st.warning("No se pudieron obtener las estadísticas de uso desde la API.")
@@ -43,14 +35,17 @@ def render_usage_statistics() -> None:
     with bar_column:
         render_runs_per_algorithm_chart(stats["by_algorithm"])
     render_latest_runs(stats["runs"])
+    render_usage_trends(stats)
+    render_reservation_latency(get_system_stats().get("batch_processor", {}).get("recent_batches", []))
 
 
 def render_usage_kpis(stats: Dict[str, Any]) -> None:
     """Render the global counters and one card per algorithm with its runs and average time."""
-    total_column, cache_column, average_column = st.columns(3)
+    total_column, cache_column, average_column, hops_column = st.columns(4)
     total_column.metric("Ejecuciones reales", stats["total_runs"])
     cache_column.metric("Respuestas desde caché", stats["cache_hits"])
     average_column.metric("Tiempo promedio", f"{overall_average_ms(stats['runs']):.1f} ms")
+    render_hops_metric(hops_column, stats["dijkstra_hops"])
     by_algorithm = stats["by_algorithm"]
     for column, (algorithm, summary) in zip(st.columns(len(by_algorithm)), by_algorithm.items()):
         column.metric(
@@ -59,6 +54,17 @@ def render_usage_kpis(stats: Dict[str, Any]) -> None:
             f"prom. {summary['avg_elapsed_ms']:.1f} ms · máx. {summary['max_elapsed_ms']:.1f} ms",
             delta_color="off",
         )
+
+
+def render_hops_metric(column: DeltaGenerator, dijkstra_hops: Dict[str, float]) -> None:
+    """Render how many legs the Dijkstra routes have on average."""
+    if not dijkstra_hops:
+        column.metric("Tramos por ruta (Dijkstra)", "—")
+        return
+    column.metric(
+        "Tramos por ruta (Dijkstra)", f"{dijkstra_hops['avg_hops']:.1f}",
+        f"máx. {dijkstra_hops['max_hops']}", delta_color="off",
+    )
 
 
 def overall_average_ms(runs: List[Dict[str, Any]]) -> float:

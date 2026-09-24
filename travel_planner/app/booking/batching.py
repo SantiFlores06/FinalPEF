@@ -3,6 +3,7 @@ batching.py - Sistema de procesamiento por lotes de reservas.
 Agrupa múltiples reservas para procesarlas eficientemente en batches.
 """
 import asyncio
+import time
 from typing import List, Dict, Any, Optional, Deque
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
@@ -15,6 +16,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 SIMULATED_BATCH_IO_SECONDS = 0.1
+MAX_BATCH_HISTORY = 200
+MS_PER_SECOND = 1000
 
 
 @dataclass
@@ -23,6 +26,7 @@ class BatchItem:
     item_id: str
     data: Any
     future: asyncio.Future = field(default_factory=asyncio.Future)
+    enqueued_at: float = field(default_factory=time.monotonic)
 
 
 class BatchProcessor:
@@ -41,6 +45,7 @@ class BatchProcessor:
         self.last_processed_time = datetime.now()
         self.processing = False
         self.semaphore = asyncio.Semaphore(max_concurrent_batches)
+        self.batch_history: Deque[Dict[str, Any]] = deque(maxlen=MAX_BATCH_HISTORY)
 
         self.stats = {
             'total_items': 0,
@@ -121,6 +126,19 @@ class BatchProcessor:
                     item.future.set_exception(e)
                     self.stats['items_failed'] += 1
 
+            self._record_batch_latency(batch)
+
+    def _record_batch_latency(self, batch: List[BatchItem]) -> None:
+        """Record the batch size and how long its items waited since they were enqueued."""
+        finished_at = time.monotonic()
+        latencies_ms = [(finished_at - item.enqueued_at) * MS_PER_SECOND for item in batch]
+        self.batch_history.append({
+            'timestamp': datetime.now().isoformat(),
+            'size': len(batch),
+            'avg_latency_ms': sum(latencies_ms) / len(latencies_ms),
+            'max_latency_ms': max(latencies_ms),
+        })
+
     async def _batch_operation(self, batch: List[BatchItem]) -> List[Any]:
         """Operación real del batch (simulada por defecto)."""
         await asyncio.sleep(SIMULATED_BATCH_IO_SECONDS)
@@ -140,7 +158,8 @@ class BatchProcessor:
             **self.stats,
             'queue_size': len(self.queue),
             'batch_size': self.batch_size,
-            'processing': self.processing
+            'processing': self.processing,
+            'recent_batches': list(self.batch_history),
         }
 
 

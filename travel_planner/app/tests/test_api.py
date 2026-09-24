@@ -17,6 +17,7 @@ def client():
     server.travel_graph.vertices.clear()
     server.reservation_manager.reservations.clear()
     server.solver_metrics.clear()
+    server.known_optima.clear()
     return TestClient(server.app)
 
 
@@ -295,3 +296,31 @@ def test_compare_endpoint_finds_a_direct_ship_route(client):
 
     assert response.status_code == 200
     assert response.json()["direct_exists"] is True
+
+
+def test_algorithm_stats_record_dijkstra_hops(client):
+    client.post("/routes/shortest", json={
+        "origin": "Madrid", "destination": "Berlín", "optimize_by": "cost", "transport_type": "auto",
+    })
+
+    stats = algorithm_stats(client)
+    assert stats["runs"][0]["hops"] == 2
+    assert stats["dijkstra_hops"] == {"avg_hops": 2.0, "max_hops": 2}
+
+
+def test_genetic_run_after_held_karp_reports_its_gap_to_the_optimum(client):
+    matrix = plane_cost_matrix(client, FIVE_CITIES)
+
+    optimize_multi(client, FIVE_CITIES, matrix)
+    optimize_multi(client, FIVE_CITIES, matrix, algorithm="genetic")
+
+    [quality] = algorithm_stats(client)["genetic_quality"]
+    assert quality["gap_percent"] >= 0
+    assert quality["convergence_generation"] is not None
+    assert quality["improvement_percent"] >= 0
+
+
+def test_genetic_run_without_known_optimum_has_no_gap(client):
+    optimize_multi(client, FIVE_CITIES, plane_cost_matrix(client, FIVE_CITIES), algorithm="genetic")
+
+    assert algorithm_stats(client)["genetic_quality"][0]["gap_percent"] is None
