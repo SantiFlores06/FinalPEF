@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import streamlit as st
 
-from app.ai.gemini_recommendations import generate_recommendations_for_cities
+from app.ai.gemini_recommendations import INTERESTS, generate_recommendations_for_cities
 from app.core.tsp_dp import HELD_KARP_MAX, MAX_TSP_CITIES
 from app.data.routes_fixed import ROUTES_FIXED, TRANSPORT_TYPES
 from app.ui.api_client import (
@@ -442,23 +442,32 @@ def render_genetic_gap_verdict(gap: float, gap_percent: float) -> None:
         )
 
 
-def load_city_recommendations(cities: List[str]) -> Dict[str, Optional[str]]:
-    """Return the AI recommendations of the cities, fetching the missing ones in parallel."""
-    session_recommendations = st.session_state.city_recommendations
-    missing_cities = [city for city in cities if city not in session_recommendations]
+def session_recommendations_for(interest: str) -> Dict[str, Optional[List[str]]]:
+    """Return the tips already shown in this session for an interest, per city."""
+    return st.session_state.city_recommendations.setdefault(interest, {})
+
+
+def load_city_recommendations(cities: List[str], interest: str) -> Dict[str, Optional[List[str]]]:
+    """Return the AI tips of the cities, asking once for all the ones this session has not seen."""
+    shown_recommendations = session_recommendations_for(interest)
+    missing_cities = [city for city in cities if city not in shown_recommendations]
     if missing_cities:
-        with st.spinner(f"Buscando lugares imperdibles en {len(missing_cities)} ciudades..."):
-            session_recommendations.update(generate_recommendations_for_cities(missing_cities))
-    return {city: session_recommendations[city] for city in cities}
+        with st.spinner(f"Buscando recomendaciones para {len(missing_cities)} ciudades..."):
+            shown_recommendations.update(generate_recommendations_for_cities(missing_cities, interest))
+    return {city: shown_recommendations[city] for city in cities}
 
 
 def render_city_recommendations(route: List[str]) -> None:
-    """Render one card per city of the route with the places worth visiting."""
+    """Render one compact card per city of the route with short tips for the chosen interest."""
     cities = list(dict.fromkeys(route))
     if not cities:
         return
-    st.subheader("Lugares que debes visitar en cada ciudad")
-    recommendations = load_city_recommendations(cities)
+    st.subheader("Recomendaciones para cada ciudad")
+    interest = st.selectbox("Enfoque de las recomendaciones", INTERESTS, key="recommendation_interest")
+    recommendations = load_city_recommendations(cities, interest)
+    failed_cities = [city for city, tips in recommendations.items() if not tips]
+    if failed_cities:
+        render_recommendations_retry(failed_cities, interest)
     for row_start in range(0, len(cities), RECOMMENDATION_COLUMNS):
         row_cities = cities[row_start:row_start + RECOMMENDATION_COLUMNS]
         for column, city in zip(st.columns(RECOMMENDATION_COLUMNS), row_cities):
@@ -466,14 +475,24 @@ def render_city_recommendations(route: List[str]) -> None:
                 render_city_card(city, recommendations[city])
 
 
-def render_city_card(city: str, recommendations: Optional[str]) -> None:
-    """Render the card of a city with its recommendations, or a note when they failed."""
+def render_recommendations_retry(failed_cities: List[str], interest: str) -> None:
+    """Explain that some tips are missing and offer to ask again for those cities."""
+    st.caption("El servicio de recomendaciones no respondió para algunas ciudades. Intenta de nuevo en unos segundos.")
+    if st.button("Reintentar recomendaciones", key="retry_recommendations"):
+        shown_recommendations = session_recommendations_for(interest)
+        for city in failed_cities:
+            shown_recommendations.pop(city, None)
+        st.rerun()
+
+
+def render_city_card(city: str, tips: Optional[List[str]]) -> None:
+    """Render the compact card of a city with its tips, or a note when they failed."""
     with card_container():
-        st.markdown(f"#### 📍 {city}")
-        if recommendations:
-            st.markdown(recommendations)
+        st.markdown(f"**📍 {city}**")
+        if tips:
+            st.markdown("\n".join(f"- {tip}" for tip in tips))
         else:
-            st.caption("No se pudieron generar recomendaciones para esta ciudad.")
+            st.caption("Sin recomendaciones por ahora.")
 
 
 def render_booking(booking: Dict[str, Any], transport_mode: str, optimize_by: str) -> None:
