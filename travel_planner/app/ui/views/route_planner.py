@@ -20,7 +20,7 @@ from app.ui.formatting import format_route
 from app.ui.maps import GENETIC_ROUTE_COLOR, OPTIMAL_ROUTE_COLOR, USER_ROUTE_COLOR, build_route_map, show_map
 from app.ui.route_matrices import RouteMatrices, load_route_matrices
 from app.ui.state import RESERVATIONS_PAGE, request_page, reset_route_results
-from app.ui.styles import algo_badge_html
+from app.ui.styles import algo_badge_html, render_page_header
 
 TRANSPORT_MODES = ["auto", "avión", "tren"]
 OPTIMIZE_BY_LABELS = {"cost": "Costo (€)", "time": "Tiempo (h)"}
@@ -32,8 +32,10 @@ SEGMENT_TABLE_FORMAT = {"Costo (€)": "{:.2f}", "Tiempo (h)": "{:.1f}"}
 
 def render_route_planner() -> None:
     """Render the multi-destination route planner page."""
-    st.header("Optimización de Ruta Multidestino (TSP)")
-    st.caption("Selecciona múltiples ciudades y compara la ruta optimizada con tu orden preferido.")
+    render_page_header(
+        "Optimización de Ruta Multidestino (TSP)",
+        "Selecciona múltiples ciudades y compara la ruta optimizada con tu orden preferido.",
+    )
     transport_mode, optimize_by = render_trip_options()
     available_cities = cities_served_by(transport_mode)
     if not available_cities:

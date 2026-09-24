@@ -49,7 +49,8 @@ def page_label(page_id: str) -> str:
 def render_sidebar() -> str:
     """Render the navigation sidebar and return the chosen page id."""
     with st.sidebar:
-        st.header("Travel Planner")
+        st.header("✈️ Travel Planner")
+        st.caption("Planificación de viajes multidestino")
         page_id = st.radio("Selecciona una opción:", list(PAGES), format_func=page_label, key="page")
         st.divider()
         st.caption(f"Usuario: {st.session_state.user_id[:12]}")
@@ -64,7 +65,6 @@ st.set_page_config(
 )
 inject_styles()
 init_state()
-st.title("Sistema de Planificación de Viajes Multidestino")
 
 if not check_api_health():
     st.error(f"La API no está disponible en {API_URL}. Verifica que esté ejecutándose.")

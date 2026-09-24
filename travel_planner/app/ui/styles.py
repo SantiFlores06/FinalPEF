@@ -1,46 +1,140 @@
 """Custom CSS and small HTML snippets used across the views."""
 
-import streamlit as st
+from html import escape
 
-CSS = """
-<style>
+import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
+
+BASE_CSS = """
+html { font-size: 17px; }
+[data-testid="stHeading"] h2, [data-testid="stHeading"] h3 { color: #312E81; font-weight: 700; }
+[data-testid="stCaptionContainer"] { color: #4B5563; }
+hr { border-color: #E0E7FF; }
+"""
+
+SIDEBAR_CSS = """
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #1E1B4B 0%, #312E81 45%, #4338CA 100%);
+}
+[data-testid="stSidebar"] :is(h1, h2, h3, p, label, span, small) { color: #F8FAFC; }
+[data-testid="stSidebar"] hr { border-color: rgba(255, 255, 255, 0.25); }
+[data-testid="stSidebar"] label[data-baseweb="radio"] {
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    margin-bottom: 0.25rem;
+    border-radius: 10px;
+    transition: background 0.15s ease;
+}
+[data-testid="stSidebar"] label[data-baseweb="radio"]:hover { background: rgba(255, 255, 255, 0.10); }
+[data-testid="stSidebar"] label[data-baseweb="radio"]:has(input:checked) {
+    background: rgba(255, 255, 255, 0.22);
+    font-weight: 600;
+}
+"""
+
+HERO_CSS = """
+.page-hero {
+    background: linear-gradient(120deg, #4F46E5 0%, #7C3AED 55%, #DB2777 100%);
+    border-radius: 18px;
+    padding: 1.6rem 2rem;
+    margin-bottom: 0.8rem;
+    box-shadow: 0 10px 28px rgba(79, 70, 229, 0.28);
+}
+.page-hero .page-hero-title { color: #FFFFFF; font-size: 2rem; font-weight: 800; line-height: 1.2; }
+.page-hero .page-hero-subtitle { color: rgba(255, 255, 255, 0.92); font-size: 1.05rem; margin-top: 0.4rem; }
+"""
+
+CARD_CSS = """
+[data-testid="stMetric"] {
+    background: #FFFFFF;
+    border: 1px solid #E0E7FF;
+    border-left: 5px solid #4F46E5;
+    border-radius: 14px;
+    padding: 0.9rem 1.1rem;
+    box-shadow: 0 4px 14px rgba(49, 46, 129, 0.08);
+}
+[data-testid="stMetricLabel"] p { color: #4B5563; font-weight: 600; }
+[data-testid="stMetricValue"] { color: #1E1B4B; font-weight: 700; }
+[data-testid="stElementContainer"]:has(.card-anchor) { display: none; }
+[data-testid="stVerticalBlockBorderWrapper"]:has(
+    > div > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] .card-anchor
+) {
+    background: #FFFFFF;
+    border: 1px solid #E0E7FF;
+    border-top: 4px solid #7C3AED;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(49, 46, 129, 0.10);
+}
+"""
+
+BUTTON_CSS = """
+[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(90deg, #4F46E5, #7C3AED);
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.30);
+}
+[data-testid="stBaseButton-primary"]:hover { filter: brightness(1.08); }
+[data-testid="stBaseButton-secondary"] {
+    background: #FFFFFF;
+    border: 1.5px solid #C7D2FE;
+    border-radius: 10px;
+    color: #3730A3;
+    font-weight: 600;
+}
+[data-testid="stBaseButton-secondary"]:hover { background: #EEF2FF; border-color: #4F46E5; color: #4F46E5; }
+"""
+
+BADGE_CSS = """
 .algo-badge {
     display: inline-block;
-    padding: 3px 12px;
+    padding: 4px 14px;
     border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #FFFFFF;
     margin-bottom: 6px;
+    box-shadow: 0 2px 8px rgba(17, 24, 39, 0.15);
 }
-.badge-dijkstra  { background: #DBEAFE; color: #1D4ED8; }
-.badge-held-karp { background: #D1FAE5; color: #065F46; }
-.badge-genetic   { background: #FCE7F3; color: #9D174D; }
+.badge-dijkstra  { background: linear-gradient(90deg, #2563EB, #3B82F6); }
+.badge-held-karp { background: linear-gradient(90deg, #059669, #10B981); }
+.badge-genetic   { background: linear-gradient(90deg, #DB2777, #EC4899); }
+"""
 
+RESERVATION_CSS = """
 .res-card {
     background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+    border: 1px solid #E0E7FF;
+    border-left: 5px solid #4F46E5;
+    border-radius: 14px;
     padding: 1rem 1.25rem;
     margin-bottom: 1rem;
+    box-shadow: 0 4px 14px rgba(49, 46, 129, 0.08);
 }
-.res-header { font-size: 1.05rem; font-weight: 600; color: #1F2937; }
-.res-sub    { font-size: 0.85rem; color: #6B7280; margin-bottom: 0.6rem; }
+.res-header { font-size: 1.1rem; font-weight: 700; color: #1E1B4B; }
+.res-sub    { font-size: 0.85rem; color: #4B5563; margin-bottom: 0.6rem; }
 
 .status-pill {
     display: inline-block;
     margin-top: 0.6rem;
-    padding: 2px 10px;
+    padding: 3px 12px;
     border-radius: 999px;
-    font-size: 0.74rem;
-    font-weight: 600;
+    font-size: 0.76rem;
+    font-weight: 700;
 }
-.status-pending    { background: #FEF3C7; color: #92400E; }
-.status-processing { background: #DBEAFE; color: #1D4ED8; }
-.status-confirmed  { background: #D1FAE5; color: #065F46; }
-.status-failed     { background: #FEE2E2; color: #991B1B; }
-.status-cancelled  { background: #F3F4F6; color: #4B5563; }
-</style>
+.status-pending    { background: #FDE68A; color: #78350F; }
+.status-processing { background: #BFDBFE; color: #1E3A8A; }
+.status-confirmed  { background: #A7F3D0; color: #064E3B; }
+.status-failed     { background: #FECACA; color: #7F1D1D; }
+.status-cancelled  { background: #E5E7EB; color: #374151; }
 """
+
+STYLESHEET = "<style>{}</style>".format(
+    "".join((BASE_CSS, SIDEBAR_CSS, HERO_CSS, CARD_CSS, BUTTON_CSS, BADGE_CSS, RESERVATION_CSS))
+)
+
+CARD_ANCHOR_HTML = '<span class="card-anchor"></span>'
 
 ALGORITHM_BADGES = {
     "dijkstra": ("Dijkstra", "badge-dijkstra"),
@@ -53,7 +147,25 @@ KNOWN_STATUSES = {"pending", "processing", "confirmed", "failed", "cancelled"}
 
 def inject_styles() -> None:
     """Add the custom CSS to the page."""
-    st.markdown(CSS, unsafe_allow_html=True)
+    st.markdown(STYLESHEET, unsafe_allow_html=True)
+
+
+def page_header_html(title: str, subtitle: str = "") -> str:
+    """Return the gradient banner that opens a page."""
+    subtitle_html = f'<div class="page-hero-subtitle">{escape(subtitle)}</div>' if subtitle else ""
+    return f'<div class="page-hero"><div class="page-hero-title">{escape(title)}</div>{subtitle_html}</div>'
+
+
+def render_page_header(title: str, subtitle: str = "") -> None:
+    """Render the gradient banner that opens a page."""
+    st.markdown(page_header_html(title, subtitle), unsafe_allow_html=True)
+
+
+def card_container() -> DeltaGenerator:
+    """Return a bordered container styled as a white card."""
+    card = st.container(border=True)
+    card.markdown(CARD_ANCHOR_HTML, unsafe_allow_html=True)
+    return card
 
 
 def algo_badge_html(algorithm: str, elapsed_ms: float = 0.0) -> str:

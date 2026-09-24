@@ -11,6 +11,7 @@ import streamlit as st
 from app.core.tsp_dp import HELD_KARP_MAX, TSPSolver
 from app.core.tsp_genetic import GeneticTSP
 from app.data.routes_fixed import CITIES, ROUTES_FIXED
+from app.ui.styles import render_page_header
 
 LAB_TRANSPORT_MODES = ["auto", "tren", "avión"]
 BENCHMARK_CITY_COUNTS = list(range(4, 15))
@@ -53,7 +54,10 @@ def run_genetic(matrix: List[List[float]], city_names: List[str],
 
 def render_laboratory() -> None:
     """Render the laboratory page."""
-    st.header("Laboratorio: Held-Karp vs Algoritmo Genético")
+    render_page_header(
+        "Laboratorio: Held-Karp vs Algoritmo Genético",
+        "Algoritmo exacto contra heurístico: dónde deja de escalar cada uno.",
+    )
     st.write(
         "Compará el algoritmo **exacto** (Held-Karp, O(n²·2ⁿ)) contra el **heurístico** "
         "(genético). La idea es ver empíricamente *dónde el exacto deja de escalar* y el "

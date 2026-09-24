@@ -6,12 +6,12 @@ import streamlit as st
 
 from app.ui.api_client import cancel_reservation, get_user_reservations
 from app.ui.formatting import format_route, format_timestamp
-from app.ui.styles import status_pill_html
+from app.ui.styles import render_page_header, status_pill_html
 
 
 def render_reservations() -> None:
     """Render the current user's reservations, newest first."""
-    st.header("Mis Reservas")
+    render_page_header("Mis Reservas", "Seguí el estado de tus reservas individuales y en lote.")
     user_id = st.session_state.user_id
     reservations = get_user_reservations(user_id)
     if not reservations:

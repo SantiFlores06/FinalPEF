@@ -4,6 +4,7 @@ import streamlit as st
 
 from app.data.routes_fixed import CITIES
 from app.ui.maps import build_home_map, show_map
+from app.ui.styles import card_container, render_page_header
 
 FEATURES = [
     ("Ruta Multidestino", "Optimización TSP con Dijkstra, Held-Karp y Algoritmos Genéticos."),
@@ -15,13 +16,13 @@ FEATURES = [
 
 def render_home() -> None:
     """Render the welcome page with the feature overview and the city map."""
-    st.header("Bienvenido al Planificador de Viajes Europeo")
-    st.markdown(
-        f"Optimizá rutas entre **{len(CITIES)} ciudades de Europa**, compará algoritmos de "
-        "optimización y realizá reservas, todo en un solo lugar."
+    render_page_header(
+        "Bienvenido al Planificador de Viajes Europeo",
+        f"Optimizá rutas entre {len(CITIES)} ciudades de Europa, compará algoritmos de "
+        "optimización y realizá reservas, todo en un solo lugar.",
     )
     for column, (title, description) in zip(st.columns(len(FEATURES)), FEATURES):
-        with column.container(border=True):
+        with column, card_container():
             st.markdown(f"**{title}**")
             st.caption(description)
     st.divider()

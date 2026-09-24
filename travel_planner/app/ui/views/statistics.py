@@ -7,11 +7,12 @@ import streamlit as st
 
 from app.ui.api_client import get_system_stats
 from app.ui.formatting import format_timestamp
+from app.ui.styles import render_page_header
 
 
 def render_statistics() -> None:
     """Render the reservation, cache and batch processing statistics."""
-    st.header("Estadísticas del Sistema")
+    render_page_header("Estadísticas del Sistema", "Reservas, caché de rutas y procesamiento por lotes.")
     if st.button("Actualizar Estadísticas", key="refresh_statistics"):
         get_system_stats.clear()
     stats = get_system_stats()
