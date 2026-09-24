@@ -17,11 +17,9 @@ import hashlib
 import logging
 from time import perf_counter
 
-# Imports de nuestros módulos
 from app.core.graph import TravelGraph
 from app.core.tsp_dp import HELD_KARP_MAX, MAX_TSP_CITIES, TSPSolver, choose_tsp_algorithm
 from app.core.tsp_genetic import GeneticTSP
-from app.core.itinerary_validator import ItineraryConstraints
 from app.caches.cache_backend import get_cache_backend
 from app.booking.reservations import ReservationManager
 from app.booking.batching import ReservationBatchProcessor
@@ -33,19 +31,22 @@ logger = logging.getLogger(__name__)
 # ==========================================================
 # CONFIGURACIÓN PRINCIPAL
 # ==========================================================
- 
+
 BATCH_SIZE = 20
 BATCH_TIMEOUT_SECONDS = 0.5
 BATCH_TICK_SECONDS = 0.5
 MAX_CONCURRENT_RESERVATIONS = BATCH_SIZE
 SHORTEST_PATH_CITY_COUNT = 2
+VALID_METRICS = {"cost", "time"}
+VALID_TRANSPORTS = {route[4] for route in ROUTES_FIXED}
+UNREACHABLE_MARKER = -1.0
 
 
 async def batch_loop():
     """Flush the reservation queue every tick so partial batches wait at most a tick."""
     while True:
         await asyncio.sleep(BATCH_TICK_SECONDS)
-        await batch_processor._trigger_processing()
+        await batch_processor.trigger_processing()
 
 
 @asynccontextmanager
@@ -67,7 +68,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configuración CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -76,7 +76,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instancias globales
 travel_graph = TravelGraph()
 route_cache = get_cache_backend(capacity=100)
 solver_metrics = SolverMetrics()
@@ -88,8 +87,10 @@ batch_processor = ReservationBatchProcessor(
 )
 
 # ==========================================================
-# MODELOS Pydantic (Corregidos)
+# MODELOS Pydantic
 # ==========================================================
+
+
 class RouteComparison(BaseModel):
     """Modelo para comparar rutas directa vs económica"""
     origin: str
@@ -98,6 +99,7 @@ class RouteComparison(BaseModel):
     cheapest_route: Dict  # Ruta más económica
     direct_exists: bool
     savings: Optional[float] = None  # Ahorro si hay ruta económica mejor
+
 
 class RouteRequest(BaseModel):
     origin: str
@@ -113,11 +115,13 @@ class RouteResponse(BaseModel):
     total_cost: float
     cached: bool = False
 
+
 class TSPRequest(BaseModel):
     cities: List[str] = Field(..., min_length=2, max_length=MAX_TSP_CITIES)
     cost_matrix: List[List[float]]
     return_to_start: bool = True
     algorithm: Optional[Literal["held_karp", "genetic"]] = None
+
 
 class TSPResponse(BaseModel):
     """Multi-destination route optimized by the TSP algorithm chosen by the server."""
@@ -128,6 +132,7 @@ class TSPResponse(BaseModel):
     history: Optional[List[Dict[str, Any]]] = None
     cached: bool = False
 
+
 class ItineraryRequest(BaseModel):
     user_id: str
     origin: str
@@ -135,9 +140,11 @@ class ItineraryRequest(BaseModel):
     max_budget: float = 1000.0
     max_duration_hours: float = 72.0
 
+
 class ReservationRequest(BaseModel):
     user_id: str
     itinerary: Dict[str, Any]
+
 
 class ReservationResponse(BaseModel):
     reservation_id: str
@@ -146,13 +153,15 @@ class ReservationResponse(BaseModel):
     total_cost: float
     created_at: str
 
+
 # ==========================================================
 # GRAFO BASE
 # ==========================================================
 
+
 def get_populated_graph():
     """Devuelve grafo pre-poblado con rutas fijas (auto, avión, tren)."""
-    if travel_graph.graph: # Revisa si el grafo ya tiene nodos/aristas
+    if travel_graph.graph:
         return travel_graph
 
     for origin, dest, cost, time, transport in ROUTES_FIXED:
@@ -168,9 +177,11 @@ def mark_as_cached(cached_result: Dict[str, Any]) -> Dict[str, Any]:
     result["cached"] = True
     return result
 
+
 # ==========================================================
 # ENDPOINTS
 # ==========================================================
+
 
 @app.get("/")
 async def root():
@@ -186,6 +197,7 @@ async def root():
         }
     }
 
+
 @app.get("/health")
 async def health_check():
     return {
@@ -195,9 +207,11 @@ async def health_check():
         "reservation_stats": reservation_manager.get_stats()
     }
 
+
 # ==========================================================
-# 🔹 NUEVO ENDPOINT: MATRIZ DESDE ROUTES_FIXED
+# MATRIZ DESDE ROUTES_FIXED
 # ==========================================================
+
 
 @app.get("/routes/matrix")
 async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
@@ -205,49 +219,45 @@ async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
     Devuelve matriz de costos o tiempos fijos.
     Usa -1.0 para representar rutas no conectadas (infinito), ya que JSON no soporta 'inf'.
     """
-    valid_transports = {"auto", "avión", "tren"}
-    valid_metrics = {"cost", "time"}
-
-    if transport not in valid_transports or optimize_by not in valid_metrics:
+    if transport not in VALID_TRANSPORTS or optimize_by not in VALID_METRICS:
         raise HTTPException(status_code=400, detail="Parámetros inválidos")
 
-    filtered = [r for r in ROUTES_FIXED if r[4] == transport]
-    cities = sorted({r[0] for r in filtered} | {r[1] for r in filtered})
-    n = len(cities)
-    
-    # 1. Inicializar con -1.0 (valor seguro para JSON) en lugar de inf
-    matrix = [[-1.0] * n for _ in range(n)]
-    
-    # 2. Poner 0.0 solo en la diagonal (costo de una ciudad a sí misma)
-    for i in range(n):
-        matrix[i][i] = 0.0
-
-    for (o, d, cost, time, t) in filtered:
-        if o in cities and d in cities:
-            i, j = cities.index(o), cities.index(d)
-            value = cost if optimize_by == "cost" else time
-            matrix[i][j] = value
-            matrix[j][i] = value # Asumir rutas simétricas
-
+    routes = [route for route in ROUTES_FIXED if route[4] == transport]
+    cities = sorted({route[0] for route in routes} | {route[1] for route in routes})
     return {
         "cities": cities,
         "transport": transport,
         "optimize_by": optimize_by,
-        "matrix": matrix 
+        "matrix": build_symmetric_matrix(cities, routes, optimize_by),
     }
+
+
+def build_symmetric_matrix(cities: List[str], routes: List[tuple], optimize_by: str) -> List[List[float]]:
+    """Build a symmetric cost/time matrix with 0.0 on the diagonal and UNREACHABLE_MARKER elsewhere by default."""
+    city_index = {city: index for index, city in enumerate(cities)}
+    matrix = [[UNREACHABLE_MARKER] * len(cities) for _ in cities]
+    for index in range(len(cities)):
+        matrix[index][index] = 0.0
+
+    for origin, destination, cost, hours, _transport in routes:
+        i, j = city_index[origin], city_index[destination]
+        value = cost if optimize_by == "cost" else hours
+        matrix[i][j] = value
+        matrix[j][i] = value
+    return matrix
+
+
 # ==========================================================
 # RUTA SIMPLE
 # ==========================================================
 
+
 @app.post("/routes/shortest", response_model=RouteResponse)
 async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = Depends(get_populated_graph)):
-    valid_transports = {route[4] for route in ROUTES_FIXED}
-    valid_metrics = {"cost", "time"}
-
-    if request.transport_type not in valid_transports:
+    if request.transport_type not in VALID_TRANSPORTS:
         raise HTTPException(status_code=400, detail="Tipo de transporte inválido")
 
-    if request.optimize_by not in valid_metrics:
+    if request.optimize_by not in VALID_METRICS:
         raise HTTPException(status_code=400, detail="Criterio de optimización inválido")
 
     cache_key = f"{request.origin}_{request.destination}_{request.optimize_by}_{request.transport_type}"
@@ -277,8 +287,8 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
             "total_cost": cost,
             "cached": False,
         }
-        
-        route_cache.put(cache_key, result) # Guardar el resultado completo en caché
+
+        route_cache.put(cache_key, result)
         return result
 
     except HTTPException:
@@ -286,60 +296,80 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ==========================================================
 # COMPARAR RUTAS: DIRECTA vs ECONÓMICA
 # ==========================================================
 
+DIRECT_PATH_LENGTH = 2
+DIRECT_CONNECTION_DESCRIPTION = "Conexión directa"
+
+
+def find_direct_route(origin: str, destination: str, transport: str, optimize_by: str) -> Optional[Dict[str, Any]]:
+    """Return the direct connection for the transport, or None when it does not exist."""
+    for route_origin, route_destination, cost, hours, route_transport in ROUTES_FIXED:
+        if (route_origin, route_destination, route_transport) == (origin, destination, transport):
+            return {
+                "path": [origin, destination],
+                "total_cost": cost if optimize_by == "cost" else hours,
+                "is_direct": True,
+                "description": DIRECT_CONNECTION_DESCRIPTION,
+            }
+    return None
+
+
+def describe_cheapest_route(path: List[str], total_cost: float) -> Dict[str, Any]:
+    """Describe the Dijkstra route, which may go through intermediate cities."""
+    is_direct = len(path) == DIRECT_PATH_LENGTH
+    return {
+        "path": path,
+        "total_cost": total_cost,
+        "is_direct": is_direct,
+        "description": (
+            f"Ruta con {len(path) - 1} segmentos" if len(path) > DIRECT_PATH_LENGTH
+            else DIRECT_CONNECTION_DESCRIPTION
+        ),
+    }
+
+
+def calculate_savings(direct_route: Optional[Dict[str, Any]], cheapest_cost: float) -> Optional[float]:
+    """Return how much the cheapest route saves over the direct one, if anything."""
+    if direct_route and cheapest_cost < direct_route["total_cost"]:
+        return direct_route["total_cost"] - cheapest_cost
+    return None
+
+
 @app.get("/routes/compare", response_model=RouteComparison)
-async def get_compare_routes(origin: str, destination: str, transport: str = "auto", optimize_by: str = "cost", graph: TravelGraph = Depends(get_populated_graph)):
+async def get_compare_routes(
+    origin: str,
+    destination: str,
+    transport: str = "auto",
+    optimize_by: str = "cost",
+    graph: TravelGraph = Depends(get_populated_graph),
+):
     """
     Compara dos opciones de ruta:
     1. Ruta directa (si existe conexión directa en el transporte especificado)
     2. Ruta más económica (usando Dijkstra, puede tener intermediarios)
     """
     try:
-        # 1. Verificar si existe ruta directa
-        direct_route = None
-        direct_exists = False
-        direct_cost = float('inf')
-
-        for o, d, cost, time, t in ROUTES_FIXED:
-            if o == origin and d == destination and t == transport:
-                direct_route = {
-                    "path": [origin, destination],
-                    "total_cost": cost if optimize_by == "cost" else time,
-                    "is_direct": True,
-                    "description": f"Conexión directa"
-                }
-                direct_exists = True
-                direct_cost = cost if optimize_by == "cost" else time
-                break
-
-        # 2. Encontrar ruta más económica (con intermediarios si es necesario)
-        cheapest_path, cheapest_cost = graph.find_shortest_path(origin, destination, weight=optimize_by, transport_type=transport)
-
+        direct_route = find_direct_route(origin, destination, transport, optimize_by)
+        cheapest_path, cheapest_cost = graph.find_shortest_path(
+            origin, destination, weight=optimize_by, transport_type=transport
+        )
         if not cheapest_path:
-            raise HTTPException(status_code=404, detail=f"No hay ruta disponible desde {origin} hasta {destination} en {transport}")
-
-        cheapest_route = {
-            "path": cheapest_path,
-            "total_cost": cheapest_cost,
-            "is_direct": len(cheapest_path) == 2,
-            "description": f"Ruta con {len(cheapest_path) - 1} segmentos" if len(cheapest_path) > 2 else "Conexión directa"
-        }
-
-        # 3. Calcular ahorro si la ruta económica es mejor
-        savings = None
-        if direct_exists and cheapest_cost < direct_cost:
-            savings = direct_cost - cheapest_cost
+            raise HTTPException(
+                status_code=404,
+                detail=f"No hay ruta disponible desde {origin} hasta {destination} en {transport}",
+            )
 
         return RouteComparison(
             origin=origin,
             destination=destination,
             direct_route=direct_route,
-            cheapest_route=cheapest_route,
-            direct_exists=direct_exists,
-            savings=savings
+            cheapest_route=describe_cheapest_route(cheapest_path, cheapest_cost),
+            direct_exists=direct_route is not None,
+            savings=calculate_savings(direct_route, cheapest_cost),
         )
 
     except HTTPException:
@@ -398,8 +428,8 @@ def build_tsp_cache_key(request: TSPRequest, algorithm: str) -> str:
 
 
 def replace_unreachable_with_inf(cost_matrix: List[List[float]]) -> List[List[float]]:
-    """Replace the JSON-safe -1.0 unreachable marker with infinity."""
-    return [[float("inf") if value == -1.0 else value for value in row] for row in cost_matrix]
+    """Replace the JSON-safe unreachable marker with infinity."""
+    return [[float("inf") if value == UNREACHABLE_MARKER else value for value in row] for row in cost_matrix]
 
 
 def solve_with_held_karp(matrix: List[List[float]], cities: List[str], return_to_start: bool) -> Dict[str, Any]:
@@ -476,46 +506,48 @@ async def optimize_multi_destination(request: TSPRequest):
     except Exception as e:
         logger.error(f"❌ Error en optimize_multi_destination: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 # ==========================================================
 # ITINERARIO Y RESERVAS
 # ==========================================================
 
+
+def build_itinerary_segments(graph: TravelGraph, origin: str, destinations: List[str]) -> List[Dict[str, Any]]:
+    """Chain shortest paths through the destinations, skipping unreachable ones."""
+    segments = []
+    current = origin
+    for destination in destinations:
+        path, cost = graph.find_shortest_path(current, destination)
+        if path:
+            segments.append({"from": current, "to": destination, "path": path, "cost": cost})
+            current = destination
+    return segments
+
+
 @app.post("/itinerary/plan")
 async def plan_itinerary(request: ItineraryRequest, graph: TravelGraph = Depends(get_populated_graph)):
     try:
-        segments = []
-        current = request.origin
-        for destination in request.destinations:
-            path, cost = graph.find_shortest_path(current, destination)
-            if path:
-                segments.append({"from": current, "to": destination, "path": path, "cost": cost})
-                current = destination
-
-        constraints = ItineraryConstraints(
-            max_budget=request.max_budget,
-            max_duration_hours=request.max_duration_hours,
-            max_segments=10,
-            required_cities=request.destinations
-        )
-
-        total_cost = sum(s["cost"] for s in segments)
+        segments = build_itinerary_segments(graph, request.origin, request.destinations)
+        total_cost = sum(segment["cost"] for segment in segments)
+        within_budget = total_cost <= request.max_budget
         return {
             "user_id": request.user_id,
             "origin": request.origin,
             "destinations": request.destinations,
             "segments": segments,
             "total_cost": total_cost,
-            "within_budget": total_cost <= request.max_budget,
-            "valid": total_cost <= request.max_budget # Lógica de validación simplificada
+            "within_budget": within_budget,
+            "valid": within_budget,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==========================================================
-# 🧩 RESERVAS (individuales y por lote) - CORREGIDO
+# RESERVAS (individuales y por lote)
 # ==========================================================
+
 
 @app.post("/reservations", response_model=ReservationResponse)
 async def create_reservation(request: ReservationRequest, background_tasks: BackgroundTasks):
@@ -527,12 +559,11 @@ async def create_reservation(request: ReservationRequest, background_tasks: Back
         )
 
         async def process_async(reservation_obj):
-            # 1. Procesar la reserva (simulación de pago, etc.)
             await reservation_manager.process_reservation(reservation_obj)
             logger.info(f"Task: Reserva individual {reservation_obj.reservation_id} finalizada")
 
         background_tasks.add_task(process_async, reservation)
-        
+
         logger.info(f"Reserva individual {reservation.reservation_id} creada y encolada.")
         return reservation.to_dict()
     except Exception as e:
@@ -548,18 +579,12 @@ async def create_reservations_batch(requests: List[ReservationRequest]):
     if not requests:
         raise HTTPException(status_code=400, detail="La lista de reservas no puede estar vacía")
 
-    user_id = requests[0].user_id
-    
-    logger.info(f" Recibido lote de {len(requests)} reservas para User {user_id}")
+    logger.info(f"Recibido lote de {len(requests)} reservas para User {requests[0].user_id}")
 
     try:
-        # 1. Añadir todos los items a la cola RÁPIDAMENTE
-        #    (Ahora usamos add_item_sync y no hay 'await')
-        for req in requests:
-            batch_processor.add_item_sync(item_id=req.user_id, data=req.itinerary) 
+        for reservation_request in requests:
+            batch_processor.add_item_sync(item_id=reservation_request.user_id, data=reservation_request.itinerary)
 
-        # 2. Devolver respuesta inmediata
-        #    El servidor responde "En cola" en menos de 1 segundo.
         return {
             "status": "queued",
             "count": len(requests),
@@ -570,7 +595,7 @@ async def create_reservations_batch(requests: List[ReservationRequest]):
         logger.error(f"Error creando lote: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-##
+
 @app.get("/reservations/{reservation_id}")
 async def get_reservation(reservation_id: str):
     reservation = reservation_manager.get_reservation(reservation_id)
@@ -597,6 +622,7 @@ async def cancel_reservation(reservation_id: str):
 # ESTADÍSTICAS DEL SISTEMA
 # ==========================================================
 
+
 @app.get("/stats")
 async def get_system_stats():
     return {
@@ -606,10 +632,12 @@ async def get_system_stats():
         "timestamp": datetime.now().isoformat()
     }
 
+
 @app.get("/stats/algorithms")
 async def get_algorithm_stats():
     """Return the real solver runs and their aggregates per algorithm and city count."""
     return solver_metrics.snapshot()
+
 
 # ==========================================================
 # MAIN (para ejecutar localmente)

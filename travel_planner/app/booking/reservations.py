@@ -47,7 +47,7 @@ class Reservation:
             'itinerary': self.itinerary,
             'status': self.status.value,
             'total_cost': self.total_cost,
-            'total_time': self.total_time,   # ← nuevo
+            'total_time': self.total_time,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'error_message': self.error_message
@@ -57,45 +57,45 @@ class Reservation:
 class ReservationManager:
     """
     Gestor de reservas con procesamiento asíncrono y concurrente.
-    
+
     Permite procesar múltiples reservas simultáneamente sin bloquear,
     ideal para sistemas con alta carga de usuarios.
     """
-    
+
     def __init__(self, max_concurrent: int = 10) -> None:
         """
         Inicializa el gestor de reservas.
-        
+
         Args:
             max_concurrent: Número máximo de reservas procesadas simultáneamente.
         """
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.reservations: Dict[str, Reservation] = {}
-    
+
     async def create_reservation(self, user_id: str, itinerary: Dict[str, Any]) -> Reservation:
         """
         Crea una nueva reserva.
-        
+
         Args:
             user_id: ID del usuario.
             itinerary: Diccionario con detalles del itinerario.
-        
+
         Returns:
             Objeto Reservation creado.
         """
         reservation = Reservation(
-        user_id=user_id,
-        itinerary=itinerary,
-        total_cost=itinerary.get('total_cost', 0.0),   # siempre € (ya corregido en frontend)
-        total_time=itinerary.get('total_time', None)    # horas opcionales
-    )
-        
+            user_id=user_id,
+            itinerary=itinerary,
+            total_cost=itinerary.get('total_cost', 0.0),
+            total_time=itinerary.get('total_time'),
+        )
+
         self.reservations[reservation.reservation_id] = reservation
         logger.info(f"Reserva creada: {reservation.reservation_id} para usuario {user_id}")
-        
+
         return reservation
-    
+
     async def process_reservation(self, reservation: Reservation) -> Reservation:
         """
         Procesa una reserva individual de forma asíncrona.
@@ -121,7 +121,6 @@ class ReservationManager:
                 await self._confirm_with_providers(reservation)
                 await self._send_notification(reservation)
 
-                # Éxito - Cambiar directamente a CONFIRMED
                 reservation.status = ReservationStatus.CONFIRMED
                 reservation.updated_at = datetime.now()
                 logger.info(f"✓ Reserva {reservation.reservation_id} confirmada")
@@ -133,48 +132,48 @@ class ReservationManager:
                 logger.error(f"✗ Reserva {reservation.reservation_id} falló: {e}")
 
             return reservation
-    
+
     async def _confirm_with_providers(self, reservation: Reservation) -> None:
         """Simula confirmación con proveedores de transporte/hoteles."""
         await asyncio.sleep(PROVIDER_CONFIRMATION_SECONDS)
         logger.debug(f"Confirmando con proveedores para {reservation.reservation_id}")
-    
+
     async def _send_notification(self, reservation: Reservation) -> None:
         """Simula envío de notificación al usuario."""
         await asyncio.sleep(NOTIFICATION_SECONDS)
         logger.debug(f"Notificación enviada para {reservation.reservation_id}")
-    
+
     async def process_multiple(self, reservations: List[Reservation]) -> List[Reservation]:
         """
         Procesa múltiples reservas concurrentemente.
-        
+
         Args:
             reservations: Lista de reservas a procesar.
-        
+
         Returns:
             Lista de reservas procesadas.
         """
         logger.info(f"Procesando {len(reservations)} reservas concurrentemente")
-        
+
         tasks = [
             self.process_reservation(reservation)
             for reservation in reservations
         ]
-        
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         processed = []
         for result in results:
             if isinstance(result, Exception):
                 logger.error(f"Error en procesamiento: {result}")
             else:
                 processed.append(result)
-        
+
         success_count = sum(1 for r in processed if r.status == ReservationStatus.CONFIRMED)
         logger.info(f"✓ {success_count}/{len(processed)} reservas confirmadas")
-        
+
         return processed
-    
+
     async def cancel_reservation(self, reservation_id: str) -> bool:
         """
         Cancela una reserva.
@@ -194,43 +193,36 @@ class ReservationManager:
 
         reservation = self.reservations[reservation_id]
 
-        # Verificar que NO esté ya cancelada (CANCELLED es irreversible)
         if reservation.status == ReservationStatus.CANCELLED:
             logger.warning(f"Reserva {reservation_id} ya está cancelada")
             return False
 
-        # Permitir cancelar desde cualquier estado excepto CANCELLED
-        if reservation.status in [ReservationStatus.CONFIRMED, ReservationStatus.PROCESSING,
-                                  ReservationStatus.PENDING, ReservationStatus.FAILED]:
-            await asyncio.sleep(CANCELLATION_SECONDS)
-            reservation.status = ReservationStatus.CANCELLED
-            reservation.updated_at = datetime.now()
-            logger.info(f"✓ Reserva {reservation_id} cancelada exitosamente")
-            return True
+        await asyncio.sleep(CANCELLATION_SECONDS)
+        reservation.status = ReservationStatus.CANCELLED
+        reservation.updated_at = datetime.now()
+        logger.info(f"✓ Reserva {reservation_id} cancelada exitosamente")
+        return True
 
-        logger.warning(f"No se puede cancelar reserva en estado {reservation.status.value}")
-        return False
-    
     def get_reservation(self, reservation_id: str) -> Optional[Reservation]:
         """Obtiene una reserva por ID."""
         return self.reservations.get(reservation_id)
-    
+
     def get_user_reservations(self, user_id: str) -> List[Reservation]:
         """Obtiene todas las reservas de un usuario."""
         return [
             r for r in self.reservations.values()
             if r.user_id == user_id
         ]
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Obtiene estadísticas del sistema de reservas."""
         total = len(self.reservations)
         by_status = {}
-        
+
         for reservation in self.reservations.values():
             status = reservation.status.value
             by_status[status] = by_status.get(status, 0) + 1
-        
+
         return {
             'total_reservations': total,
             'by_status': by_status,
@@ -243,9 +235,9 @@ async def main():
     print("=" * 60)
     print("Sistema de Reservas Asíncrono")
     print("=" * 60)
-    
+
     manager = ReservationManager(max_concurrent=5)
-    
+
     reservations = []
     for i in range(10):
         reservation = await manager.create_reservation(
@@ -258,27 +250,27 @@ async def main():
             }
         )
         reservations.append(reservation)
-    
+
     print(f"\n✓ Creadas {len(reservations)} reservas")
-    
+
     import time
     start_time = time.time()
-    
+
     processed = await manager.process_multiple(reservations)
-    
+
     elapsed = time.time() - start_time
     print(f"\n Tiempo total: {elapsed:.2f}s")
     print(f"   Promedio por reserva: {elapsed/len(reservations):.2f}s")
-    
+
     print("\nResultados:")
     for res in processed[:5]:
         print(f"  {res.reservation_id[:8]}... → {res.status.value}")
-    
+
     stats = manager.get_stats()
-    print(f"\nEstadísticas:")
+    print("\nEstadísticas:")
     for key, value in stats.items():
         print(f"  {key}: {value}")
-    
+
     if processed:
         first_id = processed[0].reservation_id
         cancelled = await manager.cancel_reservation(first_id)

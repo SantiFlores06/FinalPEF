@@ -74,7 +74,7 @@ def test_batch_processor_flushes_a_partial_batch_after_the_timeout():
         future = processor.add_item_sync("item_1", {"value": 1})
         await asyncio.sleep(0.1)
 
-        await processor._trigger_processing()
+        await processor.trigger_processing()
         result = await asyncio.wait_for(future, timeout=1)
 
         assert result["item_id"] == "item_1"
