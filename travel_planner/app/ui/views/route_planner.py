@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import streamlit as st
 
-from app.ai.gemini_recommendations import generate_city_recommendations
+from app.ai.gemini_recommendations import generate_recommendations_for_cities
 from app.core.tsp_dp import HELD_KARP_MAX, MAX_TSP_CITIES
 from app.data.routes_fixed import ROUTES_FIXED
 from app.ui.api_client import (
@@ -20,13 +20,14 @@ from app.ui.formatting import format_route
 from app.ui.maps import GENETIC_ROUTE_COLOR, OPTIMAL_ROUTE_COLOR, USER_ROUTE_COLOR, build_route_map, show_map
 from app.ui.route_matrices import RouteMatrices, load_route_matrices
 from app.ui.state import RESERVATIONS_PAGE, request_page, reset_route_results
-from app.ui.styles import algo_badge_html, render_page_header
+from app.ui.styles import algo_badge_html, card_container, render_page_header
 
 TRANSPORT_MODES = ["auto", "avión", "tren"]
 OPTIMIZE_BY_LABELS = {"cost": "Costo (€)", "time": "Tiempo (h)"}
 ALGORITHM_NAMES = {"dijkstra": "Dijkstra", "held_karp": "Held-Karp (óptimo)", "genetic": "AG heurístico"}
 NEAR_OPTIMAL_GAP_PERCENT = 5
 MAX_TICKETS = 20
+RECOMMENDATION_COLUMNS = 3
 SEGMENT_TABLE_FORMAT = {"Costo (€)": "{:.2f}", "Tiempo (h)": "{:.1f}"}
 
 
@@ -432,29 +433,38 @@ def render_genetic_gap_verdict(gap: float, gap_percent: float) -> None:
         )
 
 
-def get_city_recommendations(city: str) -> Optional[str]:
-    """Return the AI recommendations of a city, asking the AI only once per session."""
-    cached_recommendations = st.session_state.city_recommendations
-    if city not in cached_recommendations:
-        with st.spinner(f"Buscando lugares en {city}..."):
-            cached_recommendations[city] = generate_city_recommendations(city)
-    return cached_recommendations[city]
+def load_city_recommendations(cities: List[str]) -> Dict[str, Optional[str]]:
+    """Return the AI recommendations of the cities, fetching the missing ones in parallel."""
+    session_recommendations = st.session_state.city_recommendations
+    missing_cities = [city for city in cities if city not in session_recommendations]
+    if missing_cities:
+        with st.spinner(f"Buscando lugares imperdibles en {len(missing_cities)} ciudades..."):
+            session_recommendations.update(generate_recommendations_for_cities(missing_cities))
+    return {city: session_recommendations[city] for city in cities}
 
 
 def render_city_recommendations(route: List[str]) -> None:
-    """Render the places worth visiting in each city of the route."""
+    """Render one card per city of the route with the places worth visiting."""
     cities = list(dict.fromkeys(route))
     if not cities:
         return
     st.subheader("Lugares que debes visitar en cada ciudad")
-    for column, city in zip(st.columns(len(cities)), cities):
-        with column:
-            recommendations = get_city_recommendations(city)
-            if recommendations:
-                st.markdown(f"### {city}")
-                st.markdown(recommendations)
-            else:
-                st.caption(f"No se pudieron generar recomendaciones para {city}")
+    recommendations = load_city_recommendations(cities)
+    for row_start in range(0, len(cities), RECOMMENDATION_COLUMNS):
+        row_cities = cities[row_start:row_start + RECOMMENDATION_COLUMNS]
+        for column, city in zip(st.columns(RECOMMENDATION_COLUMNS), row_cities):
+            with column:
+                render_city_card(city, recommendations[city])
+
+
+def render_city_card(city: str, recommendations: Optional[str]) -> None:
+    """Render the card of a city with its recommendations, or a note when they failed."""
+    with card_container():
+        st.markdown(f"#### 📍 {city}")
+        if recommendations:
+            st.markdown(recommendations)
+        else:
+            st.caption("No se pudieron generar recomendaciones para esta ciudad.")
 
 
 def render_booking(booking: Dict[str, Any], transport_mode: str, optimize_by: str) -> None:
