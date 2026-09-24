@@ -10,6 +10,8 @@ import random
 import time
 from typing import Dict, List, Optional, Tuple
 
+EMPTY_GENE = -1
+
 
 class GeneticTSP:
     """
@@ -70,20 +72,21 @@ class GeneticTSP:
     # OPERADORES INTERNOS
     # ------------------------------------------------------------------
 
+    def _edge_cost(self, from_city: int, to_city: int) -> float:
+        """Costo de un tramo; los tramos sin conexión (negativos) valen infinito."""
+        cost = self.cost[from_city][to_city]
+        return float("inf") if cost < 0 else cost
+
     def _route_cost(self, route: List[int], return_to_start: bool) -> float:
         """Calcula el costo total de un cromosoma."""
-        total = 0.0
-        for i in range(len(route) - 1):
-            c = self.cost[route[i]][route[i + 1]]
-            if c < 0 or c == float("inf"):
-                return float("inf")
-            total += c
+        legs = list(zip(route, route[1:]))
         if return_to_start and self.n > 1:
-            c = self.cost[route[-1]][route[0]]
-            if c < 0 or c == float("inf"):
-                return float("inf")
-            total += c
-        return total
+            legs.append((route[-1], route[0]))
+        return sum((self._edge_cost(from_city, to_city) for from_city, to_city in legs), 0.0)
+
+    def _evaluate(self, population: List[List[int]], return_to_start: bool) -> List[float]:
+        """Calcula el costo de cada individuo de la población."""
+        return [self._route_cost(individual, return_to_start) for individual in population]
 
     def _create_individual(self, start_city: int) -> List[int]:
         """Crea un cromosoma aleatorio válido (permutación)."""
@@ -115,20 +118,18 @@ class GeneticTSP:
         if n <= 2:
             return parent1[:]
 
-        a, b = sorted(random.sample(range(1, n), 2))
+        segment_start, segment_end = sorted(random.sample(range(1, n), 2))
 
-        child = [-1] * n
+        child = [EMPTY_GENE] * n
         child[0] = parent1[0]
-        child[a:b] = parent1[a:b]
+        child[segment_start:segment_end] = parent1[segment_start:segment_end]
 
-        segment_set = set(child[a:b]) | {parent1[0]}
-        fill = [x for x in parent2 if x not in segment_set]
+        inherited_cities = set(child[segment_start:segment_end]) | {parent1[0]}
+        remaining_cities = iter(city for city in parent2 if city not in inherited_cities)
 
-        pos = 0
         for i in range(1, n):
-            if child[i] == -1:
-                child[i] = fill[pos]
-                pos += 1
+            if child[i] == EMPTY_GENE:
+                child[i] = next(remaining_cities)
 
         return child
 
@@ -145,11 +146,37 @@ class GeneticTSP:
     # ALGORITMO PRINCIPAL
     # ------------------------------------------------------------------
 
+    def _sort_by_cost(
+        self, population: List[List[int]], costs: List[float]
+    ) -> Tuple[List[List[int]], List[float]]:
+        """Ordena la población de menor a mayor costo."""
+        pairs = sorted(zip(costs, population), key=lambda pair: pair[0])
+        return [individual for _, individual in pairs], [cost for cost, _ in pairs]
+
+    def _record_generation(self, generation: int, best_cost: float, costs: List[float]) -> None:
+        """Guarda el mejor costo y el promedio de la generación para graficar la convergencia."""
+        self.history.append({
+            "generation": generation,
+            "best_cost": round(best_cost, 2),
+            "avg_cost": round(sum(costs) / len(costs), 2),
+        })
+
+    def _breed_next_generation(self, population: List[List[int]], costs: List[float]) -> List[List[int]]:
+        """Conserva la élite y completa la población con hijos cruzados y mutados."""
+        next_population: List[List[int]] = population[: self.elitism]
+        while len(next_population) < self.population_size:
+            parent1 = self._tournament_select(population, costs)
+            parent2 = self._tournament_select(population, costs)
+            child = self._order_crossover(parent1, parent2)
+            if random.random() < self.mutation_rate:
+                child = self._swap_mutate(child)
+            next_population.append(child)
+        return next_population
+
     def solve(
         self,
         start_city: int = 0,
         return_to_start: bool = True,
-        progress_callback=None,
     ) -> Tuple[float, List[int]]:
         """
         Ejecuta el algoritmo genético y retorna la mejor solución encontrada.
@@ -162,49 +189,26 @@ class GeneticTSP:
             (mejor_costo, mejor_ruta) — misma interfaz que TSPSolver.solve().
         """
         self.history = []
-        t0 = time.perf_counter()
+        started_at = time.perf_counter()
 
-        # Población inicial aleatoria
         population = [self._create_individual(start_city) for _ in range(self.population_size)]
-        costs = [self._route_cost(ind, return_to_start) for ind in population]
+        costs = self._evaluate(population, return_to_start)
 
-        best_idx = min(range(len(costs)), key=lambda i: costs[i])
-        best_route = population[best_idx][:]
-        best_cost = costs[best_idx]
+        best_index = min(range(len(costs)), key=lambda i: costs[i])
+        best_route = population[best_index][:]
+        best_cost = costs[best_index]
 
-        for gen in range(self.generations):
-            # Ordenar por costo (mejor = menor costo)
-            pairs = sorted(zip(costs, population), key=lambda x: x[0])
-            population = [ind for _, ind in pairs]
-            costs = [c for c, _ in pairs]
-
+        for generation in range(1, self.generations + 1):
+            population, costs = self._sort_by_cost(population, costs)
             if costs[0] < best_cost:
                 best_cost = costs[0]
                 best_route = population[0][:]
 
-            self.history.append({
-                "generation": gen + 1,
-                "best_cost": round(best_cost, 2),
-                "avg_cost": round(sum(costs) / len(costs), 2),
-            })
-            if progress_callback:
-                progress_callback(gen + 1, self.generations, best_cost)
+            self._record_generation(generation, best_cost, costs)
+            population = self._breed_next_generation(population, costs)
+            costs = self._evaluate(population, return_to_start)
 
-            # Construir siguiente generación
-            next_pop: List[List[int]] = population[: self.elitism]  # elitismo
-
-            while len(next_pop) < self.population_size:
-                p1 = self._tournament_select(population, costs)
-                p2 = self._tournament_select(population, costs)
-                child = self._order_crossover(p1, p2)
-                if random.random() < self.mutation_rate:
-                    child = self._swap_mutate(child)
-                next_pop.append(child)
-
-            population = next_pop
-            costs = [self._route_cost(ind, return_to_start) for ind in population]
-
-        self.elapsed_ms = (time.perf_counter() - t0) * 1000
+        self.elapsed_ms = (time.perf_counter() - started_at) * 1000
 
         route = best_route[:]
         if return_to_start:
