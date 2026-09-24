@@ -19,7 +19,7 @@ from app.ui.api_client import (
 from app.ui.formatting import format_route
 from app.ui.maps import GENETIC_ROUTE_COLOR, OPTIMAL_ROUTE_COLOR, USER_ROUTE_COLOR, build_route_map, show_map
 from app.ui.route_matrices import RouteMatrices, load_route_matrices
-from app.ui.state import RESERVATIONS_PAGE, request_page, reset_route_results
+from app.ui.state import RESERVATIONS_PAGE, mark_batch_submitted, request_page, reset_route_results
 from app.ui.styles import algo_badge_html, card_container, render_page_header
 
 TRANSPORT_MODES = ["auto", "avión", "tren"]
@@ -508,7 +508,10 @@ def submit_reservations(itinerary: Dict[str, Any], ticket_count: int) -> Optiona
     batch_payload = [{"user_id": user_id, "itinerary": itinerary} for _ in range(ticket_count)]
     with st.spinner(f"Enviando lote de {ticket_count} reservas..."):
         batch_response = create_reservations_batch(batch_payload)
-    return f"Lote creado correctamente ({batch_response['count']} reservas en cola)" if batch_response else None
+    if not batch_response:
+        return None
+    mark_batch_submitted()
+    return f"Lote creado correctamente ({batch_response['count']} reservas en cola)"
 
 
 def finish_booking(confirmation: str) -> None:

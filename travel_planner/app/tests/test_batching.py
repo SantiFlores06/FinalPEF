@@ -66,3 +66,45 @@ def test_reservation_batch_processor_uses_reservation_manager():
 def test_reservation_batch_processor_requires_manager():
     with pytest.raises(ValueError, match="ReservationManager"):
         ReservationBatchProcessor(reservation_manager=None)
+
+
+def test_batch_processor_flushes_a_partial_batch_after_the_timeout():
+    async def scenario():
+        processor = BatchProcessor(batch_size=10, timeout_seconds=0.05)
+        future = processor.add_item_sync("item_1", {"value": 1})
+        await asyncio.sleep(0.1)
+
+        await processor._trigger_processing()
+        result = await asyncio.wait_for(future, timeout=1)
+
+        assert result["item_id"] == "item_1"
+        assert processor.get_stats()["queue_size"] == 0
+
+    asyncio.run(scenario())
+
+
+def test_a_full_reservation_batch_is_confirmed_quickly():
+    async def scenario():
+        batch_size = 20
+        manager = ReservationManager(max_concurrent=batch_size)
+        processor = ReservationBatchProcessor(
+            batch_size=batch_size,
+            timeout_seconds=30,
+            reservation_manager=manager,
+        )
+
+        futures = [processor.add_item_sync("user_1", {"total_cost": 10}) for _ in range(batch_size)]
+        results = await asyncio.wait_for(asyncio.gather(*futures), timeout=2)
+
+        assert [result["status"] for result in results] == ["confirmed"] * batch_size
+        assert processor.get_stats()["total_batches"] == 1
+
+    asyncio.run(scenario())
+
+
+def test_server_can_process_a_whole_batch_concurrently():
+    from app.api import server
+
+    assert server.BATCH_TIMEOUT_SECONDS <= 1
+    assert server.BATCH_TICK_SECONDS <= 1
+    assert server.reservation_manager.max_concurrent >= server.batch_processor.batch_size

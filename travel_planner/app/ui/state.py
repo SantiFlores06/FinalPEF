@@ -1,6 +1,7 @@
 """Session state defaults and navigation state."""
 
 import copy
+import time
 
 import streamlit as st
 
@@ -9,6 +10,8 @@ ROUTE_PLANNER_PAGE = "route_planner"
 RESERVATIONS_PAGE = "reservations"
 STATISTICS_PAGE = "statistics"
 LABORATORY_PAGE = "laboratory"
+
+BATCH_SETTLE_SECONDS = 5.0
 
 SESSION_DEFAULTS = {
     "user_id": "user_1",
@@ -23,6 +26,8 @@ SESSION_DEFAULTS = {
     "selected_route_for_booking": None,
     "ga_result": None,
     "cost_submatrix": None,
+    "batch_settle_deadline": 0.0,
+    "reservations_auto_refresh": False,
 }
 
 ROUTE_RESULT_KEYS = (
@@ -56,3 +61,13 @@ def reset_route_results() -> None:
 def request_page(page_id: str) -> None:
     """Ask the next run to switch to another page."""
     st.session_state.pending_page = page_id
+
+
+def mark_batch_submitted() -> None:
+    """Remember that a batch was just queued, so its reservations are awaited for a while."""
+    st.session_state.batch_settle_deadline = time.monotonic() + BATCH_SETTLE_SECONDS
+
+
+def is_batch_settling() -> bool:
+    """Return whether a recently queued batch may still be missing from the reservations."""
+    return time.monotonic() < st.session_state.batch_settle_deadline

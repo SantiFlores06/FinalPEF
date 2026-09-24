@@ -33,10 +33,16 @@ logger = logging.getLogger(__name__)
 # CONFIGURACIÓN PRINCIPAL
 # ==========================================================
  
+BATCH_SIZE = 20
+BATCH_TIMEOUT_SECONDS = 0.5
+BATCH_TICK_SECONDS = 0.5
+MAX_CONCURRENT_RESERVATIONS = BATCH_SIZE
+
+
 async def batch_loop():
-    """Ejecuta procesamiento periodico de lotes."""
+    """Flush the reservation queue every tick so partial batches wait at most a tick."""
     while True:
-        await asyncio.sleep(10) # Revisa cada 10 segundos
+        await asyncio.sleep(BATCH_TICK_SECONDS)
         await batch_processor._trigger_processing()
 
 
@@ -71,11 +77,11 @@ app.add_middleware(
 # Instancias globales
 travel_graph = TravelGraph()
 route_cache = get_cache_backend(capacity=100)
-reservation_manager = ReservationManager(max_concurrent=10)
+reservation_manager = ReservationManager(max_concurrent=MAX_CONCURRENT_RESERVATIONS)
 batch_processor = ReservationBatchProcessor(
-    batch_size=20, 
-    timeout_seconds=5.0, # (El timeout que tenías en batching.py)
-    reservation_manager=reservation_manager 
+    batch_size=BATCH_SIZE,
+    timeout_seconds=BATCH_TIMEOUT_SECONDS,
+    reservation_manager=reservation_manager,
 )
 
 # ==========================================================

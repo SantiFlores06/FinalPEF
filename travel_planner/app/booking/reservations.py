@@ -14,6 +14,10 @@ import uuid
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+PROVIDER_CONFIRMATION_SECONDS = 0.05
+NOTIFICATION_SECONDS = 0.02
+CANCELLATION_SECONDS = 0.05
+
 
 class ReservationStatus(Enum):
     """Estados posibles de una reserva."""
@@ -114,12 +118,7 @@ class ReservationManager:
 
                 logger.info(f"Procesando reserva {reservation.reservation_id}")
 
-                # Simular confirmación con proveedores (I/O)
-                await asyncio.sleep(0.2)
                 await self._confirm_with_providers(reservation)
-
-                # Simular envío de notificación (I/O)
-                await asyncio.sleep(0.1)
                 await self._send_notification(reservation)
 
                 # Éxito - Cambiar directamente a CONFIRMED
@@ -137,12 +136,12 @@ class ReservationManager:
     
     async def _confirm_with_providers(self, reservation: Reservation) -> None:
         """Simula confirmación con proveedores de transporte/hoteles."""
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(PROVIDER_CONFIRMATION_SECONDS)
         logger.debug(f"Confirmando con proveedores para {reservation.reservation_id}")
     
     async def _send_notification(self, reservation: Reservation) -> None:
         """Simula envío de notificación al usuario."""
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(NOTIFICATION_SECONDS)
         logger.debug(f"Notificación enviada para {reservation.reservation_id}")
     
     async def process_multiple(self, reservations: List[Reservation]) -> List[Reservation]:
@@ -203,7 +202,7 @@ class ReservationManager:
         # Permitir cancelar desde cualquier estado excepto CANCELLED
         if reservation.status in [ReservationStatus.CONFIRMED, ReservationStatus.PROCESSING,
                                   ReservationStatus.PENDING, ReservationStatus.FAILED]:
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(CANCELLATION_SECONDS)
             reservation.status = ReservationStatus.CANCELLED
             reservation.updated_at = datetime.now()
             logger.info(f"✓ Reserva {reservation_id} cancelada exitosamente")
