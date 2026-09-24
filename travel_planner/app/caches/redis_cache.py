@@ -7,28 +7,28 @@ import redis
 import json
 import pickle
 from typing import Any, Optional, Dict, List
-from datetime import timedelta
 import logging
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+SOCKET_TIMEOUT_SECONDS = 5
 
 
 class RedisCache:
     """
     Cache distribuido usando Redis.
-    
+
     Redis permite compartir cache entre múltiples instancias de la aplicación,
     ideal para sistemas escalables con concurrencia alta.
-    
+
     Ventajas sobre LRU local:
         - Cache compartido entre servidores
         - Persistencia opcional
         - Operaciones atómicas
         - TTL automático
     """
-    
+
     def __init__(
         self,
         host: str = 'localhost',
@@ -41,7 +41,7 @@ class RedisCache:
     ) -> None:
         """
         Inicializa conexión con Redis.
-        
+
         Args:
             host: Host de Redis.
             port: Puerto de Redis.
@@ -53,7 +53,7 @@ class RedisCache:
         """
         self.ttl = ttl
         self.prefix = prefix
-        
+
         try:
             self.client = redis.Redis(
                 host=host,
@@ -61,38 +61,36 @@ class RedisCache:
                 db=db,
                 password=password,
                 decode_responses=decode_responses,
-                socket_connect_timeout=5,
-                socket_timeout=5
+                socket_connect_timeout=SOCKET_TIMEOUT_SECONDS,
+                socket_timeout=SOCKET_TIMEOUT_SECONDS
             )
-            # Verificar conexión
             self.client.ping()
             logger.info(f"Conectado a Redis en {host}:{port}")
         except redis.ConnectionError as e:
             logger.error(f"Error conectando a Redis: {e}")
             raise
-    
+
     def _make_key(self, key: str) -> str:
         """Crea clave con prefijo."""
         return f"{self.prefix}{key}"
-    
+
     def get(self, key: str) -> Optional[Any]:
         """
         Obtiene valor del cache.
-        
+
         Args:
             key: Clave a buscar.
-        
+
         Returns:
             Valor deserializado o None si no existe.
         """
         try:
             full_key = self._make_key(key)
             value = self.client.get(full_key)
-            
+
             if value is None:
                 return None
-            
-            # Deserializar JSON
+
             return json.loads(value)
         except json.JSONDecodeError:
             logger.warning(f"Error deserializando {key}, intentando pickle")
@@ -102,7 +100,7 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Error obteniendo {key}: {e}")
             return None
-    
+
     def set(
         self,
         key: str,
@@ -112,36 +110,34 @@ class RedisCache:
     ) -> bool:
         """
         Almacena valor en cache.
-        
+
         Args:
             key: Clave para almacenar.
             value: Valor a almacenar.
             ttl: Time-to-live en segundos (None = usar default).
             nx: Si True, solo almacena si la clave NO existe (SET NX).
-        
+
         Returns:
             True si se almacenó correctamente.
         """
         try:
             full_key = self._make_key(key)
             ttl_seconds = ttl if ttl is not None else self.ttl
-            
-            # Serializar a JSON
+
             try:
                 serialized = json.dumps(value)
             except (TypeError, ValueError):
                 # Fallback a pickle para objetos no JSON-serializables
                 serialized = pickle.dumps(value)
-            
+
             if nx:
-                # Solo set si no existe
                 return bool(self.client.set(full_key, serialized, ex=ttl_seconds, nx=True))
             else:
                 return bool(self.client.setex(full_key, ttl_seconds, serialized))
         except Exception as e:
             logger.error(f"Error almacenando {key}: {e}")
             return False
-    
+
     def put(self, key: str, value: Any) -> bool:
         """
         Alias de set() para exponer la misma interfaz que LRUCache.
@@ -167,7 +163,7 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Error eliminando {key}: {e}")
             return False
-    
+
     def exists(self, key: str) -> bool:
         """Verifica si una clave existe."""
         try:
@@ -176,17 +172,17 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Error verificando {key}: {e}")
             return False
-    
+
     def increment(self, key: str, amount: int = 1) -> Optional[int]:
         """
         Incrementa un contador atómicamente.
-        
+
         Útil para rate limiting o conteo de accesos.
-        
+
         Args:
             key: Clave del contador.
             amount: Cantidad a incrementar.
-        
+
         Returns:
             Nuevo valor del contador.
         """
@@ -196,21 +192,21 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Error incrementando {key}: {e}")
             return None
-    
+
     def get_many(self, keys: List[str]) -> Dict[str, Any]:
         """
         Obtiene múltiples valores en una sola operación.
-        
+
         Args:
             keys: Lista de claves.
-        
+
         Returns:
             Diccionario con valores encontrados.
         """
         try:
             full_keys = [self._make_key(k) for k in keys]
             values = self.client.mget(full_keys)
-            
+
             result = {}
             for key, value in zip(keys, values):
                 if value:
@@ -218,63 +214,63 @@ class RedisCache:
                         result[key] = json.loads(value)
                     except json.JSONDecodeError:
                         pass
-            
+
             return result
         except Exception as e:
             logger.error(f"Error obteniendo múltiples claves: {e}")
             return {}
-    
+
     def set_many(self, mapping: Dict[str, Any], ttl: Optional[int] = None) -> bool:
         """
         Almacena múltiples valores usando pipeline.
-        
+
         Args:
             mapping: Diccionario de clave-valor.
             ttl: TTL para todas las claves.
-        
+
         Returns:
             True si tuvo éxito.
         """
         try:
             pipeline = self.client.pipeline()
             ttl_seconds = ttl if ttl is not None else self.ttl
-            
+
             for key, value in mapping.items():
                 full_key = self._make_key(key)
                 serialized = json.dumps(value)
                 pipeline.setex(full_key, ttl_seconds, serialized)
-            
+
             pipeline.execute()
             return True
         except Exception as e:
             logger.error(f"Error almacenando múltiples valores: {e}")
             return False
-    
+
     def clear_pattern(self, pattern: str) -> int:
         """
         Elimina todas las claves que coinciden con un patrón.
-        
+
         Args:
             pattern: Patrón de Redis (e.g., "route:*").
-        
+
         Returns:
             Número de claves eliminadas.
         """
         try:
             full_pattern = self._make_key(pattern)
             keys = self.client.keys(full_pattern)
-            
+
             if keys:
                 return self.client.delete(*keys)
             return 0
         except Exception as e:
             logger.error(f"Error limpiando patrón {pattern}: {e}")
             return 0
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Obtiene estadísticas del servidor Redis.
-        
+
         Returns:
             Diccionario con info del servidor.
         """
@@ -291,21 +287,21 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Error obteniendo stats: {e}")
             return {}
-    
+
     def _calculate_hit_rate(self, info: Dict) -> float:
         """Calcula hit rate desde stats de Redis."""
         hits = info.get('keyspace_hits', 0)
         misses = info.get('keyspace_misses', 0)
         total = hits + misses
         return hits / total if total > 0 else 0.0
-    
+
     def ttl_remaining(self, key: str) -> Optional[int]:
         """
         Obtiene el TTL restante de una clave.
-        
+
         Args:
             key: Clave a verificar.
-        
+
         Returns:
             Segundos restantes o None si no existe/no tiene TTL.
         """
@@ -316,7 +312,7 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Error obteniendo TTL de {key}: {e}")
             return None
-    
+
     def close(self) -> None:
         """Cierra la conexión con Redis."""
         try:
@@ -331,7 +327,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print("Prueba de RedisCache")
     print("=" * 60)
-    
+
     # Crear instancia de cache
     try:
         cache = RedisCache(
@@ -340,7 +336,7 @@ if __name__ == "__main__":
             ttl=300,
             prefix="travel_planner:"
         )
-        
+
         # Almacenar ruta
         ruta_data = {
             "origin": "Madrid",
@@ -349,18 +345,18 @@ if __name__ == "__main__":
             "duration": 3,
             "transport": "tren"
         }
-        
+
         cache.set("route:mad_bcn", ruta_data)
-        print(f"\n✓ Almacenado: route:mad_bcn")
-        
+        print("\n✓ Almacenado: route:mad_bcn")
+
         # Recuperar ruta
         retrieved = cache.get("route:mad_bcn")
         print(f"✓ Recuperado: {retrieved}")
-        
+
         # Verificar TTL
         ttl = cache.ttl_remaining("route:mad_bcn")
         print(f"✓ TTL restante: {ttl} segundos")
-        
+
         # Almacenar múltiples rutas
         rutas = {
             "route:bcn_par": {"origin": "Barcelona", "destination": "París", "cost": 100},
@@ -368,30 +364,30 @@ if __name__ == "__main__":
         }
         cache.set_many(rutas, ttl=600)
         print(f"\n✓ Almacenadas {len(rutas)} rutas en batch")
-        
+
         # Recuperar múltiples
         keys = ["route:mad_bcn", "route:bcn_par", "route:par_rom"]
         results = cache.get_many(keys)
         print(f"✓ Recuperadas {len(results)} rutas: {list(results.keys())}")
-        
+
         # Contador atómico (útil para rate limiting)
         cache.increment("user:123:requests")
         cache.increment("user:123:requests")
         count = cache.increment("user:123:requests")
         print(f"\n✓ Contador de requests: {count}")
-        
+
         # Estadísticas
         stats = cache.get_stats()
-        print(f"\n✓ Estadísticas Redis:")
+        print("\n✓ Estadísticas Redis:")
         for key, value in stats.items():
             print(f"  {key}: {value}")
-        
+
         # Limpiar claves de prueba
         deleted = cache.clear_pattern("route:*")
         print(f"\n✓ Eliminadas {deleted} claves de rutas")
-        
+
         cache.close()
-        
+
     except redis.ConnectionError:
         print("\n✗ No se pudo conectar a Redis.")
         print("  Asegúrate de que Redis esté ejecutándose:")
