@@ -29,6 +29,7 @@ if errorlevel 1 (
 
 "%PY%" verify_setup.py || goto :fail
 
+call :stop_api
 call :port_in_use 8000 && (echo [FALLO] El puerto 8000 ya esta en uso. Cerra la otra instancia. & goto :fail)
 call :port_in_use 8501 && (echo [FALLO] El puerto 8501 ya esta en uso. Cerra la otra instancia. & goto :fail)
 
@@ -57,7 +58,7 @@ netstat -ano | findstr /r /c:":%1 .*LISTENING" >nul
 exit /b %errorlevel%
 
 :stop_api
-for /f "tokens=5" %%p in ('netstat -ano ^| findstr /r /c:":8000 .*LISTENING"') do taskkill /pid %%p /f >nul 2>&1
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'python*' -and $_.CommandLine -like '*uvicorn app.api.server:app*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
 exit /b 0
 
 :fail_with_api

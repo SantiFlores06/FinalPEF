@@ -110,9 +110,7 @@ def main() -> int:
     parser.add_argument("--api", action="store_true", help="also verify the running API")
     args = parser.parse_args()
 
-    checks_passed = check_python_version() and check_packages()
-    if checks_passed and args.api:
-        checks_passed = check_api()
+    checks_passed = check_api() if args.api else check_python_version() and check_packages()
     return 0 if checks_passed else 1
 
 
