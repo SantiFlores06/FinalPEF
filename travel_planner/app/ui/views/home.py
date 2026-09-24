@@ -17,8 +17,8 @@ FEATURES = [
 def render_home() -> None:
     """Render the welcome page with the feature overview and the city map."""
     render_page_header(
-        "Bienvenido al Planificador de Viajes Europeo",
-        f"Optimizá rutas entre {len(CITIES)} ciudades de Europa, compará algoritmos de "
+        "Bienvenido al Planificador de Viajes",
+        f"Optimizá rutas entre {len(CITIES)} ciudades del mundo, compará algoritmos de "
         "optimización y realizá reservas, todo en un solo lugar.",
     )
     for column, (title, description) in zip(st.columns(len(FEATURES)), FEATURES):
@@ -26,5 +26,5 @@ def render_home() -> None:
             st.markdown(f"**{title}**")
             st.caption(description)
     st.divider()
-    st.markdown(f"#### {len(CITIES)} ciudades disponibles en Europa")
+    st.markdown(f"#### {len(CITIES)} ciudades disponibles en el mundo")
     show_map(build_home_map(), key="home_city_map")

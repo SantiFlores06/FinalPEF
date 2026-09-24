@@ -10,11 +10,14 @@ import streamlit as st
 
 from app.core.tsp_dp import HELD_KARP_MAX, TSPSolver
 from app.core.tsp_genetic import GeneticTSP
-from app.data.routes_fixed import CITIES, ROUTES_FIXED
+from app.data.cities import MAINLAND_EUROPEAN_CITIES
+from app.data.routes_fixed import ROUTES_FIXED
 from app.ui.styles import render_page_header
 from app.ui.views.usage_stats import render_usage_statistics
 
 LAB_TRANSPORT_MODES = ["auto", "tren", "avión"]
+# Every pair of these cities is directly linked by all the lab transports, so any sample has a full matrix.
+BENCHMARK_CITY_POOL = MAINLAND_EUROPEAN_CITIES
 BENCHMARK_CITY_COUNTS = list(range(4, 15))
 PROJECTION_LIMIT = 18
 MEASURED = "medido"
@@ -78,7 +81,8 @@ def render_controlled_benchmark() -> None:
     seed = int(seed_column.number_input("Semilla (reproducibilidad)", value=42, step=1, key="lab_seed"))
     st.caption(
         f"Held-Karp corre solo hasta n={HELD_KARP_MAX}. Por encima, se muestra únicamente "
-        "el genético (el exacto se vuelve inviable)."
+        "el genético (el exacto se vuelve inviable). Las ciudades se sortean entre las de "
+        "Europa continental, conectadas directamente por los tres transportes."
     )
     if st.button("Comparar", type="primary", use_container_width=True, key="lab_compare"):
         render_single_comparison(transport, city_count, seed)
@@ -104,7 +108,7 @@ def comparison_row(algorithm: str, cost: float, elapsed_ms: float, gap_percent: 
 
 def render_single_comparison(transport: str, city_count: int, seed: int) -> None:
     """Run both algorithms on random cities and render the comparison."""
-    city_names = random.Random(seed).sample(sorted(CITIES), city_count)
+    city_names = random.Random(seed).sample(BENCHMARK_CITY_POOL, city_count)
     matrix = build_cost_matrix(city_names, transport)
     rows = []
     held_karp_cost = None
@@ -147,7 +151,7 @@ def measure_benchmark(transport: str, seed: int) -> Tuple[List[Dict], Dict[int, 
     genetic_times: List[float] = []
     progress = st.progress(0.0, text="Corriendo benchmark...")
     for position, city_count in enumerate(BENCHMARK_CITY_COUNTS, start=1):
-        city_names = rng.sample(sorted(CITIES), city_count)
+        city_names = rng.sample(BENCHMARK_CITY_POOL, city_count)
         matrix = build_cost_matrix(city_names, transport)
         if city_count <= HELD_KARP_MAX:
             _cost, held_karp_ms = run_held_karp(matrix, city_names)

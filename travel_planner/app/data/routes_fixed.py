@@ -1,71 +1,13 @@
 # app/data/routes_fixed.py
-# Generación automática de rutas FULL conectadas en Europa
+# Automatic route generation between the cities of the world catalog
 # Formato: (origin, destination, cost, time, transport_type)
 
 import math
 from dataclasses import dataclass
 from itertools import permutations
+from typing import Callable
 
-# ==========================================
-# CIUDADES (coordenadas aproximadas reales)
-# ==========================================
-CITIES = {
-    # Europa Occidental
-    "Madrid": (40.4, -3.7),
-    "Barcelona": (41.3, 2.1),
-    "Valencia": (39.4, -0.3),
-    "Sevilla": (37.3, -5.9),
-    "Bilbao": (43.2, -2.9),
-    "Lisboa": (38.7, -9.1),
-    "Oporto": (41.1, -8.6),
-    "París": (48.8, 2.3),
-    "Lyon": (45.7, 4.8),
-    "Burdeos": (44.8, -0.5),
-    "Marsella": (43.3, 5.3),
-    "Berlín": (52.5, 13.4),
-    "Múnich": (48.1, 11.5),
-    "Hamburgo": (53.5, 10.0),
-    "Fráncfort": (50.1, 8.6),
-    "Roma": (41.9, 12.5),
-    "Milán": (45.4, 9.2),
-    "Nápoles": (40.8, 14.2),
-    "Florencia": (43.7, 11.2),
-    "Venecia": (45.4, 12.3),
-    "Londres": (51.5, -0.1),
-    "Edimburgo": (55.9, -3.2),
-    "Ámsterdam": (52.3, 4.9),
-    "Bruselas": (50.8, 4.3),
-    "Zúrich": (47.3, 8.5),
-    "Ginebra": (46.2, 6.1),
-    "Niza": (43.7, 7.2),
-    "Dublín": (53.3, -6.2),
-    # Europa del Norte
-    "Copenhague": (55.6, 12.5),
-    "Estocolmo": (59.3, 18.0),
-    "Oslo": (59.9, 10.7),
-    "Helsinki": (60.1, 24.9),
-    "Tallin": (59.4, 24.7),
-    "Riga": (56.9, 24.1),
-    "Vilna": (54.7, 25.3),
-    # Europa del Este
-    "Viena": (48.2, 16.3),
-    "Praga": (50.0, 14.4),
-    "Varsovia": (52.2, 21.0),
-    "Cracovia": (50.0, 19.9),
-    "Budapest": (47.5, 19.0),
-    "Bratislava": (48.1, 17.1),
-    "Sofía": (42.7, 23.3),
-    "Bucarest": (44.4, 26.1),
-    "Zagreb": (45.8, 15.9),
-    "Ljubljana": (46.0, 14.5),
-    "Belgrado": (44.8, 20.4),
-    "Kiev": (50.4, 30.5),
-    # Europa del Sur / Mediterráneo
-    "Atenas": (37.9, 23.7),
-    "Estambul": (41.0, 28.9),
-    "Sarajevo": (43.8, 18.3),
-    "Tirana": (41.3, 19.8),
-}
+from app.data.cities import CITIES, CITY_CATALOG, City
 
 # ==========================================
 # DISTANCIA REAL (HAVERSINE)
@@ -95,6 +37,22 @@ def haversine_km(origin: str, destination: str) -> float:
 # ==========================================
 # GENERADOR DE RUTAS (ficticias pero plausibles)
 # ==========================================
+# Road and rail links stop at this distance; longer trips must chain several legs.
+MAX_OVERLAND_KM = 4000
+
+Feasibility = Callable[[City, City, float], bool]
+
+
+def overland_link(origin: City, destination: City, distance_km: float) -> bool:
+    """Road and rail need both cities on the same landmass and within reach."""
+    return origin.landmass == destination.landmass and distance_km <= MAX_OVERLAND_KM
+
+
+def air_link(_origin: City, _destination: City, _distance_km: float) -> bool:
+    """Planes connect any two cities."""
+    return True
+
+
 @dataclass(frozen=True)
 class TransportProfile:
     name: str
@@ -102,16 +60,23 @@ class TransportProfile:
     speed_kmh: float
     long_distance_km: float
     long_distance_surcharge: float
+    is_feasible: Feasibility
     boarding_hours: float = 0.0
 
 
 # Long-distance surcharges make multi-leg itineraries worth comparing against direct ones.
 TRANSPORT_PROFILES = (
-    TransportProfile("auto", cost_per_km=0.18, speed_kmh=80, long_distance_km=1500, long_distance_surcharge=1.6),
-    TransportProfile("tren", cost_per_km=0.22, speed_kmh=120, long_distance_km=1200, long_distance_surcharge=1.5),
+    TransportProfile(
+        "auto", cost_per_km=0.18, speed_kmh=80, long_distance_km=1500, long_distance_surcharge=1.6,
+        is_feasible=overland_link,
+    ),
+    TransportProfile(
+        "tren", cost_per_km=0.22, speed_kmh=120, long_distance_km=1200, long_distance_surcharge=1.5,
+        is_feasible=overland_link,
+    ),
     TransportProfile(
         "avión", cost_per_km=0.30, speed_kmh=700, long_distance_km=1500, long_distance_surcharge=1.7,
-        boarding_hours=0.8,
+        is_feasible=air_link, boarding_hours=0.8,
     ),
 )
 
@@ -126,11 +91,16 @@ def build_route(origin: str, destination: str, distance_km: float, profile: Tran
 
 
 def generate_routes() -> list:
-    """Connect every ordered pair of cities with one route per transport profile."""
+    """Connect every ordered pair of cities with one route per transport able to link them."""
     routes = []
-    for origin, destination in permutations(CITIES.keys(), 2):
+    for origin, destination in permutations(CITY_CATALOG, 2):
         distance_km = haversine_km(origin, destination)
-        routes.extend(build_route(origin, destination, distance_km, profile) for profile in TRANSPORT_PROFILES)
+        origin_city, destination_city = CITY_CATALOG[origin], CITY_CATALOG[destination]
+        routes.extend(
+            build_route(origin, destination, distance_km, profile)
+            for profile in TRANSPORT_PROFILES
+            if profile.is_feasible(origin_city, destination_city, distance_km)
+        )
     return routes
 
 
