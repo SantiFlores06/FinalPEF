@@ -3,6 +3,7 @@
 # Formato: (origin, destination, cost, time, transport_type)
 
 import math
+from dataclasses import dataclass
 from itertools import permutations
 
 # ==========================================
@@ -69,92 +70,68 @@ CITIES = {
 # ==========================================
 # DISTANCIA REAL (HAVERSINE)
 # ==========================================
-def distancia(c1, c2):
-    lat1, lon1 = CITIES[c1]
-    lat2, lon2 = CITIES[c2]
+EARTH_RADIUS_KM = 6371
 
-    R = 6371  # radio de la tierra en km
 
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
+def haversine_km(origin: str, destination: str) -> float:
+    """Great-circle distance in km between two catalog cities."""
+    lat1, lon1 = CITIES[origin]
+    lat2, lon2 = CITIES[destination]
 
-    a = (
-        math.sin(dlat / 2) ** 2
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+
+    half_chord = (
+        math.sin(delta_lat / 2) ** 2
         + math.cos(math.radians(lat1))
         * math.cos(math.radians(lat2))
-        * math.sin(dlon / 2) ** 2
+        * math.sin(delta_lon / 2) ** 2
     )
 
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c  # km
+    central_angle = 2 * math.atan2(math.sqrt(half_chord), math.sqrt(1 - half_chord))
+    return EARTH_RADIUS_KM * central_angle
 
 
 # ==========================================
-# GENERADOR DE RUTAS(ficticias pero plausibles)
+# GENERADOR DE RUTAS (ficticias pero plausibles)
 # ==========================================
-def generar_rutas():
-    rutas = []
-
-    for origen, destino in permutations(CITIES.keys(), 2):
-        d = distancia(origen, destino)
-
-        # =========================
-        # AUTO 🚗
-        # =========================
-        costo_auto = d * 0.18
-        tiempo_auto = d / 80
-
-        # penalizar distancias largas
-        if d > 1500:
-            costo_auto *= 1.6
-
-        rutas.append((
-            origen,
-            destino,
-            round(costo_auto),
-            round(tiempo_auto, 1),
-            "auto"
-        ))
-
-        # =========================
-        # TREN 🚆
-        # =========================
-        costo_tren = d * 0.22
-        tiempo_tren = d / 120
-
-        if d > 1200:
-            costo_tren *= 1.5  # hace que convenga hacer escalas
-
-        rutas.append((
-            origen,
-            destino,
-            round(costo_tren),
-            round(tiempo_tren, 1),
-            "tren"
-        ))
-
-        # =========================
-        # AVIÓN ✈️
-        # =========================
-        costo_avion = d * 0.30
-        tiempo_avion = d / 700 + 0.8  
-
-       
-        if d > 1500:
-            costo_avion *= 1.7
-
-        rutas.append((
-            origen,
-            destino,
-            round(costo_avion),
-            round(tiempo_avion, 1),
-            "avión"
-        ))
-
-    return rutas
+@dataclass(frozen=True)
+class TransportProfile:
+    name: str
+    cost_per_km: float
+    speed_kmh: float
+    long_distance_km: float
+    long_distance_surcharge: float
+    boarding_hours: float = 0.0
 
 
-# ==========================================
-# RESULTADO FINAL
-# ==========================================
-ROUTES_FIXED = generar_rutas()
+# Long-distance surcharges make multi-leg itineraries worth comparing against direct ones.
+TRANSPORT_PROFILES = (
+    TransportProfile("auto", cost_per_km=0.18, speed_kmh=80, long_distance_km=1500, long_distance_surcharge=1.6),
+    TransportProfile("tren", cost_per_km=0.22, speed_kmh=120, long_distance_km=1200, long_distance_surcharge=1.5),
+    TransportProfile(
+        "avión", cost_per_km=0.30, speed_kmh=700, long_distance_km=1500, long_distance_surcharge=1.7,
+        boarding_hours=0.8,
+    ),
+)
+
+
+def build_route(origin: str, destination: str, distance_km: float, profile: TransportProfile) -> tuple:
+    """Build one (origin, destination, cost, time, transport) route for a transport profile."""
+    cost = distance_km * profile.cost_per_km
+    if distance_km > profile.long_distance_km:
+        cost *= profile.long_distance_surcharge
+    hours = distance_km / profile.speed_kmh + profile.boarding_hours
+    return origin, destination, round(cost), round(hours, 1), profile.name
+
+
+def generate_routes() -> list:
+    """Connect every ordered pair of cities with one route per transport profile."""
+    routes = []
+    for origin, destination in permutations(CITIES.keys(), 2):
+        distance_km = haversine_km(origin, destination)
+        routes.extend(build_route(origin, destination, distance_km, profile) for profile in TRANSPORT_PROFILES)
+    return routes
+
+
+ROUTES_FIXED = generate_routes()
