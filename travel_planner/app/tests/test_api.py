@@ -31,7 +31,7 @@ def test_health_endpoint_returns_system_stats(client):
 
 
 def test_matrix_endpoint_validates_transport_and_metric(client):
-    invalid = client.get("/routes/matrix", params={"transport": "barco"})
+    invalid = client.get("/routes/matrix", params={"transport": "teletransporte"})
     assert invalid.status_code == 400
 
     response = client.get(
@@ -269,3 +269,29 @@ def test_algorithm_stats_record_dijkstra_for_shortest_routes(client):
     assert stats["by_algorithm"]["dijkstra"]["runs"] == 1
     assert stats["runs"][0]["n_cities"] == 2
     assert stats["cache_hits"] == 1
+
+
+def test_matrix_endpoint_serves_ship_routes_between_ports_only(client):
+    payload = client.get("/routes/matrix", params={"transport": "barco", "optimize_by": "cost"}).json()
+
+    assert "Barcelona" in payload["cities"]
+    assert "Madrid" not in payload["cities"]
+
+
+def test_shortest_route_endpoint_accepts_ship(client):
+    request = {"origin": "Barcelona", "destination": "Atenas", "optimize_by": "time", "transport_type": "barco"}
+
+    response = client.post("/routes/shortest", json=request)
+
+    assert response.status_code == 200
+    assert response.json()["path"][0] == "Barcelona"
+    assert response.json()["path"][-1] == "Atenas"
+
+
+def test_compare_endpoint_finds_a_direct_ship_route(client):
+    response = client.get(
+        "/routes/compare", params={"origin": "Barcelona", "destination": "Atenas", "transport": "barco"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["direct_exists"] is True

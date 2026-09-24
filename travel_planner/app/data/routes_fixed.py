@@ -39,6 +39,10 @@ def haversine_km(origin: str, destination: str) -> float:
 # ==========================================
 # Road and rail links stop at this distance; longer trips must chain several legs.
 MAX_OVERLAND_KM = 4000
+# Regular ferry and cruise lanes within one sea basin; only cruise hubs sail farther, across oceans.
+MAX_SEA_LANE_KM = 5000
+# Ships follow coasts and canals, so they sail farther than the great-circle distance.
+SEA_DETOUR_FACTOR = 1.3
 
 Feasibility = Callable[[City, City, float], bool]
 
@@ -53,6 +57,19 @@ def air_link(_origin: City, _destination: City, _distance_km: float) -> bool:
     return True
 
 
+def share_sea_basin(origin: City, destination: City) -> bool:
+    return not set(origin.sea_basins).isdisjoint(destination.sea_basins)
+
+
+def sea_link(origin: City, destination: City, distance_km: float) -> bool:
+    """Ships link two ports on the same basin within reach, or two cruise hubs across any ocean."""
+    if not (origin.is_port and destination.is_port):
+        return False
+    if origin.cruise_hub and destination.cruise_hub:
+        return True
+    return share_sea_basin(origin, destination) and distance_km <= MAX_SEA_LANE_KM
+
+
 @dataclass(frozen=True)
 class TransportProfile:
     name: str
@@ -62,6 +79,7 @@ class TransportProfile:
     long_distance_surcharge: float
     is_feasible: Feasibility
     boarding_hours: float = 0.0
+    distance_factor: float = 1.0
 
 
 # Long-distance surcharges make multi-leg itineraries worth comparing against direct ones.
@@ -78,15 +96,22 @@ TRANSPORT_PROFILES = (
         "avión", cost_per_km=0.30, speed_kmh=700, long_distance_km=1500, long_distance_surcharge=1.7,
         is_feasible=air_link, boarding_hours=0.8,
     ),
+    TransportProfile(
+        "barco", cost_per_km=0.12, speed_kmh=35, long_distance_km=3000, long_distance_surcharge=1.3,
+        is_feasible=sea_link, boarding_hours=2.0, distance_factor=SEA_DETOUR_FACTOR,
+    ),
 )
+
+TRANSPORT_TYPES = tuple(profile.name for profile in TRANSPORT_PROFILES)
 
 
 def build_route(origin: str, destination: str, distance_km: float, profile: TransportProfile) -> tuple:
     """Build one (origin, destination, cost, time, transport) route for a transport profile."""
-    cost = distance_km * profile.cost_per_km
-    if distance_km > profile.long_distance_km:
+    travelled_km = distance_km * profile.distance_factor
+    cost = travelled_km * profile.cost_per_km
+    if travelled_km > profile.long_distance_km:
         cost *= profile.long_distance_surcharge
-    hours = distance_km / profile.speed_kmh + profile.boarding_hours
+    hours = travelled_km / profile.speed_kmh + profile.boarding_hours
     return origin, destination, round(cost), round(hours, 1), profile.name
 
 

@@ -27,4 +27,5 @@ def render_home() -> None:
             st.caption(description)
     st.divider()
     st.markdown(f"#### {len(CITIES)} ciudades disponibles en el mundo")
+    st.caption("En celeste, las ciudades con puerto: se pueden conectar en barco o crucero.")
     show_map(build_home_map(), key="home_city_map")

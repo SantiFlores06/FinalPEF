@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Literal, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager, suppress
-from app.data.routes_fixed import CITIES, ROUTES_FIXED
+from app.data.routes_fixed import CITIES, ROUTES_FIXED, TRANSPORT_TYPES
 import asyncio
 import copy
 import hashlib
@@ -38,7 +38,7 @@ BATCH_TICK_SECONDS = 0.5
 MAX_CONCURRENT_RESERVATIONS = BATCH_SIZE
 SHORTEST_PATH_CITY_COUNT = 2
 VALID_METRICS = {"cost", "time"}
-VALID_TRANSPORTS = {route[4] for route in ROUTES_FIXED}
+VALID_TRANSPORTS = set(TRANSPORT_TYPES)
 UNREACHABLE_MARKER = -1.0
 
 
@@ -105,7 +105,7 @@ class RouteRequest(BaseModel):
     origin: str
     destination: str
     optimize_by: str = Field(default="cost", description="Criterio: cost o time")
-    transport_type: str = Field(default="auto", description="Tipo de transporte: auto, tren o avión")
+    transport_type: str = Field(default="auto", description="Tipo de transporte: auto, tren, avión o barco")
 
 
 class RouteResponse(BaseModel):
@@ -160,7 +160,7 @@ class ReservationResponse(BaseModel):
 
 
 def get_populated_graph():
-    """Devuelve grafo pre-poblado con rutas fijas (auto, avión, tren)."""
+    """Devuelve grafo pre-poblado con rutas fijas (auto, tren, avión y barco)."""
     if travel_graph.graph:
         return travel_graph
 

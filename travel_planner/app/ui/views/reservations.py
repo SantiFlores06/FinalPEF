@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 import streamlit as st
 
 from app.ui.api_client import cancel_reservation, get_user_reservations
-from app.ui.formatting import format_route, format_timestamp
+from app.ui.formatting import format_route, format_timestamp, format_transport
 from app.ui.state import is_batch_settling
 from app.ui.styles import render_page_header, status_pill_html
 
@@ -57,7 +57,7 @@ def reservation_card_html(reservation: Dict[str, Any]) -> str:
     <div class="res-header">Reserva #{reservation.get('reservation_id', '')[:8]}...</div>
     <div class="res-sub">Creada: {format_timestamp(reservation.get('created_at', ''))}</div>
     <b>Tipo:</b> {itinerary.get('type', 'N/A').capitalize()}<br>
-    <b>Transporte:</b> {itinerary.get('transport_mode', 'N/A')}<br>
+    <b>Transporte:</b> {format_transport(itinerary.get('transport_mode', 'N/A'))}<br>
     <b>Ruta óptima:</b> {format_route(itinerary.get('optimal_route', []))}<br>
     <b>Total:</b> {itinerary.get('total_cost', 0):.2f} €<br>
     {status_pill_html(reservation.get('status', 'pending'))}

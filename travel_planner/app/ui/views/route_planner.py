@@ -8,7 +8,7 @@ import streamlit as st
 
 from app.ai.gemini_recommendations import generate_recommendations_for_cities
 from app.core.tsp_dp import HELD_KARP_MAX, MAX_TSP_CITIES
-from app.data.routes_fixed import ROUTES_FIXED
+from app.data.routes_fixed import ROUTES_FIXED, TRANSPORT_TYPES
 from app.ui.api_client import (
     ApiError,
     calculate_shortest_route,
@@ -16,13 +16,12 @@ from app.ui.api_client import (
     create_reservations_batch,
     optimize_multi_destination,
 )
-from app.ui.formatting import format_route
+from app.ui.formatting import format_route, format_transport
 from app.ui.maps import GENETIC_ROUTE_COLOR, OPTIMAL_ROUTE_COLOR, USER_ROUTE_COLOR, build_route_map, show_map
 from app.ui.route_matrices import RouteMatrices, load_route_matrices
 from app.ui.state import RESERVATIONS_PAGE, mark_batch_submitted, request_page, reset_route_results
 from app.ui.styles import algo_badge_html, card_container, render_page_header
 
-TRANSPORT_MODES = ["auto", "avión", "tren"]
 OPTIMIZE_BY_LABELS = {"cost": "Costo (€)", "time": "Tiempo (h)"}
 ALGORITHM_NAMES = {"dijkstra": "Dijkstra", "held_karp": "Held-Karp (óptimo)", "genetic": "AG heurístico"}
 NEAR_OPTIMAL_GAP_PERCENT = 5
@@ -40,7 +39,7 @@ def render_route_planner() -> None:
     transport_mode, optimize_by = render_trip_options()
     available_cities = cities_served_by(transport_mode)
     if not available_cities:
-        st.error(f"No hay ciudades disponibles para transporte en {transport_mode}")
+        st.error(f"No hay ciudades disponibles para transporte en {format_transport(transport_mode)}")
         return
     return_to_start = render_city_selector(available_cities)
     render_compute_button(transport_mode, optimize_by, return_to_start)
@@ -52,7 +51,9 @@ def render_route_planner() -> None:
 
 def render_trip_options() -> Tuple[str, str]:
     """Render the transport and criterion pickers, resetting results when they change."""
-    transport_mode = st.selectbox("Tipo de transporte", TRANSPORT_MODES, key="transport_mode")
+    transport_mode = st.selectbox(
+        "Tipo de transporte", TRANSPORT_TYPES, format_func=format_transport, key="transport_mode"
+    )
     optimize_by = st.selectbox(
         "Optimizar por", list(OPTIMIZE_BY_LABELS), format_func=OPTIMIZE_BY_LABELS.get, key="optimize_by"
     )
@@ -237,8 +238,8 @@ def render_results(transport_mode: str, return_to_start: bool) -> None:
         st.error("No se pudieron cargar los datos de las rutas. Revisa el backend.")
         return
     render_route_summary(user_route["route"], optimal_result, matrices)
-    render_route_maps(user_route["route"], optimal_result, matrices)
-    render_algorithm_details(optimal_result, return_to_start)
+    render_route_maps(user_route["route"], optimal_result, matrices, transport_mode)
+    render_algorithm_details(optimal_result, return_to_start, transport_mode)
     booking = st.session_state.selected_route_for_booking
     if booking:
         render_city_recommendations(booking["route"])
@@ -323,7 +324,9 @@ def render_cost_comparison(user_cost: float, optimal_cost: float, optimal_label:
     st.divider()
 
 
-def render_route_maps(user_route: List[str], optimal_result: Dict[str, Any], matrices: RouteMatrices) -> None:
+def render_route_maps(
+    user_route: List[str], optimal_result: Dict[str, Any], matrices: RouteMatrices, transport_mode: str
+) -> None:
     """Render the user's route and the optimal route on two maps side by side."""
     optimal_route = optimal_result["optimal_route"]
     is_genetic = optimal_result["algorithm"] == "genetic"
@@ -333,24 +336,26 @@ def render_route_maps(user_route: List[str], optimal_result: Dict[str, Any], mat
     user_column, optimal_column = st.columns(2)
     with user_column:
         st.markdown("**Tu ruta**")
-        user_route_map = build_route_map(user_route, USER_ROUTE_COLOR, "Tu ruta", matrices.segment_costs(user_route))
+        user_route_map = build_route_map(
+            user_route, USER_ROUTE_COLOR, "Tu ruta", matrices.segment_costs(user_route), transport_mode
+        )
         show_map(user_route_map, key="map_user_route")
     with optimal_column:
         st.markdown(f"**{optimal_label}**")
         optimal_route_map = build_route_map(
-            optimal_route, optimal_color, optimal_label, matrices.segment_costs(optimal_route)
+            optimal_route, optimal_color, optimal_label, matrices.segment_costs(optimal_route), transport_mode
         )
         show_map(optimal_route_map, key="map_opt_route")
     st.divider()
 
 
-def render_algorithm_details(optimal_result: Dict[str, Any], return_to_start: bool) -> None:
+def render_algorithm_details(optimal_result: Dict[str, Any], return_to_start: bool, transport_mode: str) -> None:
     """Render the genetic convergence, or the genetic comparison when Held-Karp was used."""
     algorithm = optimal_result["algorithm"]
     if algorithm == "genetic":
         render_genetic_convergence(optimal_result)
     elif algorithm == "held_karp" and st.session_state.cost_submatrix:
-        render_genetic_comparison(optimal_result, return_to_start)
+        render_genetic_comparison(optimal_result, return_to_start, transport_mode)
 
 
 def render_convergence_chart(history: Optional[List[Dict]]) -> None:
@@ -374,7 +379,7 @@ def render_genetic_convergence(genetic_result: Dict[str, Any]) -> None:
     st.divider()
 
 
-def render_genetic_comparison(held_karp_result: Dict[str, Any], return_to_start: bool) -> None:
+def render_genetic_comparison(held_karp_result: Dict[str, Any], return_to_start: bool, transport_mode: str) -> None:
     """Render the optional run of the genetic algorithm against the exact Held-Karp result."""
     city_count = len(st.session_state.cost_submatrix["cities"])
     st.subheader("Algoritmo genético vs Held-Karp")
@@ -386,7 +391,7 @@ def render_genetic_comparison(held_karp_result: Dict[str, Any], return_to_start:
         run_genetic_comparison(return_to_start)
     genetic_result = st.session_state.ga_result
     if genetic_result:
-        render_genetic_comparison_result(genetic_result, held_karp_result["total_cost"])
+        render_genetic_comparison_result(genetic_result, held_karp_result["total_cost"], transport_mode)
     st.divider()
 
 
@@ -402,7 +407,9 @@ def run_genetic_comparison(return_to_start: bool) -> None:
         st.rerun()
 
 
-def render_genetic_comparison_result(genetic_result: Dict[str, Any], held_karp_cost: float) -> None:
+def render_genetic_comparison_result(
+    genetic_result: Dict[str, Any], held_karp_cost: float, transport_mode: str
+) -> None:
     """Render the genetic result next to the exact cost, with its convergence and map."""
     genetic_cost = genetic_result["total_cost"]
     gap = genetic_cost - held_karp_cost
@@ -416,7 +423,9 @@ def render_genetic_comparison_result(genetic_result: Dict[str, Any], held_karp_c
     st.markdown("**Convergencia del AG** (costo por generación)")
     render_convergence_chart(genetic_result["history"])
     render_genetic_gap_verdict(gap, gap_percent)
-    genetic_route_map = build_route_map(genetic_result["optimal_route"], GENETIC_ROUTE_COLOR, "Ruta AG")
+    genetic_route_map = build_route_map(
+        genetic_result["optimal_route"], GENETIC_ROUTE_COLOR, "Ruta AG", transport=transport_mode
+    )
     show_map(genetic_route_map, key="map_ga_route")
 
 

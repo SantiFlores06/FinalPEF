@@ -6,17 +6,22 @@ import folium
 import streamlit as st
 from streamlit_folium import st_folium
 
-from app.data.routes_fixed import CITIES
+from app.data.cities import CITIES, CITY_CATALOG
 
 USER_ROUTE_COLOR = "#3B82F6"
 OPTIMAL_ROUTE_COLOR = "#10B981"
 GENETIC_ROUTE_COLOR = "#EC4899"
+PORT_CITY_COLOR = "#0891B2"
 LINE_WEIGHT = 4
 MAP_HEIGHT = 420
 MAP_TILES = "OpenStreetMap"
 BOUNDS_PADDING = (30, 30)
 POPUP_STYLE = "min-width:130px"
 POPUP_NOTE_STYLE = "color:#6B7280;font-size:11px"
+ENDPOINT_ICON = "home"
+DEFAULT_STOP_ICON = "circle"
+TRANSPORT_STOP_ICONS = {"auto": "car", "tren": "train", "avión": "plane", "barco": "ship"}
+TRANSPORT_LINE_DASHES = {"barco": "10 8"}
 
 Coordinate = Tuple[float, float]
 
@@ -46,21 +51,26 @@ def stop_popup_html(city: str, stop_number: int, next_segment_cost: Optional[flo
     )
 
 
+def stop_icon(is_endpoint: bool, transport: Optional[str]) -> folium.Icon:
+    """Return the home icon for the endpoints and the transport icon for the other stops."""
+    if is_endpoint:
+        return folium.Icon(color="red", icon=ENDPOINT_ICON, prefix="fa")
+    return folium.Icon(color="blue", icon=TRANSPORT_STOP_ICONS.get(transport, DEFAULT_STOP_ICON), prefix="fa")
+
+
 def add_stop_marker(route_map: folium.Map, city: str, stop_number: int, is_endpoint: bool,
-                    next_segment_cost: Optional[float]) -> None:
+                    next_segment_cost: Optional[float], transport: Optional[str]) -> None:
     """Place the marker of one route stop on the map."""
-    icon = folium.Icon(color="red", icon="home", prefix="fa") if is_endpoint \
-        else folium.Icon(color="blue", icon="circle", prefix="fa")
     folium.Marker(
         CITIES[city],
         popup=folium.Popup(stop_popup_html(city, stop_number, next_segment_cost), max_width=200),
         tooltip=f"#{stop_number} {city}",
-        icon=icon,
+        icon=stop_icon(is_endpoint, transport),
     ).add_to(route_map)
 
 
 def add_route_markers(route_map: folium.Map, route: List[str],
-                      segment_costs: Optional[List[float]]) -> None:
+                      segment_costs: Optional[List[float]], transport: Optional[str]) -> None:
     """Mark each stop once, in route order, flagging the start and a closing return."""
     visited = set()
     stop_number = 0
@@ -72,34 +82,39 @@ def add_route_markers(route_map: folium.Map, route: List[str],
         stop_number += 1
         has_next_segment = segment_costs is not None and position < len(segment_costs) and not is_return
         next_segment_cost = segment_costs[position] if has_next_segment else None
-        add_stop_marker(route_map, city, stop_number, is_start or is_return, next_segment_cost)
+        add_stop_marker(route_map, city, stop_number, is_start or is_return, next_segment_cost, transport)
         visited.add(city)
 
 
 def build_route_map(route: List[str], line_color: str, label: str,
-                    segment_costs: Optional[List[float]] = None) -> Optional[folium.Map]:
+                    segment_costs: Optional[List[float]] = None,
+                    transport: Optional[str] = None) -> Optional[folium.Map]:
     """Build a map of the route fitted to its stops, or None without known coordinates."""
     coordinates = [CITIES[city] for city in route if city in CITIES]
     if not coordinates:
         return None
     route_map = create_fitted_map(coordinates)
-    add_route_markers(route_map, route, segment_costs)
-    folium.PolyLine(coordinates, color=line_color, weight=LINE_WEIGHT, opacity=0.9, tooltip=label).add_to(route_map)
+    add_route_markers(route_map, route, segment_costs, transport)
+    folium.PolyLine(
+        coordinates, color=line_color, weight=LINE_WEIGHT, opacity=0.9, tooltip=label,
+        dash_array=TRANSPORT_LINE_DASHES.get(transport),
+    ).add_to(route_map)
     return route_map
 
 
 def build_home_map() -> folium.Map:
-    """Build the overview map with every available city."""
+    """Build the overview map with every available city, painting the ports apart."""
     home_map = create_fitted_map(list(CITIES.values()))
-    for city, coordinate in CITIES.items():
+    for city, catalog_city in CITY_CATALOG.items():
+        marker_color = PORT_CITY_COLOR if catalog_city.is_port else USER_ROUTE_COLOR
         folium.CircleMarker(
-            location=coordinate,
+            location=catalog_city.coordinate,
             radius=6,
-            color=USER_ROUTE_COLOR,
+            color=marker_color,
             fill=True,
-            fill_color=USER_ROUTE_COLOR,
+            fill_color=marker_color,
             fill_opacity=0.75,
-            tooltip=city,
+            tooltip=f"{city} (puerto)" if catalog_city.is_port else city,
             popup=folium.Popup(f"<b>{city}</b>", max_width=120),
         ).add_to(home_map)
     return home_map

@@ -3,7 +3,7 @@
 from itertools import permutations
 
 from app.data.cities import CITIES, CITY_CATALOG, MAINLAND_EUROPEAN_CITIES
-from app.data.routes_fixed import MAX_OVERLAND_KM, ROUTES_FIXED, haversine_km
+from app.data.routes_fixed import MAX_OVERLAND_KM, MAX_SEA_LANE_KM, ROUTES_FIXED, haversine_km
 
 OVERLAND_TRANSPORTS = ("auto", "tren")
 DIRECT_LINKS = {(origin, destination, transport) for origin, destination, _cost, _time, transport in ROUTES_FIXED}
@@ -43,3 +43,24 @@ def test_benchmark_pool_is_fully_connected_by_the_lab_transports():
             (origin, destination, transport) in DIRECT_LINKS
             for origin, destination in permutations(MAINLAND_EUROPEAN_CITIES, 2)
         )
+
+
+def test_ship_links_mediterranean_ports():
+    assert ("Barcelona", "Atenas", "barco") in DIRECT_LINKS
+
+
+def test_inland_city_has_no_ship_routes():
+    assert not any("Madrid" in link for link in links_of("barco"))
+
+
+def test_cruise_hubs_cross_oceans():
+    assert ("Lisboa", "Nueva York", "barco") in DIRECT_LINKS
+
+
+def test_ship_routes_outside_hubs_share_a_basin_within_reach():
+    for origin, destination in links_of("barco"):
+        origin_city, destination_city = CITY_CATALOG[origin], CITY_CATALOG[destination]
+        if origin_city.cruise_hub and destination_city.cruise_hub:
+            continue
+        assert set(origin_city.sea_basins) & set(destination_city.sea_basins)
+        assert haversine_km(origin, destination) <= MAX_SEA_LANE_KM

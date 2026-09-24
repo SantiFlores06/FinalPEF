@@ -87,7 +87,7 @@ class TravelGraph:
             source: Nodo de origen.
             target: Nodo de destino opcional. Si es None, calcula a todos.
             weight: Atributo por el cual ponderar ('cost' o 'time').
-            transport_type: Tipo de transporte opcional para filtrar rutas ('auto', 'tren', 'avión').
+            transport_type: Tipo de transporte opcional para filtrar rutas ('auto', 'tren', 'avión', 'barco').
 
         Returns:
             Tupla con dos diccionarios:
