@@ -1,4 +1,4 @@
-"""Laboratory page: exact Held-Karp versus the genetic heuristic, run in-process."""
+"""Laboratory page: real usage statistics, then exact Held-Karp versus the genetic heuristic run in-process."""
 
 import random
 import time
@@ -12,6 +12,7 @@ from app.core.tsp_dp import HELD_KARP_MAX, TSPSolver
 from app.core.tsp_genetic import GeneticTSP
 from app.data.routes_fixed import CITIES, ROUTES_FIXED
 from app.ui.styles import render_page_header
+from app.ui.views.usage_stats import render_usage_statistics
 
 LAB_TRANSPORT_MODES = ["auto", "tren", "avión"]
 BENCHMARK_CITY_COUNTS = list(range(4, 15))
@@ -55,9 +56,17 @@ def run_genetic(matrix: List[List[float]], city_names: List[str],
 def render_laboratory() -> None:
     """Render the laboratory page."""
     render_page_header(
-        "Laboratorio: Held-Karp vs Algoritmo Genético",
-        "Algoritmo exacto contra heurístico: dónde deja de escalar cada uno.",
+        "Laboratorio de algoritmos",
+        "Cómo rinden Dijkstra, Held-Karp y el algoritmo genético con el uso real y en un benchmark controlado.",
     )
+    render_usage_statistics()
+    st.divider()
+    render_controlled_benchmark()
+
+
+def render_controlled_benchmark() -> None:
+    """Render the in-process comparison and benchmark of Held-Karp against the genetic algorithm."""
+    st.subheader("Benchmark controlado: Held-Karp vs Algoritmo Genético")
     st.write(
         "Compará el algoritmo **exacto** (Held-Karp, O(n²·2ⁿ)) contra el **heurístico** "
         "(genético). La idea es ver empíricamente *dónde el exacto deja de escalar* y el "
@@ -74,7 +83,7 @@ def render_laboratory() -> None:
     if st.button("Comparar", type="primary", use_container_width=True, key="lab_compare"):
         render_single_comparison(transport, city_count, seed)
     st.divider()
-    st.subheader("Benchmark completo")
+    st.markdown("#### Benchmark completo")
     st.caption(
         "Corre ambos algoritmos para n = 4 … 14 y grafica el tiempo con **eje Y "
         "logarítmico**. Ahí se ve la curva exponencial de Held-Karp despegar."

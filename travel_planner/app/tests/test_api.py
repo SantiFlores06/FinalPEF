@@ -16,6 +16,7 @@ def client():
     server.travel_graph.graph.clear()
     server.travel_graph.vertices.clear()
     server.reservation_manager.reservations.clear()
+    server.solver_metrics.clear()
     return TestClient(server.app)
 
 
@@ -219,3 +220,52 @@ def test_optimize_multi_caches_second_identical_request(client):
     assert first.json()["cached"] is False
     assert second.json()["cached"] is True
     assert second.json()["optimal_route"] == first.json()["optimal_route"]
+
+
+def algorithm_stats(client):
+    return client.get("/stats/algorithms").json()
+
+
+def test_algorithm_stats_start_empty(client):
+    response = client.get("/stats/algorithms")
+
+    assert response.status_code == 200
+    assert response.json()["total_runs"] == 0
+
+
+def test_algorithm_stats_record_a_real_held_karp_run_once(client):
+    matrix = plane_cost_matrix(client, FIVE_CITIES)
+
+    optimize_multi(client, FIVE_CITIES, matrix)
+    optimize_multi(client, FIVE_CITIES, matrix)
+
+    stats = algorithm_stats(client)
+    assert stats["total_runs"] == 1
+    assert stats["cache_hits"] == 1
+    assert stats["by_algorithm"]["held_karp"]["runs"] == 1
+    assert stats["runs"][0]["n_cities"] == 5
+    assert stats["by_city_count"] == [
+        {"algorithm": "held_karp", "n_cities": 5, "runs": 1,
+         "avg_elapsed_ms": stats["runs"][0]["elapsed_ms"]},
+    ]
+
+
+def test_algorithm_stats_ignore_infeasible_tsp_requests(client):
+    cities = FIVE_CITIES[:3]
+    matrix = [[0.0 if row == column else -1.0 for column in range(3)] for row in range(3)]
+
+    optimize_multi(client, cities, matrix)
+
+    assert algorithm_stats(client)["total_runs"] == 0
+
+
+def test_algorithm_stats_record_dijkstra_for_shortest_routes(client):
+    request = {"origin": "Madrid", "destination": "Barcelona", "optimize_by": "cost", "transport_type": "auto"}
+
+    client.post("/routes/shortest", json=request)
+    client.post("/routes/shortest", json=request)
+
+    stats = algorithm_stats(client)
+    assert stats["by_algorithm"]["dijkstra"]["runs"] == 1
+    assert stats["runs"][0]["n_cities"] == 2
+    assert stats["cache_hits"] == 1

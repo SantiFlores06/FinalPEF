@@ -25,6 +25,7 @@ from app.core.itinerary_validator import ItineraryConstraints
 from app.caches.cache_backend import get_cache_backend
 from app.booking.reservations import ReservationManager
 from app.booking.batching import ReservationBatchProcessor
+from app.api.solver_metrics import SolverMetrics
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ BATCH_SIZE = 20
 BATCH_TIMEOUT_SECONDS = 0.5
 BATCH_TICK_SECONDS = 0.5
 MAX_CONCURRENT_RESERVATIONS = BATCH_SIZE
+SHORTEST_PATH_CITY_COUNT = 2
 
 
 async def batch_loop():
@@ -77,6 +79,7 @@ app.add_middleware(
 # Instancias globales
 travel_graph = TravelGraph()
 route_cache = get_cache_backend(capacity=100)
+solver_metrics = SolverMetrics()
 reservation_manager = ReservationManager(max_concurrent=MAX_CONCURRENT_RESERVATIONS)
 batch_processor = ReservationBatchProcessor(
     batch_size=BATCH_SIZE,
@@ -251,17 +254,21 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
 
     cached = route_cache.get(cache_key)
     if cached:
+        solver_metrics.record_cache_hit()
         return mark_as_cached(cached)
 
     try:
+        started_at = perf_counter()
         path, cost = graph.find_shortest_path(
             request.origin,
             request.destination,
             weight=request.optimize_by,
             transport_type=request.transport_type
         )
+        elapsed_ms = (perf_counter() - started_at) * 1000
         if not path:
             raise HTTPException(status_code=404, detail="Ruta no encontrada")
+        solver_metrics.record_run("dijkstra", SHORTEST_PATH_CITY_COUNT, elapsed_ms, cost)
 
         result = {
             "origin": request.origin,
@@ -450,6 +457,7 @@ async def optimize_multi_destination(request: TSPRequest):
 
     cached_result = route_cache.get(cache_key)
     if cached_result:
+        solver_metrics.record_cache_hit()
         return mark_as_cached(cached_result)
 
     try:
@@ -459,6 +467,7 @@ async def optimize_multi_destination(request: TSPRequest):
             raise HTTPException(status_code=422, detail=NO_FEASIBLE_ROUTE_DETAIL)
 
         result["cached"] = False
+        solver_metrics.record_run(algorithm, len(request.cities), result["elapsed_ms"], result["total_cost"])
         route_cache.put(cache_key, copy.deepcopy(result))
         return result
 
@@ -596,6 +605,11 @@ async def get_system_stats():
         "batch_processor": batch_processor.get_stats(),
         "timestamp": datetime.now().isoformat()
     }
+
+@app.get("/stats/algorithms")
+async def get_algorithm_stats():
+    """Return the real solver runs and their aggregates per algorithm and city count."""
+    return solver_metrics.snapshot()
 
 # ==========================================================
 # MAIN (para ejecutar localmente)

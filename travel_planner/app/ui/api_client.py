@@ -162,6 +162,15 @@ def cancel_reservation(reservation_id: str) -> bool:
         return False
 
 
+def get_algorithm_stats() -> Dict:
+    """Fetch the real solver runs recorded by the API and their aggregates."""
+    try:
+        response = requests.get(f"{API_URL}/stats/algorithms", timeout=5)
+        return response.json() if response.status_code == 200 else {}
+    except requests.RequestException:
+        return {}
+
+
 @st.cache_data(ttl=10, show_spinner=False)
 def get_system_stats() -> Dict:
     """Fetch the system statistics."""
