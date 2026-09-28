@@ -2,11 +2,13 @@
 
 from itertools import permutations
 
+import pytest
+
 from app.core.graph import TravelGraph
-from app.data.cities import CITIES, CITY_CATALOG, MAINLAND_EUROPEAN_CITIES
+from app.data.cities import ASIA, CITIES, CITY_CATALOG, EUROPE, MAINLAND_EUROPEAN_CITIES
 from app.data.routes_fixed import (
     MAX_HUB_TO_REGIONAL_FLIGHT_KM, MAX_OVERLAND_KM, MAX_REGIONAL_FLIGHT_KM, MAX_SEA_LANE_KM, ROUTES_FIXED,
-    TRANSPORT_PROFILES, build_route, haversine_km,
+    TOLL_EUR_PER_KM, TRANSPORT_PROFILES, build_route, haversine_km, leg_toll, toll_rate_per_km,
 )
 
 OVERLAND_TRANSPORTS = ("auto", "tren")
@@ -116,3 +118,30 @@ def test_ship_routes_outside_hubs_share_a_basin_within_reach():
             continue
         assert set(origin_city.sea_basins) & set(destination_city.sea_basins)
         assert haversine_km(origin, destination) <= MAX_SEA_LANE_KM
+
+
+def test_car_cost_includes_the_tolls_of_its_continent():
+    car = next(profile for profile in TRANSPORT_PROFILES if profile.name == "auto")
+    distance_km = haversine_km("Madrid", "Barcelona")
+
+    route = build_route("Madrid", "Barcelona", distance_km, car)
+
+    expected_tolls = round(distance_km * TOLL_EUR_PER_KM[EUROPE])
+    assert leg_toll("Madrid", "Barcelona", "auto") == expected_tolls
+    assert route[2] == round(distance_km * car.cost_per_km) + expected_tolls
+
+
+def test_tolls_average_the_rates_of_both_continents():
+    expected_rate = (TOLL_EUR_PER_KM[EUROPE] + TOLL_EUR_PER_KM[ASIA]) / 2
+
+    assert toll_rate_per_km("Moscú", "Almaty") == pytest.approx(expected_rate)
+
+
+def test_european_roads_charge_more_tolls_than_north_american_ones():
+    assert toll_rate_per_km("Madrid", "Barcelona") > toll_rate_per_km("Nueva York", "Washington D. C.")
+
+
+def test_only_cars_pay_tolls():
+    assert leg_toll("Madrid", "Barcelona", "tren") == 0
+    assert leg_toll("Madrid", "Barcelona", "avión") == 0
+    assert leg_toll("Barcelona", "Atenas", "barco") == 0

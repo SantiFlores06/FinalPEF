@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.api import server
 from app.data.cities import CITY_CATALOG
+from app.data.routes_fixed import leg_toll
 
 
 @pytest.fixture()
@@ -85,7 +86,23 @@ def test_shortest_route_endpoint_filters_by_transport_and_allows_layover(client)
     assert response.status_code == 200
     payload = response.json()
     assert payload["path"] == ["Madrid", "Fráncfort", "Berlín"]
-    assert payload["total_cost"] == 337
+    assert payload["total_cost"] == 468
+
+
+def test_car_route_reports_the_tolls_included_in_its_cost(client):
+    request = {"origin": "Madrid", "destination": "Berlín", "optimize_by": "cost", "transport_type": "auto"}
+
+    payload = client.post("/routes/shortest", json=request).json()
+
+    expected_tolls = leg_toll("Madrid", "Fráncfort", "auto") + leg_toll("Fráncfort", "Berlín", "auto")
+    assert payload["toll_cost"] == expected_tolls == 131
+    assert payload["toll_cost"] < payload["total_cost"]
+
+
+def test_routes_without_tolls_report_none(client):
+    request = {"origin": "Madrid", "destination": "Berlín", "optimize_by": "cost", "transport_type": "tren"}
+
+    assert client.post("/routes/shortest", json=request).json()["toll_cost"] is None
 
 
 def test_shortest_route_cache_separates_transport_type(client):
@@ -427,7 +444,7 @@ def compare_transports(client, origin, destination):
 
 
 def test_transport_comparison_marks_car_cheapest_and_plane_fastest(client):
-    response = compare_transports(client, "Madrid", "Barcelona")
+    response = compare_transports(client, "Nueva York", "Washington D. C.")
 
     assert response.status_code == 200
     payload = response.json()
@@ -438,6 +455,31 @@ def test_transport_comparison_marks_car_cheapest_and_plane_fastest(client):
     assert options["avión"]["total_hours"] < options["auto"]["total_hours"]
 
 
+def test_european_tolls_make_the_train_cheaper_than_the_car(client):
+    payload = compare_transports(client, "Madrid", "Barcelona").json()
+
+    options = {option["transport"]: option for option in payload["options"]}
+    assert payload["cheapest"] == "tren"
+    assert options["auto"]["total_cost"] - options["auto"]["toll_cost"] < options["tren"]["total_cost"]
+
+
+def test_transport_comparison_reports_tolls_only_for_the_car(client):
+    payload = compare_transports(client, "Madrid", "Barcelona").json()
+
+    tolls = {option["transport"]: option["toll_cost"] for option in payload["options"]}
+    assert tolls == {"auto": leg_toll("Madrid", "Barcelona", "auto"), "tren": None, "avión": None}
+    assert tolls["auto"] > 0
+
+
+def test_car_matrix_reports_the_tolls_of_each_itinerary(client):
+    payload = client.get("/routes/matrix", params={"transport": "auto", "optimize_by": "cost"}).json()
+    route = client.post("/routes/shortest", json={
+        "origin": "Madrid", "destination": "Berlín", "optimize_by": "cost", "transport_type": "auto",
+    }).json()
+
+    assert matrix_value(payload, "toll_matrix", "Madrid", "Berlín") == route["toll_cost"]
+
+
 def test_transport_comparison_sums_hours_along_multi_leg_paths(client):
     payload = compare_transports(client, "Madrid", "Berlín").json()
 
@@ -445,7 +487,7 @@ def test_transport_comparison_sums_hours_along_multi_leg_paths(client):
     assert car["path"] == ["Madrid", "Fráncfort", "Berlín"]
     legs = server.travel_graph.get_route_details(car["path"], "auto")
     assert car["total_hours"] == round(sum(leg["time"] for leg in legs), 1)
-    assert car["total_cost"] == 337
+    assert car["total_cost"] == 468
 
 
 def test_transport_comparison_omits_infeasible_transports(client):

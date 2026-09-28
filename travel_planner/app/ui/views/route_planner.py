@@ -38,7 +38,7 @@ NEAR_OPTIMAL_GAP_PERCENT = 5
 MAX_TICKETS = 20
 RECOMMENDATION_COLUMNS = 3
 SEGMENT_TABLE_FORMAT = {"Costo (€)": "{:.2f}", "Tiempo (h)": "{:.1f}", "Escalas": "{:.0f}"}
-TRANSPORT_TABLE_FORMAT = {"Costo (€)": "{:.0f}", "Tiempo (h)": "{:.1f}"}
+TRANSPORT_TABLE_FORMAT = {"Costo (€)": "{:.0f}", "Tiempo (h)": "{:.1f}", "Peajes (€)": "{:.0f}"}
 
 RouteTotals = Dict[str, float]
 
@@ -50,8 +50,12 @@ def format_criterion(value: float, optimize_by: str, signed: bool = False) -> st
 
 
 def route_totals(route: List[str], matrices: RouteMatrices) -> RouteTotals:
-    """Return the total cost (€) and time (h) of a route, keyed by criterion."""
-    return {"cost": matrices.route_cost(route), "time": matrices.route_time(route)}
+    """Return the total cost (€) and time (h) of a route keyed by criterion, plus the tolls included in the cost."""
+    return {
+        "cost": matrices.route_cost(route),
+        "time": matrices.route_time(route),
+        "tolls": matrices.route_tolls(route),
+    }
 
 
 def render_route_planner() -> None:
@@ -323,7 +327,7 @@ def render_transport_comparison(comparison: Optional[Dict[str, Any]], transport_
     )
     for hint in transport_hints(comparison, transport_mode):
         st.info(hint)
-    comparison_table = pd.DataFrame(comparison_rows(comparison)).style.format(TRANSPORT_TABLE_FORMAT)
+    comparison_table = pd.DataFrame(comparison_rows(comparison)).style.format(TRANSPORT_TABLE_FORMAT, na_rep="—")
     st.dataframe(comparison_table, use_container_width=True, hide_index=True)
     st.divider()
 
@@ -333,6 +337,8 @@ def render_route_details(route: List[str], totals: RouteTotals, matrices: RouteM
     cost_metric, time_metric = st.columns(2)
     cost_metric.metric("Costo en €", format_criterion(totals["cost"], "cost"))
     time_metric.metric("Tiempo total", format_criterion(totals["time"], "time"))
+    if totals["tolls"]:
+        st.caption(f"Peajes: {format_criterion(totals['tolls'], 'cost')} (incluidos en el costo)")
     st.write(format_route(route))
     with st.expander("Ver detalles por segmento"):
         segment_rows = matrices.segment_rows(route)

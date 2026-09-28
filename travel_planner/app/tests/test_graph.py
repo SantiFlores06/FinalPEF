@@ -82,3 +82,12 @@ def test_shortest_path_totals_skip_unreachable_cities_and_other_transports(simpl
     totals = simple_graph.shortest_path_totals("A", transport_type="bus")
 
     assert set(totals) == {"A", "B"}
+
+
+def test_shortest_path_totals_add_up_the_tolls_of_every_leg():
+    graph = TravelGraph()
+    graph.add_route("A", "B", 50, 5, "auto", toll=10)
+    graph.add_route("B", "C", 30, 3, "auto", toll=4)
+
+    assert graph.shortest_path_totals("A")["C"] == PathTotals(cost=80, time=8, legs=2, toll=14)
+    assert [leg["toll"] for leg in graph.get_route_details(["A", "B", "C"])] == [10, 4]

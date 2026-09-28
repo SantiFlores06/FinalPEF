@@ -2,7 +2,7 @@
 
 from app.ui.transport_hints import comparison_rows, describe_against, transport_hints
 
-CAR = {"transport": "auto", "path": ["Madrid", "Barcelona"], "total_cost": 90, "total_hours": 6.2}
+CAR = {"transport": "auto", "path": ["Madrid", "Barcelona"], "total_cost": 90, "total_hours": 6.2, "toll_cost": 35}
 TRAIN = {"transport": "tren", "path": ["Madrid", "Zaragoza", "Barcelona"], "total_cost": 110, "total_hours": 4.2}
 PLANE = {"transport": "avión", "path": ["Madrid", "Barcelona"], "total_cost": 130, "total_hours": 1.2}
 COMPARISON = {
@@ -41,6 +41,13 @@ def test_rows_mark_cheapest_and_fastest_and_count_legs():
     assert rows["Avión"]["Destacado"] == "Más rápido"
     assert rows["Tren"]["Destacado"] == ""
     assert rows["Tren"]["Tramos"] == 2
+
+
+def test_rows_show_tolls_only_for_the_car():
+    rows = {row["Transporte"]: row for row in comparison_rows(COMPARISON)}
+
+    assert rows["Auto"]["Peajes (€)"] == 35
+    assert rows["Tren"]["Peajes (€)"] is None
 
 
 def render_comparison_page():

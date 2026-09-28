@@ -79,11 +79,12 @@ def highlight_labels(comparison: Dict[str, Any], transport: str) -> str:
 
 
 def comparison_rows(comparison: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Return one table row per transport with its total cost, hours, legs and highlights."""
+    """Return one table row per transport with its total cost, tolls (None without them), hours, legs and highlights."""
     return [
         {
             "Transporte": format_transport(option["transport"]),
             "Costo (€)": option["total_cost"],
+            "Peajes (€)": option.get("toll_cost"),
             "Tiempo (h)": option["total_hours"],
             "Tramos": len(option["path"]) - 1,
             "Destacado": highlight_labels(comparison, option["transport"]),

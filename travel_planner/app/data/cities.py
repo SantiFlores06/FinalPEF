@@ -292,6 +292,11 @@ CITY_CATALOG: Dict[str, City] = {
     name: city for continent_cities in CITIES_BY_CONTINENT.values() for name, city in continent_cities.items()
 }
 
+# Name -> continent, for regional estimates such as road tolls
+CITY_CONTINENTS: Dict[str, str] = {
+    name: continent for continent, continent_cities in CITIES_BY_CONTINENT.items() for name in continent_cities
+}
+
 # Name -> (latitude, longitude), the view used by the maps and the distance computation
 CITIES: Dict[str, Tuple[float, float]] = {name: city.coordinate for name, city in CITY_CATALOG.items()}
 

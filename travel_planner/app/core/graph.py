@@ -10,23 +10,25 @@ from dataclasses import dataclass
 
 @dataclass
 class Route:
-    """Representa una ruta entre dos ciudades."""
+    """Representa una ruta entre dos ciudades; toll es la parte del costo que se paga en peajes."""
     destination: str
     cost: float
     time: float
     transport_type: str
+    toll: float = 0.0
 
 
 @dataclass(frozen=True)
 class PathTotals:
-    """Summed cost, hours and number of legs of a path."""
+    """Summed cost, hours, legs and tolls (already part of the cost) of a path."""
     cost: float = 0.0
     time: float = 0.0
     legs: int = 0
+    toll: float = 0.0
 
     def extended_by(self, route: Route) -> "PathTotals":
         """Return the totals of this path followed by one more leg."""
-        return PathTotals(self.cost + route.cost, self.time + route.time, self.legs + 1)
+        return PathTotals(self.cost + route.cost, self.time + route.time, self.legs + 1, self.toll + route.toll)
 
 
 # City -> (previous city, route taken from it) on the best path found by Dijkstra
@@ -63,7 +65,8 @@ class TravelGraph:
         destination: str,
         cost: float,
         time: float,
-        transport_type: str
+        transport_type: str,
+        toll: float = 0.0
     ) -> None:
         """
         Agrega una ruta al grafo con múltiples atributos.
@@ -74,6 +77,7 @@ class TravelGraph:
             cost: Costo de la ruta en unidades monetarias.
             time: Tiempo de viaje en horas.
             transport_type: Tipo de transporte (bus, tren, avión, etc.).
+            toll: Parte del costo que corresponde a peajes.
         """
         self.add_vertex(origin)
         self.add_vertex(destination)
@@ -82,7 +86,8 @@ class TravelGraph:
             destination=destination,
             cost=cost,
             time=time,
-            transport_type=transport_type
+            transport_type=transport_type,
+            toll=toll
         )
         self.graph[origin].append(route)
 
@@ -278,7 +283,8 @@ class TravelGraph:
                         'to': destination,
                         'cost': route.cost,
                         'time': route.time,
-                        'transport': route.transport_type
+                        'transport': route.transport_type,
+                        'toll': route.toll
                     })
                     break
 

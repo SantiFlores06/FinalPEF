@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Literal, Optional
 from datetime import datetime
 from contextlib import asynccontextmanager, suppress
-from app.data.routes_fixed import CITIES, ROUTES_FIXED, TRANSPORT_TYPES
+from app.data.routes_fixed import CITIES, ROUTES_FIXED, TOLLED_TRANSPORTS, TRANSPORT_TYPES, leg_toll
 import asyncio
 import copy
 import hashlib
@@ -119,6 +119,7 @@ class RouteResponse(BaseModel):
     path: List[str]
     total_cost: float
     total_hours: float
+    toll_cost: Optional[float] = None  # Tolls included in total_cost; None when the transport pays none
     cached: bool = False
 
 
@@ -171,7 +172,7 @@ def get_populated_graph():
         return travel_graph
 
     for origin, dest, cost, time, transport in ROUTES_FIXED:
-        travel_graph.add_route(origin, dest, cost, time, transport)
+        travel_graph.add_route(origin, dest, cost, time, transport, toll=leg_toll(origin, dest, transport))
 
     logger.info(f"Grafo inicializado con {len(ROUTES_FIXED)} rutas fijas")
     return travel_graph
@@ -185,9 +186,14 @@ def mark_as_cached(cached_result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def summarize_path(graph: TravelGraph, path: List[str], transport: str) -> Dict[str, Any]:
-    """Return the path with its total cost and hours, whatever criterion chose it."""
-    total_cost, total_hours = graph.path_totals(path, transport)
-    return {"path": path, "total_cost": total_cost, "total_hours": round(total_hours, HOURS_DECIMALS)}
+    """Return the path with its total cost, hours and tolls (None without tolls), whatever criterion chose it."""
+    legs = graph.get_route_details(path, transport)
+    return {
+        "path": path,
+        "total_cost": sum(leg["cost"] for leg in legs),
+        "total_hours": round(sum(leg["time"] for leg in legs), HOURS_DECIMALS),
+        "toll_cost": sum(leg["toll"] for leg in legs) if transport in TOLLED_TRANSPORTS else None,
+    }
 
 
 # ==========================================================
@@ -233,8 +239,9 @@ async def get_matrix(
 ):
     """
     Devuelve, para cada par de ciudades, la mejor ruta según el criterio (con escalas si no hay conexión directa).
-    `matrix` trae el valor del criterio; `cost_matrix`, `time_matrix` y `legs_matrix` el costo, las horas y los
-    tramos de esa misma ruta. Usa -1.0 para rutas no conectadas (infinito), ya que JSON no soporta 'inf'.
+    `matrix` trae el valor del criterio; `cost_matrix`, `time_matrix`, `legs_matrix` y `toll_matrix` el costo,
+    las horas, los tramos y los peajes de esa misma ruta. Usa -1.0 para rutas no conectadas (infinito),
+    ya que JSON no soporta 'inf'.
     """
     if transport not in VALID_TRANSPORTS or optimize_by not in VALID_METRICS:
         raise HTTPException(status_code=400, detail="Parámetros inválidos")
@@ -261,7 +268,7 @@ def totals_matrix(city_totals: List[Dict[str, PathTotals]], cities: List[str], f
 # Routes are fixed, so each matrix is computed once per process (one Dijkstra run per city)
 @lru_cache(maxsize=len(TRANSPORT_TYPES) * len(VALID_METRICS))
 def build_path_matrices(graph: TravelGraph, transport: str, optimize_by: str) -> Dict[str, Any]:
-    """Return the criterion, cost, hours and legs of the best path between every pair of served cities."""
+    """Return the criterion, cost, hours, legs and tolls of the best path between every pair of served cities."""
     cities = cities_served_by(transport)
     city_totals = [graph.shortest_path_totals(origin, optimize_by, transport) for origin in cities]
     cost_matrix = totals_matrix(city_totals, cities, "cost")
@@ -273,6 +280,7 @@ def build_path_matrices(graph: TravelGraph, transport: str, optimize_by: str) ->
         "cost_matrix": cost_matrix,
         "time_matrix": time_matrix,
         "legs_matrix": totals_matrix(city_totals, cities, "legs"),
+        "toll_matrix": totals_matrix(city_totals, cities, "toll"),
     }
 
 

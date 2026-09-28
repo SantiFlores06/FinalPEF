@@ -14,6 +14,7 @@ FAKE_MATRICES = RouteMatrices(
     cost=[[0.0, 150.0, 200.0], [150.0, 0.0, 170.0], [200.0, 170.0, 0.0]],
     time=[[0.0, 2.5, 3.0], [2.5, 0.0, 2.8], [3.0, 2.8, 0.0]],
     legs=[[0, 1, 2], [1, 0, 1], [2, 1, 0]],
+    tolls=[[0.0, 40.0, 55.0], [40.0, 0.0, 45.0], [55.0, 45.0, 0.0]],
 )
 TSP_ANSWER = {
     "algorithm": "held_karp",
@@ -51,9 +52,9 @@ def render_planner_with_mocked_api():
         route_planner.render_route_planner()
 
 
-def planner_with(cities, optimize_by):
+def planner_with(cities, optimize_by, transport="avión"):
     app_test = AppTest.from_function(render_planner_with_mocked_api, default_timeout=30).run()
-    app_test.selectbox(key="transport_mode").set_value("avión")
+    app_test.selectbox(key="transport_mode").set_value(transport)
     app_test.selectbox(key="optimize_by").set_value(optimize_by)
     app_test.multiselect(key="selected_cities").set_value(cities)
     app_test.run()
@@ -92,3 +93,13 @@ def test_multi_city_route_optimized_by_time_uses_the_time_matrix():
     assert metric_values(app_test, "Tu Ruta") == ["8.3 h"]
     assert metric_values(app_test, "Tiempo total") == ["8.3 h", "8.3 h"]
     assert metric_values(app_test, "Costo en €") == ["520.00 €", "520.00 €"]
+
+
+def test_car_route_shows_the_tolls_included_in_its_cost():
+    app_test = planner_with(["Madrid", "Roma"], "cost", transport="auto")
+
+    assert not app_test.exception
+    assert [caption.value for caption in app_test.caption if caption.value.startswith("Peajes")] == [
+        "Peajes: 110.00 € (incluidos en el costo)",
+        "Peajes: 110.00 € (incluidos en el costo)",
+    ]

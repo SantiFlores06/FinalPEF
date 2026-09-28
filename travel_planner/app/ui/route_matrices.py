@@ -1,4 +1,4 @@
-"""Cost, time and legs of the best route between cities of a transport mode, with per-segment lookups."""
+"""Cost, time, legs and tolls of the best route between cities of a transport mode, with per-segment lookups."""
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -10,15 +10,17 @@ UNREACHABLE = -1.0
 
 @dataclass(frozen=True)
 class RouteMatrices:
-    """Cost (€), time (h) and legs of the best route between cities, sharing the same city order.
+    """Cost (€), time (h), legs and tolls (€, part of the cost) of the best route between cities.
 
-    A segment between two cities may chain several legs when there is no direct connection.
+    Every matrix shares the same city order. A segment between two cities may chain several legs
+    when there is no direct connection.
     """
 
     cities: List[str]
     cost: List[List[float]]
     time: List[List[float]]
     legs: List[List[float]]
+    tolls: List[List[float]]
     city_index: Dict[str, int] = field(init=False)
 
     def __post_init__(self) -> None:
@@ -57,7 +59,11 @@ class RouteMatrices:
 
     def route_time(self, route: List[str]) -> float:
         """Return the time in hours of a route, skipping unknown segments."""
-        return sum(self.time_between(origin, destination) or 0.0 for origin, destination in zip(route, route[1:]))
+        return self._sum_along(self.time, route)
+
+    def route_tolls(self, route: List[str]) -> float:
+        """Return the tolls in euros included in the cost of a route, skipping unknown segments."""
+        return self._sum_along(self.tolls, route)
 
     def segment_costs(self, route: List[str]) -> List[float]:
         """Return the cost of every consecutive segment, 0 when unknown."""
@@ -77,6 +83,10 @@ class RouteMatrices:
             for number, (origin, destination) in enumerate(zip(route, route[1:]), start=1)
         ]
 
+    def _sum_along(self, matrix: List[List[float]], route: List[str]) -> float:
+        """Return the matrix values summed over the consecutive segments of a route, skipping unknown ones."""
+        return sum(self._lookup(matrix, origin, destination) or 0.0 for origin, destination in zip(route, route[1:]))
+
     def _lookup(self, matrix: List[List[float]], origin: str, destination: str) -> Optional[float]:
         """Return a matrix value between two cities, or None when unknown or unreachable."""
         if origin not in self.city_index or destination not in self.city_index:
@@ -86,10 +96,14 @@ class RouteMatrices:
 
 
 def load_route_matrices(transport_mode: str, optimize_by: str) -> Optional[RouteMatrices]:
-    """Fetch from the API the cost, time and legs of the best routes of a transport mode for the criterion."""
+    """Fetch from the API the cost, time, legs and tolls of the best routes of a transport mode for the criterion."""
     data = get_matrix_from_api(transport_mode, optimize_by)
     if not data:
         return None
     return RouteMatrices(
-        cities=data["cities"], cost=data["cost_matrix"], time=data["time_matrix"], legs=data["legs_matrix"]
+        cities=data["cities"],
+        cost=data["cost_matrix"],
+        time=data["time_matrix"],
+        legs=data["legs_matrix"],
+        tolls=data["toll_matrix"],
     )

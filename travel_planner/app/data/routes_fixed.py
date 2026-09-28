@@ -1,13 +1,15 @@
 # app/data/routes_fixed.py
 # Automatic route generation between the cities of the world catalog
-# Formato: (origin, destination, cost, time, transport_type)
+# Formato: (origin, destination, cost, time, transport_type); a car's cost already includes its tolls
 
 import math
 from dataclasses import dataclass
 from itertools import permutations
 from typing import Callable
 
-from app.data.cities import CITIES, CITY_CATALOG, City
+from app.data.cities import (
+    AFRICA, ASIA, CITIES, CITY_CATALOG, CITY_CONTINENTS, EUROPE, NORTH_AMERICA, OCEANIA, SOUTH_AMERICA, City,
+)
 
 # ==========================================
 # DISTANCIA REAL (HAVERSINE)
@@ -78,6 +80,30 @@ def sea_link(origin: City, destination: City, distance_km: float) -> bool:
     return share_sea_basin(origin, destination) and distance_km <= MAX_SEA_LANE_KM
 
 
+# ==========================================
+# PEAJES (estimaciones)
+# ==========================================
+# Rough average toll per km driven, spreading motorway tolls and vignettes over every road of the region.
+TOLL_EUR_PER_KM = {
+    EUROPE: 0.07,
+    ASIA: 0.05,
+    NORTH_AMERICA: 0.02,
+    SOUTH_AMERICA: 0.04,
+    AFRICA: 0.01,
+    OCEANIA: 0.01,
+}
+
+
+def toll_rate_per_km(origin: str, destination: str) -> float:
+    """Average toll per km of a road trip, assuming half of it is driven in each city's continent."""
+    return (TOLL_EUR_PER_KM[CITY_CONTINENTS[origin]] + TOLL_EUR_PER_KM[CITY_CONTINENTS[destination]]) / 2
+
+
+def toll_cost(origin: str, destination: str, travelled_km: float) -> int:
+    """Estimated tolls in € of driving between two cities."""
+    return round(travelled_km * toll_rate_per_km(origin, destination))
+
+
 @dataclass(frozen=True)
 class TransportProfile:
     name: str
@@ -89,6 +115,7 @@ class TransportProfile:
     boarding_hours: float = 0.0
     distance_factor: float = 1.0
     fixed_fee: float = 0.0
+    pays_tolls: bool = False
 
 
 # Overland and sea trips get pricier per km on long distances, so chaining legs can pay off.
@@ -97,7 +124,7 @@ class TransportProfile:
 TRANSPORT_PROFILES = (
     TransportProfile(
         "auto", cost_per_km=0.18, speed_kmh=80, long_distance_km=1500, long_distance_factor=1.6,
-        is_feasible=overland_link,
+        is_feasible=overland_link, pays_tolls=True,
     ),
     TransportProfile(
         "tren", cost_per_km=0.22, speed_kmh=120, long_distance_km=1200, long_distance_factor=1.5,
@@ -114,6 +141,19 @@ TRANSPORT_PROFILES = (
 )
 
 TRANSPORT_TYPES = tuple(profile.name for profile in TRANSPORT_PROFILES)
+PROFILES_BY_NAME = {profile.name: profile for profile in TRANSPORT_PROFILES}
+TOLLED_TRANSPORTS = frozenset(profile.name for profile in TRANSPORT_PROFILES if profile.pays_tolls)
+
+
+def route_tolls(origin: str, destination: str, profile: TransportProfile, travelled_km: float) -> int:
+    """Tolls in € paid on a direct route, 0 for transports without tolls."""
+    return toll_cost(origin, destination, travelled_km) if profile.pays_tolls else 0
+
+
+def leg_toll(origin: str, destination: str, transport: str) -> int:
+    """Tolls in € already included in the cost of the direct route between two cities."""
+    profile = PROFILES_BY_NAME[transport]
+    return route_tolls(origin, destination, profile, haversine_km(origin, destination) * profile.distance_factor)
 
 
 def build_route(origin: str, destination: str, distance_km: float, profile: TransportProfile) -> tuple:
@@ -122,9 +162,9 @@ def build_route(origin: str, destination: str, distance_km: float, profile: Tran
     distance_cost = travelled_km * profile.cost_per_km
     if travelled_km > profile.long_distance_km:
         distance_cost *= profile.long_distance_factor
-    cost = profile.fixed_fee + distance_cost
+    cost = round(profile.fixed_fee + distance_cost) + route_tolls(origin, destination, profile, travelled_km)
     hours = travelled_km / profile.speed_kmh + profile.boarding_hours
-    return origin, destination, round(cost), round(hours, 1), profile.name
+    return origin, destination, cost, round(hours, 1), profile.name
 
 
 def generate_routes() -> list:
