@@ -113,6 +113,19 @@ def calculate_shortest_route(
         return None
 
 
+def compare_transports(origin: str, destination: str, optimize_by: str) -> Optional[Dict]:
+    """Fetch the best route of every transport between two cities, or None when unavailable."""
+    try:
+        response = requests.get(
+            f"{API_URL}/routes/transports",
+            params={"origin": origin, "destination": destination, "optimize_by": optimize_by},
+            timeout=10,
+        )
+        return response.json() if response.status_code == 200 else None
+    except requests.RequestException:
+        return None
+
+
 def create_reservation(user_id: str, itinerary: Dict) -> Optional[Dict]:
     """Create a single reservation."""
     try:

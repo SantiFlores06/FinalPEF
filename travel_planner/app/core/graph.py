@@ -203,12 +203,13 @@ class TravelGraph:
 
         return path
 
-    def get_route_details(self, path: List[str]) -> List[Dict]:
+    def get_route_details(self, path: List[str], transport_type: Optional[str] = None) -> List[Dict]:
         """
         Obtiene los detalles completos de las rutas en un camino.
 
         Args:
             path: Lista de ciudades en orden.
+            transport_type: Tipo de transporte opcional; si se indica, solo usa rutas de ese tipo.
 
         Returns:
             Lista de diccionarios con información de cada segmento.
@@ -220,6 +221,8 @@ class TravelGraph:
             destination = path[i + 1]
 
             for route in self.graph[origin]:
+                if transport_type and route.transport_type != transport_type:
+                    continue
                 if route.destination == destination:
                     details.append({
                         'from': origin,
@@ -231,6 +234,11 @@ class TravelGraph:
                     break
 
         return details
+
+    def path_totals(self, path: List[str], transport_type: Optional[str] = None) -> Tuple[float, float]:
+        """Return the summed cost and hours of every leg along a path."""
+        details = self.get_route_details(path, transport_type)
+        return sum(leg['cost'] for leg in details), sum(leg['time'] for leg in details)
 
 
 # Ejemplo de uso

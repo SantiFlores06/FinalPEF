@@ -379,6 +379,58 @@ async def get_compare_routes(
         logger.error(f"Error comparando rutas: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ==========================================================
+# COMPARAR TRANSPORTES
+# ==========================================================
+
+HOURS_DECIMALS = 1
+
+
+def best_route_per_transport(
+    graph: TravelGraph, origin: str, destination: str, optimize_by: str
+) -> List[Dict[str, Any]]:
+    """Return the Dijkstra route of every transport able to link both cities, with its total cost and hours."""
+    options = []
+    for transport in TRANSPORT_TYPES:
+        path, _weight = graph.find_shortest_path(origin, destination, weight=optimize_by, transport_type=transport)
+        if not path:
+            continue
+        total_cost, total_hours = graph.path_totals(path, transport)
+        options.append({
+            "transport": transport,
+            "path": path,
+            "total_cost": total_cost,
+            "total_hours": round(total_hours, HOURS_DECIMALS),
+        })
+    return options
+
+
+@app.get("/routes/transports")
+async def compare_transports(
+    origin: str,
+    destination: str,
+    optimize_by: str = "cost",
+    graph: TravelGraph = Depends(get_populated_graph),
+):
+    """Compara la mejor ruta de cada transporte entre dos ciudades, marcando la más barata y la más rápida."""
+    if optimize_by not in VALID_METRICS:
+        raise HTTPException(status_code=400, detail="Criterio de optimización inválido")
+    validate_known_cities([origin, destination])
+
+    options = best_route_per_transport(graph, origin, destination, optimize_by)
+    if not options:
+        raise HTTPException(status_code=404, detail=f"No hay ruta disponible desde {origin} hasta {destination}")
+
+    return {
+        "origin": origin,
+        "destination": destination,
+        "optimize_by": optimize_by,
+        "options": options,
+        "cheapest": min(options, key=lambda option: option["total_cost"])["transport"],
+        "fastest": min(options, key=lambda option: option["total_hours"])["transport"],
+    }
+
 # ==========================================================
 # TSP MULTIDESTINO
 # ==========================================================

@@ -338,3 +338,39 @@ def test_genetic_run_without_known_optimum_has_no_gap(client):
     optimize_multi(client, FIVE_CITIES, plane_cost_matrix(client, FIVE_CITIES), algorithm="genetic")
 
     assert algorithm_stats(client)["genetic_quality"][0]["gap_percent"] is None
+
+
+def compare_transports(client, origin, destination):
+    return client.get("/routes/transports", params={"origin": origin, "destination": destination})
+
+
+def test_transport_comparison_marks_car_cheapest_and_plane_fastest(client):
+    response = compare_transports(client, "Madrid", "Barcelona")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["cheapest"] == "auto"
+    assert payload["fastest"] == "avión"
+    options = {option["transport"]: option for option in payload["options"]}
+    assert options["auto"]["total_cost"] < options["avión"]["total_cost"]
+    assert options["avión"]["total_hours"] < options["auto"]["total_hours"]
+
+
+def test_transport_comparison_sums_hours_along_multi_leg_paths(client):
+    payload = compare_transports(client, "Madrid", "Berlín").json()
+
+    car = next(option for option in payload["options"] if option["transport"] == "auto")
+    assert car["path"] == ["Madrid", "Fráncfort", "Berlín"]
+    legs = server.travel_graph.get_route_details(car["path"], "auto")
+    assert car["total_hours"] == round(sum(leg["time"] for leg in legs), 1)
+    assert car["total_cost"] == 337
+
+
+def test_transport_comparison_omits_infeasible_transports(client):
+    payload = compare_transports(client, "Madrid", "Nueva York").json()
+
+    assert [option["transport"] for option in payload["options"]] == ["avión"]
+
+
+def test_transport_comparison_rejects_unknown_city(client):
+    assert compare_transports(client, "Atlántida", "Madrid").status_code == 422

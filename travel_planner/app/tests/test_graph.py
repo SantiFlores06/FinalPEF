@@ -51,3 +51,11 @@ def test_unknown_node():
     
     path, cost = graph.find_shortest_path("A", "X")
     assert path == []
+
+def test_path_totals_sum_legs_of_the_requested_transport():
+    graph = TravelGraph()
+    graph.add_route("A", "B", 10, 1, "tren")
+    graph.add_route("A", "B", 99, 9, "avión")
+    graph.add_route("B", "C", 20, 2.5, "tren")
+
+    assert graph.path_totals(["A", "B", "C"], "tren") == (30, 3.5)

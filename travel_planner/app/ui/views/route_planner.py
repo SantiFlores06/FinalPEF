@@ -12,6 +12,7 @@ from app.data.routes_fixed import ROUTES_FIXED, TRANSPORT_TYPES
 from app.ui.api_client import (
     ApiError,
     calculate_shortest_route,
+    compare_transports,
     create_reservation,
     create_reservations_batch,
     optimize_multi_destination,
@@ -21,6 +22,7 @@ from app.ui.maps import GENETIC_ROUTE_COLOR, OPTIMAL_ROUTE_COLOR, USER_ROUTE_COL
 from app.ui.route_matrices import RouteMatrices, load_route_matrices
 from app.ui.state import RESERVATIONS_PAGE, mark_batch_submitted, request_page, reset_route_results
 from app.ui.styles import algo_badge_html, card_container, render_page_header
+from app.ui.transport_hints import comparison_rows, transport_hints
 
 OPTIMIZE_BY_LABELS = {"cost": "Costo (€)", "time": "Tiempo (h)"}
 ALGORITHM_NAMES = {"dijkstra": "Dijkstra", "held_karp": "Held-Karp (óptimo)", "genetic": "AG heurístico"}
@@ -28,6 +30,7 @@ NEAR_OPTIMAL_GAP_PERCENT = 5
 MAX_TICKETS = 20
 RECOMMENDATION_COLUMNS = 3
 SEGMENT_TABLE_FORMAT = {"Costo (€)": "{:.2f}", "Tiempo (h)": "{:.1f}"}
+TRANSPORT_TABLE_FORMAT = {"Costo (€)": "{:.0f}", "Tiempo (h)": "{:.1f}"}
 
 
 def render_route_planner() -> None:
@@ -125,11 +128,22 @@ def compute_routes(transport_mode: str, optimize_by: str, return_to_start: bool)
     )
     if optimal_result is None:
         return
+    transport_comparison = request_transport_comparison(selected_cities, optimize_by)
     reset_route_results()
     st.session_state.user_route_result = user_route
     st.session_state.optimized_route_result = optimal_result
     st.session_state.cost_submatrix = {"cities": selected_cities, "matrix": route_cost_matrix}
+    st.session_state.transport_comparison = transport_comparison
     st.rerun()
+
+
+def request_transport_comparison(selected_cities: List[str], optimize_by: str) -> Optional[Dict[str, Any]]:
+    """Return the best route of every transport for a two-city trip, or None for longer trips."""
+    if len(selected_cities) != 2:
+        return None
+    origin, destination = selected_cities
+    with st.spinner("Comparando transportes..."):
+        return compare_transports(origin, destination, optimize_by)
 
 
 def compute_user_route(
@@ -238,6 +252,7 @@ def render_results(transport_mode: str, return_to_start: bool) -> None:
         st.error("No se pudieron cargar los datos de las rutas. Revisa el backend.")
         return
     render_route_summary(user_route["route"], optimal_result, matrices)
+    render_transport_comparison(st.session_state.transport_comparison, transport_mode)
     render_route_maps(user_route["route"], optimal_result, matrices, transport_mode)
     render_algorithm_details(optimal_result, return_to_start, transport_mode)
     booking = st.session_state.selected_route_for_booking
@@ -265,6 +280,19 @@ def render_route_summary(user_route: List[str], optimal_result: Dict[str, Any], 
         render_savings(user_cost, optimal_cost)
         render_select_button(optimal_route, optimal_cost, "optimized", "select_opt_route")
     render_cost_comparison(user_cost, optimal_cost, ALGORITHM_NAMES.get(algorithm, algorithm))
+
+
+def render_transport_comparison(comparison: Optional[Dict[str, Any]], transport_mode: str) -> None:
+    """Render the best route of every transport and hint at the ones beating the chosen transport."""
+    if not comparison:
+        return
+    st.subheader("Comparación de transportes")
+    st.caption(f"Mejor ruta de ida con cada transporte entre {comparison['origin']} y {comparison['destination']}.")
+    for hint in transport_hints(comparison, transport_mode):
+        st.info(hint)
+    comparison_table = pd.DataFrame(comparison_rows(comparison)).style.format(TRANSPORT_TABLE_FORMAT)
+    st.dataframe(comparison_table, use_container_width=True, hide_index=True)
+    st.divider()
 
 
 def render_route_details(route: List[str], cost: float, matrices: RouteMatrices) -> None:

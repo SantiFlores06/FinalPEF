@@ -26,6 +26,7 @@ SESSION_DEFAULTS = {
     "selected_route_for_booking": None,
     "ga_result": None,
     "cost_submatrix": None,
+    "transport_comparison": None,
     "batch_settle_deadline": 0.0,
     "reservations_auto_refresh": False,
 }
@@ -36,6 +37,7 @@ ROUTE_RESULT_KEYS = (
     "selected_route_for_booking",
     "ga_result",
     "cost_submatrix",
+    "transport_comparison",
 )
 
 
