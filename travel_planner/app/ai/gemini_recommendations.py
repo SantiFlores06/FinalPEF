@@ -1,10 +1,12 @@
-"""Short city tips generated with the Google Gen AI SDK (Gemini), one request per route."""
+"""Short city tips generated with the Google Gen AI SDK (Gemini), a few concurrent requests per route."""
 
 import json
 import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from itertools import repeat
 from typing import Dict, Iterable, List, Optional, Tuple
 
 try:
@@ -18,8 +20,16 @@ logger = logging.getLogger(__name__)
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 TIPS_PER_CITY = 3
-OUTPUT_TOKENS_PER_CITY = 120
+# Small requests keep every answer short, far from the output limit, and let them run concurrently.
+MAX_CITIES_PER_REQUEST = 5
+MAX_CONCURRENT_REQUESTS = 4
+OUTPUT_TOKENS_PER_CITY = 250
+MIN_OUTPUT_TOKENS = 1024
+# Thinking tokens count against the output budget; Gemini 3.5+ rejects thinking_budget, so the level is used.
+# Set GEMINI_THINKING_LEVEL to an empty string for models without thinking levels.
+GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "MINIMAL")
 JSON_MIME_TYPE = "application/json"
+JSON_ENTRY_SEPARATORS = " \t\r\n,"
 MAX_RETRIES = 1
 RETRY_BACKOFF_SECONDS = 1.5
 TOO_MANY_REQUESTS = 429
@@ -116,12 +126,23 @@ def build_response_schema():
     )
 
 
+def output_token_budget(city_count: int) -> int:
+    """Return a generous output budget for the tips of the cities, never below the floor."""
+    return max(MIN_OUTPUT_TOKENS, OUTPUT_TOKENS_PER_CITY * city_count)
+
+
+def build_thinking_config():
+    """Return the config keeping thinking to a minimum, or None when it is disabled."""
+    return types.ThinkingConfig(thinking_level=GEMINI_THINKING_LEVEL) if GEMINI_THINKING_LEVEL else None
+
+
 def build_generation_config(city_count: int):
     """Return a config asking for structured JSON, with an output budget sized to the cities."""
     return types.GenerateContentConfig(
-        max_output_tokens=OUTPUT_TOKENS_PER_CITY * city_count,
+        max_output_tokens=output_token_budget(city_count),
         response_mime_type=JSON_MIME_TYPE,
         response_schema=build_response_schema(),
+        thinking_config=build_thinking_config(),
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
 
@@ -156,15 +177,48 @@ def clean_tips(raw_tips) -> CityTips:
     return tips[:TIPS_PER_CITY]
 
 
-def parse_recommendations(text: Optional[str], cities: List[str]) -> Dict[str, CityTips]:
-    """Return the tips of the requested cities found in the JSON answer; empty when malformed."""
+def salvage_complete_entries(text: str) -> list:
+    """Return the complete objects at the start of a JSON array that was cut off."""
+    decoder = json.JSONDecoder()
+    position = text.find("[") + 1
+    entries: list = []
+    if not position:
+        return entries
+    while True:
+        while position < len(text) and text[position] in JSON_ENTRY_SEPARATORS:
+            position += 1
+        try:
+            entry, position = decoder.raw_decode(text, position)
+        except ValueError:
+            return entries
+        entries.append(entry)
+
+
+def finish_reason(response) -> Optional[str]:
+    """Return why Gemini stopped writing the answer (e.g. MAX_TOKENS), when reported."""
+    candidates = getattr(response, "candidates", None)
+    if not candidates:
+        return None
+    return str(getattr(candidates[0], "finish_reason", None))
+
+
+def decode_entries(response, cities: List[str]) -> list:
+    """Return the entries of the JSON answer, keeping the complete ones when it is malformed."""
+    text = (response.text if response else None) or ""
     try:
-        entries = json.loads(text or "")
+        entries = json.loads(text)
     except ValueError:
-        logger.warning("Gemini returned malformed JSON for %s", ", ".join(cities))
-        return {}
-    if not isinstance(entries, list):
-        return {}
+        entries = salvage_complete_entries(text)
+        logger.warning(
+            "Gemini returned malformed JSON for %s (finish reason: %s); kept %d complete entries",
+            ", ".join(cities), finish_reason(response), len(entries),
+        )
+    return entries if isinstance(entries, list) else []
+
+
+def parse_recommendations(response, cities: List[str]) -> Dict[str, CityTips]:
+    """Return the tips of the requested cities found in the JSON answer."""
+    entries = decode_entries(response, cities)
     requested = {city.casefold(): city for city in cities}
     recommendations = {}
     for entry in entries:
@@ -178,13 +232,28 @@ def parse_recommendations(text: Optional[str], cities: List[str]) -> Dict[str, C
 
 
 def request_recommendations(client, cities: List[str], interest: str) -> Dict[str, CityTips]:
-    """Ask Gemini for the tips of every city in a single call, returning {} on any failure."""
+    """Ask Gemini for the tips of a few cities in a single call, returning {} on any failure."""
     try:
         response = generate_content_with_retry(client, cities, interest)
     except Exception as error:
         logger.error("Could not generate recommendations (%s): %s", type(error).__name__, error)
         return {}
-    return parse_recommendations(response.text if response else None, cities)
+    return parse_recommendations(response, cities)
+
+
+def split_into_chunks(cities: List[str]) -> List[List[str]]:
+    """Split the cities into consecutive groups small enough for one request each."""
+    return [cities[start:start + MAX_CITIES_PER_REQUEST] for start in range(0, len(cities), MAX_CITIES_PER_REQUEST)]
+
+
+def request_in_chunks(client, cities: List[str], interest: str) -> Dict[str, CityTips]:
+    """Request every group of cities concurrently, merging the tips of the groups that succeed."""
+    chunks = split_into_chunks(cities)
+    recommendations: Dict[str, CityTips] = {}
+    with ThreadPoolExecutor(max_workers=min(MAX_CONCURRENT_REQUESTS, len(chunks))) as executor:
+        for chunk_recommendations in executor.map(request_recommendations, repeat(client), chunks, repeat(interest)):
+            recommendations.update(chunk_recommendations)
+    return recommendations
 
 
 def fetch_missing_recommendations(cities: List[str], interest: str) -> Dict[str, CityTips]:
@@ -192,7 +261,7 @@ def fetch_missing_recommendations(cities: List[str], interest: str) -> Dict[str,
     client = get_client()
     if not client:
         return {}
-    recommendations = request_recommendations(client, cities, interest)
+    recommendations = request_in_chunks(client, cities, interest)
     for city, tips in recommendations.items():
         recommendation_cache.put(city, interest, tips)
     return recommendations
