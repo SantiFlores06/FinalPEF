@@ -1,4 +1,4 @@
-"""Cost and time matrices of a transport mode, with per-segment lookups."""
+"""Cost, time and legs of the best route between cities of a transport mode, with per-segment lookups."""
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -10,11 +10,15 @@ UNREACHABLE = -1.0
 
 @dataclass(frozen=True)
 class RouteMatrices:
-    """Cost (€) and time (h) matrices sharing the same city order."""
+    """Cost (€), time (h) and legs of the best route between cities, sharing the same city order.
+
+    A segment between two cities may chain several legs when there is no direct connection.
+    """
 
     cities: List[str]
     cost: List[List[float]]
     time: List[List[float]]
+    legs: List[List[float]]
     city_index: Dict[str, int] = field(init=False)
 
     def __post_init__(self) -> None:
@@ -25,12 +29,17 @@ class RouteMatrices:
         return [city for city in cities if city not in self.city_index]
 
     def cost_between(self, origin: str, destination: str) -> Optional[float]:
-        """Return the direct cost between two cities, or None when unreachable."""
+        """Return the cost between two cities, or None when unreachable."""
         return self._lookup(self.cost, origin, destination)
 
     def time_between(self, origin: str, destination: str) -> Optional[float]:
-        """Return the direct time between two cities, or None when unreachable."""
+        """Return the time between two cities, or None when unreachable."""
         return self._lookup(self.time, origin, destination)
+
+    def layovers_between(self, origin: str, destination: str) -> Optional[int]:
+        """Return how many connections the route between two cities makes, or None when unreachable."""
+        legs = self._lookup(self.legs, origin, destination)
+        return None if legs is None else max(int(legs) - 1, 0)
 
     def is_connected(self, origin: str, destination: str) -> bool:
         """Return whether both the cost and the time between two cities are known."""
@@ -46,12 +55,16 @@ class RouteMatrices:
         """Return the cost in euros of a route, skipping unknown segments."""
         return sum(self.segment_costs(route))
 
+    def route_time(self, route: List[str]) -> float:
+        """Return the time in hours of a route, skipping unknown segments."""
+        return sum(self.time_between(origin, destination) or 0.0 for origin, destination in zip(route, route[1:]))
+
     def segment_costs(self, route: List[str]) -> List[float]:
         """Return the cost of every consecutive segment, 0 when unknown."""
         return [self.cost_between(origin, destination) or 0.0 for origin, destination in zip(route, route[1:])]
 
     def segment_rows(self, route: List[str]) -> List[Dict]:
-        """Return one table row per segment with its cost and time."""
+        """Return one table row per segment with its cost, time and connections."""
         return [
             {
                 "#": number,
@@ -59,6 +72,7 @@ class RouteMatrices:
                 "Destino": destination,
                 "Costo (€)": self.cost_between(origin, destination),
                 "Tiempo (h)": self.time_between(origin, destination),
+                "Escalas": self.layovers_between(origin, destination),
             }
             for number, (origin, destination) in enumerate(zip(route, route[1:]), start=1)
         ]
@@ -71,10 +85,11 @@ class RouteMatrices:
         return None if value == UNREACHABLE else value
 
 
-def load_route_matrices(transport_mode: str) -> Optional[RouteMatrices]:
-    """Fetch the cost and time matrices of a transport mode from the API."""
-    cost_data = get_matrix_from_api(transport_mode, "cost")
-    time_data = get_matrix_from_api(transport_mode, "time")
-    if not cost_data or not time_data:
+def load_route_matrices(transport_mode: str, optimize_by: str) -> Optional[RouteMatrices]:
+    """Fetch from the API the cost, time and legs of the best routes of a transport mode for the criterion."""
+    data = get_matrix_from_api(transport_mode, optimize_by)
+    if not data:
         return None
-    return RouteMatrices(cities=cost_data["cities"], cost=cost_data["matrix"], time=time_data["matrix"])
+    return RouteMatrices(
+        cities=data["cities"], cost=data["cost_matrix"], time=data["time_matrix"], legs=data["legs_matrix"]
+    )

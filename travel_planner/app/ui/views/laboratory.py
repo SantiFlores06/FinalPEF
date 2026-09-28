@@ -8,6 +8,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from app.core.graph import TravelGraph
 from app.core.tsp_dp import HELD_KARP_MAX, TSPSolver
 from app.core.tsp_genetic import GeneticTSP
 from app.data.cities import MAINLAND_EUROPEAN_CITIES
@@ -16,7 +17,7 @@ from app.ui.styles import render_page_header
 from app.ui.views.usage_stats import render_usage_statistics
 
 LAB_TRANSPORT_MODES = ["auto", "tren", "avión"]
-# Every pair of these cities is directly linked by all the lab transports, so any sample has a full matrix.
+# Every pair of these cities is linked by all the lab transports (maybe with layovers), so any sample has a full matrix.
 BENCHMARK_CITY_POOL = MAINLAND_EUROPEAN_CITIES
 BENCHMARK_CITY_COUNTS = list(range(4, 15))
 PROJECTION_LIMIT = 18
@@ -26,19 +27,23 @@ HELD_KARP_GROUP = "Held-Karp"
 GENETIC_GROUP = "Genético"
 
 
-@st.cache_data(show_spinner=False)
-def build_route_cost_lookup() -> Dict[Tuple[str, str, str], float]:
-    """Map (origin, destination, transport) to its cost, built from ROUTES_FIXED."""
-    return {(origin, destination, transport): cost for (origin, destination, cost, _time, transport) in ROUTES_FIXED}
+@st.cache_resource(show_spinner=False)
+def build_route_graph() -> TravelGraph:
+    """Return the graph of every fixed route, built once and shared by the benchmark runs."""
+    graph = TravelGraph()
+    for origin, destination, cost, hours, transport in ROUTES_FIXED:
+        graph.add_route(origin, destination, cost, hours, transport)
+    return graph
 
 
 def build_cost_matrix(city_names: List[str], transport: str) -> List[List[float]]:
-    """Return the n×n cost matrix between the cities for a transport."""
-    cost_lookup = build_route_cost_lookup()
-    return [
-        [0.0 if origin == destination else float(cost_lookup[(origin, destination, transport)]) for destination in city_names]
-        for origin in city_names
-    ]
+    """Return the n×n matrix of the cheapest itinerary cost between the cities for a transport."""
+    graph = build_route_graph()
+    matrix = []
+    for origin in city_names:
+        path_totals = graph.shortest_path_totals(origin, "cost", transport)
+        matrix.append([float(path_totals[destination].cost) for destination in city_names])
+    return matrix
 
 
 def run_held_karp(matrix: List[List[float]], city_names: List[str]) -> Tuple[float, float]:
@@ -82,7 +87,8 @@ def render_controlled_benchmark() -> None:
     st.caption(
         f"Held-Karp corre solo hasta n={HELD_KARP_MAX}. Por encima, se muestra únicamente "
         "el genético (el exacto se vuelve inviable). Las ciudades se sortean entre las de "
-        "Europa continental, conectadas directamente por los tres transportes."
+        "Europa continental, conectadas por los tres transportes; cada par usa su ruta más barata "
+        "(en avión puede incluir escalas)."
     )
     if st.button("Comparar", type="primary", use_container_width=True, key="lab_compare"):
         render_single_comparison(transport, city_count, seed)

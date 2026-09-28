@@ -8,6 +8,7 @@ pytest.importorskip("fastapi.testclient")
 from fastapi.testclient import TestClient
 
 from app.api import server
+from app.data.cities import CITY_CATALOG
 
 
 @pytest.fixture()
@@ -122,6 +123,87 @@ def test_cheapest_long_haul_flight_is_direct(client, origin, destination):
 
     assert response.status_code == 200
     assert response.json()["path"] == [origin, destination]
+
+
+def shortest_flight(client, origin, destination, optimize_by):
+    request = {"origin": origin, "destination": destination, "optimize_by": optimize_by, "transport_type": "avión"}
+    return client.post("/routes/shortest", json=request)
+
+
+def test_far_regional_airports_connect_through_hubs(client):
+    payload = shortest_flight(client, "Sevilla", "Perth", "cost").json()
+
+    layovers = payload["path"][1:-1]
+    assert payload["path"][0] == "Sevilla" and payload["path"][-1] == "Perth"
+    assert layovers
+    assert all(CITY_CATALOG[city].air_hub for city in layovers)
+
+
+def test_shortest_route_reports_cost_and_hours_whatever_the_criterion(client):
+    for optimize_by in ("cost", "time"):
+        payload = shortest_flight(client, "Oporto", "Vilna", optimize_by).json()
+
+        legs = server.travel_graph.get_route_details(payload["path"], "avión")
+        assert payload["optimize_by"] == optimize_by
+        assert payload["total_cost"] == sum(leg["cost"] for leg in legs)
+        assert payload["total_hours"] == round(sum(leg["time"] for leg in legs), 1)
+
+
+def test_optimizing_by_time_can_choose_a_faster_but_pricier_path(client):
+    by_cost = shortest_flight(client, "Oporto", "Vilna", "cost").json()
+    by_time = shortest_flight(client, "Oporto", "Vilna", "time").json()
+
+    assert by_time["path"] != by_cost["path"]
+    assert by_time["cached"] is False
+    assert by_time["total_hours"] < by_cost["total_hours"]
+    assert by_time["total_cost"] > by_cost["total_cost"]
+
+
+def test_shortest_route_rejects_unknown_criterion(client):
+    assert shortest_flight(client, "Madrid", "Roma", "comfort").status_code == 400
+
+
+def test_matrix_rejects_unknown_criterion(client):
+    response = client.get("/routes/matrix", params={"transport": "avión", "optimize_by": "comfort"})
+
+    assert response.status_code == 400
+
+
+def matrix_value(payload, field, origin, destination):
+    cities = payload["cities"]
+    return payload[field][cities.index(origin)][cities.index(destination)]
+
+
+def test_matrix_holds_the_best_itinerary_even_without_direct_flight(client):
+    payload = client.get("/routes/matrix", params={"transport": "avión", "optimize_by": "cost"}).json()
+    flight = shortest_flight(client, "Sevilla", "Perth", "cost").json()
+
+    assert matrix_value(payload, "matrix", "Sevilla", "Perth") == flight["total_cost"]
+    assert matrix_value(payload, "cost_matrix", "Sevilla", "Perth") == flight["total_cost"]
+    assert matrix_value(payload, "time_matrix", "Sevilla", "Perth") == flight["total_hours"]
+    assert matrix_value(payload, "legs_matrix", "Sevilla", "Perth") == len(flight["path"]) - 1
+
+
+def test_time_matrix_follows_the_fastest_itineraries(client):
+    payload = client.get("/routes/matrix", params={"transport": "avión", "optimize_by": "time"}).json()
+    flight = shortest_flight(client, "Oporto", "Vilna", "time").json()
+
+    assert matrix_value(payload, "matrix", "Oporto", "Vilna") == flight["total_hours"]
+    assert matrix_value(payload, "cost_matrix", "Oporto", "Vilna") == flight["total_cost"]
+
+
+def test_plane_matrix_connects_every_pair_of_cities(client):
+    payload = client.get("/routes/matrix", params={"transport": "avión", "optimize_by": "cost"}).json()
+
+    assert len(payload["cities"]) == len(CITY_CATALOG)
+    assert all(value != -1.0 for row in payload["matrix"] for value in row)
+
+
+def test_car_matrix_marks_other_landmasses_unreachable(client):
+    payload = client.get("/routes/matrix", params={"transport": "auto", "optimize_by": "cost"}).json()
+
+    assert matrix_value(payload, "matrix", "Madrid", "Nueva York") == -1.0
+    assert matrix_value(payload, "legs_matrix", "Madrid", "Nueva York") == -1.0
 
 
 FIVE_CITIES = ["Madrid", "Barcelona", "París", "Roma", "Berlín"]

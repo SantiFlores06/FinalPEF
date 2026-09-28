@@ -2,7 +2,7 @@
 test_graph.py - Tests unitarios para el algoritmo de Dijkstra.
 """
 import pytest
-from app.core.graph import TravelGraph
+from app.core.graph import PathTotals, TravelGraph
 
 def test_add_route(simple_graph):
     """Verifica que las rutas se agreguen correctamente al grafo."""
@@ -59,3 +59,26 @@ def test_path_totals_sum_legs_of_the_requested_transport():
     graph.add_route("B", "C", 20, 2.5, "tren")
 
     assert graph.path_totals(["A", "B", "C"], "tren") == (30, 3.5)
+
+def test_shortest_path_totals_follow_the_cheapest_paths(simple_graph):
+    totals = simple_graph.shortest_path_totals("A", weight="cost")
+
+    assert totals == {
+        "A": PathTotals(),
+        "B": PathTotals(cost=10, time=1, legs=1),
+        "C": PathTotals(cost=30, time=3, legs=2),
+    }
+
+
+def test_shortest_path_totals_follow_the_fastest_paths(simple_graph):
+    totals = simple_graph.shortest_path_totals("A", weight="time")
+
+    assert totals["C"] == PathTotals(cost=50, time=0.5, legs=1)
+
+
+def test_shortest_path_totals_skip_unreachable_cities_and_other_transports(simple_graph):
+    simple_graph.add_vertex("Z")
+
+    totals = simple_graph.shortest_path_totals("A", transport_type="bus")
+
+    assert set(totals) == {"A", "B"}

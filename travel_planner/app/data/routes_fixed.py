@@ -43,6 +43,10 @@ MAX_OVERLAND_KM = 4000
 MAX_SEA_LANE_KM = 5000
 # Ships follow coasts and canals, so they sail farther than the great-circle distance.
 SEA_DETOUR_FACTOR = 1.3
+# Hubs fly direct to every other hub; a hub reaches regional airports up to long haul, while two
+# regional airports only share short and medium-haul flights. Farther trips connect through hubs.
+MAX_HUB_TO_REGIONAL_FLIGHT_KM = 6000
+MAX_REGIONAL_FLIGHT_KM = 2000
 
 Feasibility = Callable[[City, City, float], bool]
 
@@ -52,9 +56,13 @@ def overland_link(origin: City, destination: City, distance_km: float) -> bool:
     return origin.landmass == destination.landmass and distance_km <= MAX_OVERLAND_KM
 
 
-def air_link(_origin: City, _destination: City, _distance_km: float) -> bool:
-    """Planes connect any two cities."""
-    return True
+def air_link(origin: City, destination: City, distance_km: float) -> bool:
+    """Direct flights link any two hubs, and shorter distances as soon as a regional airport is involved."""
+    if origin.air_hub and destination.air_hub:
+        return True
+    if origin.air_hub or destination.air_hub:
+        return distance_km <= MAX_HUB_TO_REGIONAL_FLIGHT_KM
+    return distance_km <= MAX_REGIONAL_FLIGHT_KM
 
 
 def share_sea_basin(origin: City, destination: City) -> bool:

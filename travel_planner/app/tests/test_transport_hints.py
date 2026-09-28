@@ -8,6 +8,7 @@ PLANE = {"transport": "avión", "path": ["Madrid", "Barcelona"], "total_cost": 1
 COMPARISON = {
     "origin": "Madrid",
     "destination": "Barcelona",
+    "optimize_by": "cost",
     "options": [CAR, TRAIN, PLANE],
     "cheapest": "auto",
     "fastest": "avión",

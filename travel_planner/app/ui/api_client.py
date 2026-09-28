@@ -8,6 +8,8 @@ import streamlit as st
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 UNPROCESSABLE_ENTITY = 422
+# The first request of a transport runs Dijkstra from every city before the API caches it
+MATRIX_TIMEOUT_SECONDS = 20
 
 
 class ApiError(Exception):
@@ -45,12 +47,12 @@ def check_api_health() -> bool:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_matrix_from_api(transport_mode: str, optimize_by: str) -> Optional[Dict]:
-    """Fetch the cost or time matrix of a transport mode."""
+    """Fetch the cost, time and legs of the best route (by the criterion) between every pair of cities."""
     try:
         response = requests.get(
             f"{API_URL}/routes/matrix",
             params={"transport": transport_mode, "optimize_by": optimize_by},
-            timeout=5,
+            timeout=MATRIX_TIMEOUT_SECONDS,
         )
         if response.status_code == 200:
             return response.json()

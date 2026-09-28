@@ -15,9 +15,10 @@ import asyncio
 import copy
 import hashlib
 import logging
+from functools import lru_cache
 from time import perf_counter
 
-from app.core.graph import TravelGraph
+from app.core.graph import PathTotals, TravelGraph
 from app.core.tsp_dp import HELD_KARP_MAX, MAX_TSP_CITIES, TSPSolver, choose_tsp_algorithm
 from app.core.tsp_genetic import GeneticTSP
 from app.caches.cache_backend import get_cache_backend
@@ -40,6 +41,7 @@ SHORTEST_PATH_CITY_COUNT = 2
 VALID_METRICS = {"cost", "time"}
 VALID_TRANSPORTS = set(TRANSPORT_TYPES)
 UNREACHABLE_MARKER = -1.0
+HOURS_DECIMALS = 1
 
 
 async def batch_loop():
@@ -110,10 +112,13 @@ class RouteRequest(BaseModel):
 
 
 class RouteResponse(BaseModel):
+    """Best path for the chosen criterion, always with both its total cost and hours."""
     origin: str
     destination: str
+    optimize_by: str
     path: List[str]
     total_cost: float
+    total_hours: float
     cached: bool = False
 
 
@@ -179,6 +184,12 @@ def mark_as_cached(cached_result: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def summarize_path(graph: TravelGraph, path: List[str], transport: str) -> Dict[str, Any]:
+    """Return the path with its total cost and hours, whatever criterion chose it."""
+    total_cost, total_hours = graph.path_totals(path, transport)
+    return {"path": path, "total_cost": total_cost, "total_hours": round(total_hours, HOURS_DECIMALS)}
+
+
 # ==========================================================
 # ENDPOINTS
 # ==========================================================
@@ -210,42 +221,59 @@ async def health_check():
 
 
 # ==========================================================
-# MATRIZ DESDE ROUTES_FIXED
+# MATRIZ DE MEJORES RUTAS (DIJKSTRA DESDE CADA CIUDAD)
 # ==========================================================
 
 
 @app.get("/routes/matrix")
-async def get_matrix(transport: str = "auto", optimize_by: str = "cost"):
+async def get_matrix(
+    transport: str = "auto",
+    optimize_by: str = "cost",
+    graph: TravelGraph = Depends(get_populated_graph),
+):
     """
-    Devuelve matriz de costos o tiempos fijos.
-    Usa -1.0 para representar rutas no conectadas (infinito), ya que JSON no soporta 'inf'.
+    Devuelve, para cada par de ciudades, la mejor ruta según el criterio (con escalas si no hay conexión directa).
+    `matrix` trae el valor del criterio; `cost_matrix`, `time_matrix` y `legs_matrix` el costo, las horas y los
+    tramos de esa misma ruta. Usa -1.0 para rutas no conectadas (infinito), ya que JSON no soporta 'inf'.
     """
     if transport not in VALID_TRANSPORTS or optimize_by not in VALID_METRICS:
         raise HTTPException(status_code=400, detail="Parámetros inválidos")
 
-    routes = [route for route in ROUTES_FIXED if route[4] == transport]
-    cities = sorted({route[0] for route in routes} | {route[1] for route in routes})
+    matrices = await run_in_threadpool(build_path_matrices, graph, transport, optimize_by)
+    return {"transport": transport, "optimize_by": optimize_by, **matrices}
+
+
+def cities_served_by(transport: str) -> List[str]:
+    """Return every city with at least one route of the transport, sorted."""
+    return sorted({origin for origin, _destination, _cost, _hours, route_transport in ROUTES_FIXED
+                   if route_transport == transport})
+
+
+def totals_matrix(city_totals: List[Dict[str, PathTotals]], cities: List[str], field: str) -> List[List[float]]:
+    """Return one field of the path totals between every pair of cities, UNREACHABLE_MARKER when not connected."""
+    return [
+        [getattr(totals[destination], field) if destination in totals else UNREACHABLE_MARKER
+         for destination in cities]
+        for totals in city_totals
+    ]
+
+
+# Routes are fixed, so each matrix is computed once per process (one Dijkstra run per city)
+@lru_cache(maxsize=len(TRANSPORT_TYPES) * len(VALID_METRICS))
+def build_path_matrices(graph: TravelGraph, transport: str, optimize_by: str) -> Dict[str, Any]:
+    """Return the criterion, cost, hours and legs of the best path between every pair of served cities."""
+    cities = cities_served_by(transport)
+    city_totals = [graph.shortest_path_totals(origin, optimize_by, transport) for origin in cities]
+    cost_matrix = totals_matrix(city_totals, cities, "cost")
+    time_matrix = [[round(hours, HOURS_DECIMALS) for hours in row]
+                   for row in totals_matrix(city_totals, cities, "time")]
     return {
         "cities": cities,
-        "transport": transport,
-        "optimize_by": optimize_by,
-        "matrix": build_symmetric_matrix(cities, routes, optimize_by),
+        "matrix": cost_matrix if optimize_by == "cost" else time_matrix,
+        "cost_matrix": cost_matrix,
+        "time_matrix": time_matrix,
+        "legs_matrix": totals_matrix(city_totals, cities, "legs"),
     }
-
-
-def build_symmetric_matrix(cities: List[str], routes: List[tuple], optimize_by: str) -> List[List[float]]:
-    """Build a symmetric cost/time matrix with 0.0 on the diagonal and UNREACHABLE_MARKER elsewhere by default."""
-    city_index = {city: index for index, city in enumerate(cities)}
-    matrix = [[UNREACHABLE_MARKER] * len(cities) for _ in cities]
-    for index in range(len(cities)):
-        matrix[index][index] = 0.0
-
-    for origin, destination, cost, hours, _transport in routes:
-        i, j = city_index[origin], city_index[destination]
-        value = cost if optimize_by == "cost" else hours
-        matrix[i][j] = value
-        matrix[j][i] = value
-    return matrix
 
 
 # ==========================================================
@@ -270,7 +298,7 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
 
     try:
         started_at = perf_counter()
-        path, cost = graph.find_shortest_path(
+        path, weight = graph.find_shortest_path(
             request.origin,
             request.destination,
             weight=request.optimize_by,
@@ -279,13 +307,13 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
         elapsed_ms = (perf_counter() - started_at) * 1000
         if not path:
             raise HTTPException(status_code=404, detail="Ruta no encontrada")
-        solver_metrics.record_run("dijkstra", SHORTEST_PATH_CITY_COUNT, elapsed_ms, cost, hops=len(path) - 1)
+        solver_metrics.record_run("dijkstra", SHORTEST_PATH_CITY_COUNT, elapsed_ms, weight, hops=len(path) - 1)
 
         result = {
             "origin": request.origin,
             "destination": request.destination,
-            "path": path,
-            "total_cost": cost,
+            "optimize_by": request.optimize_by,
+            **summarize_path(graph, path, request.transport_type),
             "cached": False,
         }
 
@@ -384,9 +412,6 @@ async def get_compare_routes(
 # COMPARAR TRANSPORTES
 # ==========================================================
 
-HOURS_DECIMALS = 1
-
-
 def best_route_per_transport(
     graph: TravelGraph, origin: str, destination: str, optimize_by: str
 ) -> List[Dict[str, Any]]:
@@ -394,15 +419,8 @@ def best_route_per_transport(
     options = []
     for transport in TRANSPORT_TYPES:
         path, _weight = graph.find_shortest_path(origin, destination, weight=optimize_by, transport_type=transport)
-        if not path:
-            continue
-        total_cost, total_hours = graph.path_totals(path, transport)
-        options.append({
-            "transport": transport,
-            "path": path,
-            "total_cost": total_cost,
-            "total_hours": round(total_hours, HOURS_DECIMALS),
-        })
+        if path:
+            options.append({"transport": transport, **summarize_path(graph, path, transport)})
     return options
 
 

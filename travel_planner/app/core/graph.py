@@ -17,6 +17,22 @@ class Route:
     transport_type: str
 
 
+@dataclass(frozen=True)
+class PathTotals:
+    """Summed cost, hours and number of legs of a path."""
+    cost: float = 0.0
+    time: float = 0.0
+    legs: int = 0
+
+    def extended_by(self, route: Route) -> "PathTotals":
+        """Return the totals of this path followed by one more leg."""
+        return PathTotals(self.cost + route.cost, self.time + route.time, self.legs + 1)
+
+
+# City -> (previous city, route taken from it) on the best path found by Dijkstra
+Arrivals = Dict[str, Tuple[str, Route]]
+
+
 class TravelGraph:
     """
     Grafo dirigido ponderado para representar ciudades y rutas de transporte.
@@ -98,11 +114,28 @@ class TravelGraph:
             Tiempo: O((V + E) log V) con cola de prioridad.
             Espacio: O(V) para estructuras auxiliares.
         """
+        distances, arrivals, _settled = self._explore(source, target, weight, transport_type)
+        predecessors: Dict[str, Optional[str]] = {vertex: None for vertex in self.vertices}
+        predecessors.update({node: previous for node, (previous, _route) in arrivals.items()})
+        return distances, predecessors
+
+    def _explore(
+        self,
+        source: str,
+        target: Optional[str],
+        weight: str,
+        transport_type: Optional[str]
+    ) -> Tuple[Dict[str, float], Arrivals, List[str]]:
+        """
+        Núcleo de Dijkstra: devuelve las distancias mínimas, la ruta con la que se llega a cada nodo
+        y el orden en que los nodos quedan definitivos (el origen primero).
+        """
         if source not in self.vertices:
             raise ValueError(f"Nodo origen '{source}' no existe en el grafo")
 
         distances: Dict[str, float] = {vertex: float('inf') for vertex in self.vertices}
-        predecessors: Dict[str, Optional[str]] = {vertex: None for vertex in self.vertices}
+        arrivals: Arrivals = {}
+        settled: List[str] = []
         distances[source] = 0
         priority_queue: List[Tuple[float, str]] = [(0, source)]
         visited: set = set()
@@ -115,6 +148,7 @@ class TravelGraph:
                 continue
 
             visited.add(current_node)
+            settled.append(current_node)
 
             # Optimización: si llegamos al target, podemos terminar
             if target and current_node == target:
@@ -132,10 +166,25 @@ class TravelGraph:
                 new_distance = current_distance + getattr(route, weight)
                 if new_distance < distances[neighbor]:
                     distances[neighbor] = new_distance
-                    predecessors[neighbor] = current_node
+                    arrivals[neighbor] = (current_node, route)
                     heapq.heappush(priority_queue, (new_distance, neighbor))
 
-        return distances, predecessors
+        return distances, arrivals, settled
+
+    def shortest_path_totals(
+        self,
+        source: str,
+        weight: str = 'cost',
+        transport_type: Optional[str] = None
+    ) -> Dict[str, PathTotals]:
+        """Return the cost, hours and legs of the best path (by weight) from source to every reachable city."""
+        _distances, arrivals, settled = self._explore(source, None, weight, transport_type)
+        totals = {source: PathTotals()}
+        # A city settles after the one it is reached from, so its predecessor's totals are ready
+        for node in settled[1:]:
+            previous, route = arrivals[node]
+            totals[node] = totals[previous].extended_by(route)
+        return totals
 
     def find_shortest_path(
         self,
