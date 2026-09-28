@@ -3,1034 +3,1436 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Travel Planner Multidestino — Presentación</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<title>Travel Planner Multidestino · Defensa final</title>
+<!--
+  Presentación autocontenida: sin recursos externos (funciona sin conexión).
+  Controles: ← → / Espacio / RePág / AvPág navegan · Inicio / Fin · clic derecho del área avanza, izquierdo retrocede
+             N notas del orador · F pantalla completa · T tema claro/oscuro · ? ayuda · Esc cierra paneles
+  Enlace directo a una diapositiva: Presentacion.html#7
+  Las notas del orador (N) contienen los detalles técnicos; las diapositivas, solo lo esencial.
+  Cifras calculadas sobre el código del repositorio.
+-->
 <style>
   :root {
     --bg: #080d1a;
     --bg2: #0c1220;
-    --card: #101828;
-    --card2: #162035;
-    --accent: #3b82f6;
-    --accent2: #06b6d4;
-    --accent3: #8b5cf6;
-    --green: #22c55e;
-    --gold: #f59e0b;
-    --text: #e8edf8;
-    --muted: #7a8eaa;
-    --border: rgba(59,130,246,0.13);
+    --card: #101a2e;
+    --card2: #16223b;
+    --line: rgba(148, 163, 184, 0.16);
+    --line2: rgba(148, 163, 184, 0.34);
+    --text: #eef2fb;
+    --text2: #c6cfe0;
+    --muted: #96a5c0;
+    --accent: #60a5fa;
+    --accent2: #22d3ee;
+    --accent3: #a78bfa;
+    --dij: #3b82f6;
+    --hk: #10a37f;
+    --ga: #d946ef;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --bad: #f87171;
+    --data: #22d3ee;
+    --code-bg: #050a14;
+    --code: #d6ddea;
+    --kw: #7dd3fc;
+    --fn: #86efac;
+    --st: #fca5a5;
+    --num: #fde68a;
+    --cm: #8797b3;
+    --grid: rgba(59, 130, 246, 0.04);
+    --glow1: rgba(59, 130, 246, 0.10);
+    --glow2: rgba(139, 92, 246, 0.08);
+    --panel-bg: rgba(3, 7, 18, 0.95);
+    --panel-text: #f1f5f9;
+    --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --mono: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
-  body {
+  :root[data-theme="light"] {
+    --bg: #f6f8fc;
+    --bg2: #eef2f9;
+    --card: #ffffff;
+    --card2: #f3f6fb;
+    --line: rgba(15, 23, 42, 0.12);
+    --line2: rgba(15, 23, 42, 0.26);
+    --text: #0b1324;
+    --text2: #2c3a52;
+    --muted: #506079;
+    --accent: #2563eb;
+    --accent2: #0e7490;
+    --accent3: #6d28d9;
+    --data: #0e7490;
+    --code-bg: #eef2f8;
+    --code: #0f172a;
+    --kw: #0369a1;
+    --fn: #15803d;
+    --st: #b91c1c;
+    --num: #a16207;
+    --cm: #5b6b84;
+    --grid: rgba(37, 99, 235, 0.05);
+    --glow1: rgba(37, 99, 235, 0.07);
+    --glow2: rgba(109, 40, 217, 0.05);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
     background: var(--bg);
     color: var(--text);
-    font-family: 'DM Mono', monospace;
-    overflow-x: hidden;
-  }
-  body::before {
-    content:'';
-    position:fixed; inset:0;
-    background-image:
-      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
-    background-size: 64px 64px;
-    pointer-events:none; z-index:0;
+    font-family: var(--sans);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* SLIDE BASE */
+  /* ---------- 16:9 stage, scaled to fit any screen ---------- */
+  .viewport { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+  .deck {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1600px;
+    height: 900px;
+    transform: translate(-50%, -50%) scale(var(--scale, 1));
+    transform-origin: center center;
+    overflow: hidden;
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(900px 620px at 0% 0%, var(--glow1), transparent 62%),
+      radial-gradient(820px 620px at 100% 100%, var(--glow2), transparent 62%),
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: auto, auto, 64px 64px, 64px 64px;
+  }
+
   .slide {
-    min-height: 100vh;
-    position: relative;
-    z-index: 1;
-    scroll-snap-align: start;
+    position: absolute;
+    inset: 0;
+    padding: 50px 80px 72px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    padding: 5rem 6rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.35s ease, visibility 0s linear 0.35s;
   }
-  .slide-alt { background: var(--bg2); }
+  .slide.active { opacity: 1; visibility: visible; transition: opacity 0.35s ease; }
+  .notes { display: none; }
 
-  /* NAV DOTS */
-  .nav-dots {
-    position: fixed;
-    right: 1.5rem; top: 50%;
-    transform: translateY(-50%);
-    display: flex; flex-direction: column;
-    gap: 0.7rem; z-index: 200;
-  }
-  .dot-nav {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: rgba(59,130,246,0.2);
-    border: 1px solid rgba(59,130,246,0.3);
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-  .dot-nav.active {
-    background: var(--accent);
-    box-shadow: 0 0 8px rgba(59,130,246,0.5);
-  }
-
-  /* SLIDE NUMBER */
-  .slide-num {
+  .foot {
     position: absolute;
-    top: 2rem; right: 5rem;
-    font-size: 0.62rem;
+    left: 80px;
+    right: 80px;
+    bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    font: 500 15px var(--mono);
+    letter-spacing: 0.06em;
     color: var(--muted);
-    letter-spacing: 0.15em;
   }
 
-  /* SLIDE TAG */
-  .slide-tag {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    background: rgba(59,130,246,0.07);
-    border: 1px solid rgba(59,130,246,0.18);
+  /* ---------- typography ---------- */
+  .head { margin-bottom: 26px; }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    margin-bottom: 14px;
+    align-self: flex-start;
+    border: 1px solid var(--line2);
     border-radius: 999px;
-    padding: 0.28rem 0.85rem;
-    font-size: 0.62rem;
-    letter-spacing: 0.12em;
+    background: rgba(34, 211, 238, 0.06);
+    font: 600 15px var(--mono);
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--accent2);
-    margin-bottom: 1.25rem;
   }
-
-  /* TYPOGRAPHY */
-  h1 {
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
-    font-size: clamp(2.4rem, 4.5vw, 3.8rem);
-    line-height: 1.05;
-    letter-spacing: -0.03em;
-    margin-bottom: 1rem;
-  }
-  h2 {
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: clamp(1.5rem, 2.8vw, 2.2rem);
-    letter-spacing: -0.025em;
-    line-height: 1.15;
-    margin-bottom: 0.4rem;
-  }
-  h3 {
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 0.95rem;
-    letter-spacing: -0.01em;
-    margin-bottom: 0.4rem;
-  }
-  .grad {
+  h1, h2, h3 { font-family: var(--display); margin: 0; }
+  h1 { font-size: 104px; line-height: 0.98; font-weight: 800; letter-spacing: -0.035em; }
+  h2 { font-size: 52px; line-height: 1.08; font-weight: 800; letter-spacing: -0.025em; }
+  h3 { font-size: 27px; line-height: 1.2; font-weight: 750; color: var(--text); margin-bottom: 8px; }
+  .hl {
     background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    -webkit-background-clip: text;
     background-clip: text;
+    color: transparent;
   }
-  .grad2 {
-    background: linear-gradient(135deg, var(--accent3), var(--accent));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
+  p { margin: 0; }
+  strong, b { color: var(--text); font-weight: 650; }
+  code, .mono { font-family: var(--mono); font-size: 0.9em; color: var(--accent2); white-space: nowrap; }
+  .notes-panel code { white-space: normal; }
+  .lead { font-size: 29px; line-height: 1.4; color: var(--text2); max-width: 900px; }
+  .kicker {
+    font: 600 15px var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
   }
-  p { font-size: 0.82rem; color: var(--muted); line-height: 1.75; }
-  strong { color: var(--text); font-weight: 500; }
-  code { color: var(--accent2); font-size: 0.76rem; }
+  .small { font-size: 18px; color: var(--muted); line-height: 1.45; }
 
-  /* CARDS */
+  /* ---------- layout ---------- */
+  .body { flex: 1; min-height: 0; display: grid; gap: 30px; align-content: start; }
+  .grid { display: grid; gap: 24px; align-content: start; }
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ---------- lists ---------- */
+  ul.pts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 17px; }
+  ul.pts li { position: relative; padding-left: 30px; font-size: 25px; line-height: 1.38; color: var(--text2); }
+  ul.pts li::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 0.52em;
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+  ul.pts.sm li { font-size: 23px; }
+  ul.pts.sm { gap: 12px; }
+
+  /* ---------- cards ---------- */
   .card {
     background: var(--card);
-    border: 1px solid var(--border);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 26px;
+  }
+  .card p { font-size: 23px; line-height: 1.45; color: var(--text2); }
+  .card.dij { border-left: 6px solid var(--dij); }
+  .card.hk  { border-left: 6px solid var(--hk); }
+  .card.ga  { border-left: 6px solid var(--ga); }
+  .card.tsp { border-left: 6px solid var(--accent3); }
+  .card.acc { border-left: 6px solid var(--accent2); }
+  .card.quiet { background: var(--card2); }
+
+  .dot { display: inline-block; width: 13px; height: 13px; border-radius: 50%; margin-right: 9px; vertical-align: 0.08em; }
+  .dot.dij { background: var(--dij); }
+  .dot.hk  { background: var(--hk); }
+  .dot.ga  { background: var(--ga); }
+
+  /* ---------- KPIs ---------- */
+  .kpis { display: grid; gap: 18px; }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--accent2);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .kpi .v { font-family: var(--display); font-size: 54px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--text); }
+  .kpi .l { margin-top: 8px; font-size: 18px; line-height: 1.35; color: var(--muted); }
+  .kpi.sm .v { font-size: 40px; }
+
+  /* ---------- tables ---------- */
+  table.t { width: 100%; border-collapse: collapse; font-size: 21px; }
+  table.t th {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line2);
+    font: 600 14px var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  table.t td { padding: 11px 14px; border-bottom: 1px solid var(--line); color: var(--text2); }
+  table.t tr:last-child td { border-bottom: none; }
+  table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  table.t td:first-child { color: var(--text); font-weight: 600; }
+  table.t.compact td { padding: 8px 12px; }
+
+  /* ---------- code ---------- */
+  figure.snip { margin: 0; }
+  figure.snip figcaption { font: 500 15px var(--mono); color: var(--muted); margin-bottom: 8px; letter-spacing: 0.02em; }
+  pre.code {
+    margin: 0;
+    padding: 18px 22px;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 1.35rem;
-    transition: border-color 0.3s;
+    font: 18px/1.58 var(--mono);
+    color: var(--code);
+    white-space: pre-wrap;
+    tab-size: 4;
   }
-  .card:hover { border-color: rgba(59,130,246,0.28); }
-  .ca { border-top: 2px solid var(--accent); }
-  .cg { border-top: 2px solid var(--green); }
-  .cp { border-top: 2px solid var(--accent3); }
-  .co { border-top: 2px solid var(--gold); }
+  pre.code.sm { font-size: 16px; }
+  pre.code.lg { font-size: 19px; }
+  .kw { color: var(--kw); }
+  .fn { color: var(--fn); }
+  .st { color: var(--st); }
+  .nu { color: var(--num); }
+  .cm { color: var(--cm); }
 
-  /* TAGS */
-  .tag {
+  /* ---------- flow strip ---------- */
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .flow .step {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-top: 5px solid var(--line2);
+    border-radius: 14px;
+    padding: 16px 20px;
+  }
+  .flow .step b { display: block; font-family: var(--display); font-size: 27px; font-weight: 800; }
+  .flow .step span { display: block; margin-top: 4px; font-size: 20px; color: var(--text2); }
+  .flow .step.dij { border-top-color: var(--dij); }
+  .flow .step.hk  { border-top-color: var(--hk); }
+  .flow .step.ga  { border-top-color: var(--ga); }
+
+  /* ---------- pipeline ---------- */
+  ol.pipe { list-style: none; margin: 0; padding: 0; counter-reset: pipe; display: flex; flex-direction: column; gap: 10px; }
+  ol.pipe li {
+    counter-increment: pipe;
+    position: relative;
+    padding: 11px 16px 11px 60px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 21px;
+    line-height: 1.35;
+    color: var(--text2);
+  }
+  ol.pipe li::before {
+    content: counter(pipe);
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: rgba(34, 211, 238, 0.14);
+    border: 1px solid var(--accent2);
+    font: 700 16px var(--mono);
+    color: var(--text);
+  }
+
+  /* ---------- status chips ---------- */
+  .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .chip { padding: 6px 14px; border-radius: 999px; border: 1px solid; font: 600 17px var(--mono); }
+  .chip.pending    { color: #fbbf24; border-color: rgba(245, 158, 11, 0.5); background: rgba(245, 158, 11, 0.1); }
+  .chip.processing { color: #93c5fd; border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.1); }
+  .chip.confirmed  { color: #86efac; border-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.1); }
+  .chip.failed     { color: #fca5a5; border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.1); }
+  .chip.cancelled  { color: var(--muted); border-color: var(--line2); background: rgba(148, 163, 184, 0.08); }
+  :root[data-theme="light"] .chip.pending    { color: #92400e; }
+  :root[data-theme="light"] .chip.processing { color: #1d4ed8; }
+  :root[data-theme="light"] .chip.confirmed  { color: #166534; }
+  :root[data-theme="light"] .chip.failed     { color: #b91c1c; }
+  .arrow { color: var(--muted); font-size: 22px; }
+
+  /* ---------- bars (single series) ---------- */
+  .bars { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: grid; grid-template-columns: 118px 1fr 92px; align-items: center; gap: 14px; font-size: 20px; }
+  .bar-row .bl { color: var(--text2); }
+  .bar-row .bv { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+  .bar-row .bt { height: 18px; }
+  .bar-row .bf { display: block; height: 100%; min-width: 4px; background: var(--data); border-radius: 0 4px 4px 0; }
+  .bars.tight { gap: 7px; }
+  .bars.tight .bar-row { grid-template-columns: 128px 1fr 40px; font-size: 18px; }
+  .bars.tight .bar-row .bt { height: 14px; }
+
+  /* ---------- chart ---------- */
+  .chart svg { width: 100%; height: auto; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 26px; font-size: 18px; color: var(--text2); margin-bottom: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 10px; }
+  .sw { width: 34px; height: 0; border-top: 3px solid; display: inline-block; }
+  .sw.hk { border-color: var(--hk); }
+  .sw.hk.dash { border-top-style: dashed; }
+  .sw.ga { border-color: var(--ga); }
+  .ch-grid { stroke: var(--line); stroke-width: 1; }
+  .ch-axis { stroke: var(--line2); stroke-width: 1.5; }
+  .ch-lbl { fill: var(--muted); font: 14px var(--sans); }
+  .ch-lbl-strong { fill: var(--text); font: 700 15px var(--sans); }
+  .ch-note { fill: var(--text2); font: 600 15px var(--sans); }
+  .ch-mono { fill: var(--muted); font: 13px var(--mono); }
+  .ch-line { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+  .ch-hk { stroke: var(--hk); }
+  .ch-ga { stroke: var(--ga); }
+  .ch-dash { stroke-dasharray: 8 7; }
+  .ch-pt-hk { fill: var(--hk); stroke: var(--bg2); stroke-width: 2; }
+  .ch-pt-ga { fill: var(--ga); stroke: var(--bg2); stroke-width: 2; }
+  .ch-pt-proj { fill: var(--bg2); stroke: var(--hk); stroke-width: 2.5; }
+  .ch-band-hk { fill: var(--hk); opacity: 0.07; }
+  .ch-band-ga { fill: var(--ga); opacity: 0.06; }
+  .ch-cross { fill: none; stroke: var(--text); stroke-width: 2; }
+
+  /* ---------- architecture diagram ---------- */
+  .arch svg { width: 100%; height: auto; display: block; }
+  .bx { fill: var(--card); stroke: var(--line2); stroke-width: 1.5; }
+  .bx-ui { stroke: var(--accent); stroke-width: 2; }
+  .bx-api { stroke: var(--accent2); stroke-width: 2; }
+  .bx-ext { stroke-dasharray: 7 6; }
+  .a-t1 { fill: var(--text); font: 700 21px var(--display); }
+  .a-t2 { fill: var(--text2); font: 15.5px var(--sans); }
+  .a-t3 { fill: var(--muted); font: 14px var(--mono); }
+  .wire { fill: none; stroke: var(--muted); stroke-width: 2; }
+  .wire-dash { stroke-dasharray: 7 6; }
+  .ahead { fill: var(--muted); }
+  .a-dij { fill: var(--dij); }
+  .a-hk { fill: var(--hk); }
+  .a-ga { fill: var(--ga); }
+
+  /* ---------- cover ---------- */
+  .cover { justify-content: center; padding-top: 40px; }
+  .cover-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 56px; align-items: center; }
+  .cover h1 { margin-bottom: 26px; }
+  .cover .lead { margin-bottom: 34px; }
+  .cover .kpis { grid-template-columns: repeat(4, 1fr); margin-bottom: 30px; }
+  .team { font-size: 21px; line-height: 1.5; color: var(--text2); }
+  .algo-legend { display: flex; flex-direction: column; gap: 16px; }
+  .al { background: var(--card); border: 1px solid var(--line); border-left: 8px solid; border-radius: 16px; padding: 20px 24px; }
+  .al.dij { border-left-color: var(--dij); }
+  .al.hk { border-left-color: var(--hk); }
+  .al.ga { border-left-color: var(--ga); }
+  .al-n { display: block; font-family: var(--display); font-size: 32px; font-weight: 800; }
+  .al-d { display: block; font-size: 20px; color: var(--text2); margin-top: 4px; }
+  .al-note { font-size: 17px; color: var(--muted); }
+
+  /* ---------- mask visual ---------- */
+  .mask { display: flex; gap: 10px; align-items: flex-end; margin: 4px 0 2px; }
+  .bit { width: 64px; text-align: center; }
+  .bit .b {
+    height: 60px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font: 800 30px var(--mono);
+    border: 2px solid var(--hk);
+    color: var(--text);
+    background: rgba(16, 163, 127, 0.18);
+  }
+  .bit.off .b { background: transparent; border-style: dashed; border-color: var(--line2); color: var(--muted); }
+  .bit .c { margin-top: 6px; font: 14px var(--mono); color: var(--muted); }
+
+  /* ---------- misc ---------- */
+  .badge {
     display: inline-block;
-    font-size: 0.58rem;
-    padding: 0.18rem 0.55rem;
+    padding: 3px 11px;
     border-radius: 999px;
+    font: 600 14px var(--mono);
     letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--line2);
+    color: var(--text2);
+    vertical-align: 0.15em;
+    margin-right: 8px;
   }
-  .tb { background:rgba(59,130,246,0.09); color:var(--accent); border:1px solid rgba(59,130,246,0.2); }
-  .tc { background:rgba(6,182,212,0.09); color:var(--accent2); border:1px solid rgba(6,182,212,0.2); }
-  .tp { background:rgba(139,92,246,0.09); color:#a78bfa; border:1px solid rgba(139,92,246,0.2); }
-  .tg { background:rgba(34,197,94,0.09); color:var(--green); border:1px solid rgba(34,197,94,0.2); }
-  .to { background:rgba(245,158,11,0.09); color:var(--gold); border:1px solid rgba(245,158,11,0.2); }
-
-  /* CODE BLOCK */
-  .code-block {
-    background: #050a12;
-    border: 1px solid rgba(59,130,246,0.12);
-    border-radius: 8px;
-    padding: 1.1rem 1.3rem;
-    font-size: 0.72rem;
-    line-height: 1.75;
-    color: #94a3b8;
-    overflow-x: auto;
-    white-space: pre;
+  .badge.pending { border-color: rgba(245, 158, 11, 0.6); color: #fbbf24; background: rgba(245, 158, 11, 0.1); }
+  :root[data-theme="light"] .badge.pending { color: #92400e; }
+  .num-big { font-family: var(--display); font-size: 88px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+  .strip {
+    background: var(--card2);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 22px;
+    font-size: 22px;
+    line-height: 1.45;
+    color: var(--text2);
   }
-  .kw { color: #7dd3fc; }
-  .fn { color: #86efac; }
-  .cm { color: #475569; }
-  .st { color: #fca5a5; }
-  .num { color: #fde68a; }
-
-  /* GRIDS */
-  .g2   { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
-  .g3   { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.1rem; }
-  .g4   { display:grid; grid-template-columns:repeat(4,1fr); gap:0.9rem; }
-  .g6040 { display:grid; grid-template-columns:1.35fr 1fr; gap:2.2rem; align-items:start; }
-  .g4060 { display:grid; grid-template-columns:1fr 1.35fr; gap:2.2rem; align-items:start; }
-
-  /* FLOW */
-  .flow-row { display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap; }
-  .flow-box {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 0.45rem 0.9rem;
-    font-size: 0.7rem;
-    white-space: nowrap;
+  .demo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+  .demo .card { display: grid; grid-template-columns: 56px 1fr; gap: 16px; align-items: start; padding: 18px 22px; }
+  .demo .n {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    font: 800 26px var(--display);
+    background: var(--card2);
+    border: 2px solid var(--line2);
   }
-  .flow-arr { color: var(--accent2); font-size: 0.9rem; }
+  .demo .card.dij .n { border-color: var(--dij); }
+  .demo .card.hk .n { border-color: var(--hk); }
+  .demo .card.ga .n { border-color: var(--ga); }
+  .demo h3 { font-size: 26px; margin-bottom: 6px; }
+  .demo p { font-size: 22px; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .metrics .card { padding: 22px 22px; }
+  .metrics h3 { font-size: 26px; }
+  .metrics p { font-size: 22px; }
+  .hints { display: flex; flex-direction: column; gap: 8px; }
+  .hint { font-size: 21px; color: var(--text2); padding-left: 18px; border-left: 3px solid var(--accent2); }
+  .closing { justify-content: center; }
+  .closing h1 { font-size: 112px; margin-bottom: 18px; }
 
-  /* STATUS */
-  .status-flow { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
-  .sb { padding:0.28rem 0.75rem; border-radius:999px; font-size:0.63rem; letter-spacing:0.05em; }
-  .sp { background:rgba(245,158,11,0.13); color:var(--gold); border:1px solid rgba(245,158,11,0.28); }
-  .sr { background:rgba(59,130,246,0.13); color:var(--accent); border:1px solid rgba(59,130,246,0.28); }
-  .sc { background:rgba(34,197,94,0.13); color:var(--green); border:1px solid rgba(34,197,94,0.28); }
-  .sf { background:rgba(239,68,68,0.13); color:#f87171; border:1px solid rgba(239,68,68,0.28); }
-  .sk { background:rgba(148,163,184,0.08); color:#94a3b8; border:1px solid rgba(148,163,184,0.18); }
-  .sa { color:var(--muted); font-size:0.75rem; }
+  /* ---------- entrance animation ---------- */
+  .slide.active .rise > * { animation: rise 0.5s ease both; }
+  .slide.active .rise > *:nth-child(2) { animation-delay: 0.06s; }
+  .slide.active .rise > *:nth-child(3) { animation-delay: 0.12s; }
+  .slide.active .rise > *:nth-child(4) { animation-delay: 0.18s; }
+  .slide.active .rise > *:nth-child(5) { animation-delay: 0.24s; }
+  .slide.active .rise > *:nth-child(6) { animation-delay: 0.30s; }
+  .slide.active .rise > *:nth-child(7) { animation-delay: 0.36s; }
+  .slide.active .rise > *:nth-child(8) { animation-delay: 0.42s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
-  /* ENDPOINTS */
-  .ep-list { display:flex; flex-direction:column; gap:0.42rem; }
-  .ep-item {
-    display:flex; align-items:center; gap:0.7rem;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 0.45rem 0.9rem;
-    font-size: 0.7rem;
+  /* ---------- HUD, notes and help ---------- */
+  .progress { position: fixed; left: 0; top: 0; height: 4px; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); z-index: 30; transition: width 0.3s ease; }
+  .hint-hud {
+    position: fixed;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    z-index: 30;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: var(--panel-bg);
+    color: var(--panel-text);
+    font: 14px var(--sans);
+    opacity: 0.92;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
   }
-  .ep-m { font-family:'Syne',sans-serif; font-size:0.58rem; font-weight:700; padding:0.12rem 0.45rem; border-radius:4px; min-width:36px; text-align:center; }
-  .get  { background:rgba(34,197,94,0.1); color:var(--green); }
-  .post { background:rgba(59,130,246,0.1); color:var(--accent); }
-  .del  { background:rgba(239,68,68,0.1); color:#f87171; }
-  .ep-path { color:var(--text); font-family:'DM Mono',monospace; }
-  .ep-desc { color:var(--muted); margin-left:auto; font-size:0.63rem; }
+  .hint-hud.gone { opacity: 0; }
+  .notes-panel, .help-panel {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    width: min(1120px, 94vw);
+    background: var(--panel-bg);
+    color: var(--panel-text);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    font-family: var(--sans);
+  }
+  .notes-panel { bottom: 16px; max-height: 44vh; overflow: auto; padding: 16px 24px 18px; }
+  .notes-panel .np-head { display: flex; justify-content: space-between; gap: 16px; font: 600 14px var(--mono); letter-spacing: 0.06em; color: #93c5fd; margin-bottom: 8px; }
+  .notes-panel ul { margin: 0; padding-left: 22px; }
+  .notes-panel li { font-size: 18px; line-height: 1.5; margin: 4px 0; }
+  .notes-panel code { color: #67e8f9; }
+  .help-panel { top: 50%; transform: translate(-50%, -50%); width: min(620px, 92vw); padding: 22px 28px; }
+  .help-panel h4 { margin: 0 0 12px; font: 700 20px var(--sans); }
+  .help-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 0; font-size: 17px; }
+  .help-panel dt { font-family: var(--mono); color: #67e8f9; }
+  .help-panel dd { margin: 0; }
+  [hidden] { display: none !important; }
 
-  /* ORB */
-  .orb { position:absolute; border-radius:50%; filter:blur(80px); pointer-events:none; }
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide.active { transition: none; }
+    .slide.active .rise > * { animation: none; }
+    .progress { transition: none; }
+  }
 
-  /* DIVIDER */
-  .div { width:36px; height:2px; background:linear-gradient(90deg,var(--accent),var(--accent2)); margin:0.9rem 0; }
-
-  /* REVEAL */
-  .reveal { opacity:0; transform:translateY(16px); transition:opacity 0.5s ease, transform 0.5s ease; }
-  .reveal.visible { opacity:1; transform:none; }
-  .stagger > * { opacity:0; transform:translateY(12px); transition:opacity 0.42s ease, transform 0.42s ease; }
-  .stagger.visible > *:nth-child(1){opacity:1;transform:none;transition-delay:.00s}
-  .stagger.visible > *:nth-child(2){opacity:1;transform:none;transition-delay:.07s}
-  .stagger.visible > *:nth-child(3){opacity:1;transform:none;transition-delay:.14s}
-  .stagger.visible > *:nth-child(4){opacity:1;transform:none;transition-delay:.21s}
-  .stagger.visible > *:nth-child(5){opacity:1;transform:none;transition-delay:.28s}
-  .stagger.visible > *:nth-child(6){opacity:1;transform:none;transition-delay:.35s}
-  .stagger.visible > *:nth-child(7){opacity:1;transform:none;transition-delay:.42s}
-  .stagger.visible > *:nth-child(8){opacity:1;transform:none;transition-delay:.49s}
-  .stagger.visible > *:nth-child(9){opacity:1;transform:none;transition-delay:.56s}
-  .stagger.visible > *:nth-child(10){opacity:1;transform:none;transition-delay:.63s}
-  .stagger.visible > *:nth-child(11){opacity:1;transform:none;transition-delay:.70s}
-
-  .mb1 { margin-bottom:0.9rem; }
-  .mb2 { margin-bottom:1.4rem; }
-  .mb3 { margin-bottom:2rem; }
+  /* ---------- print: one slide per page, light ink ---------- */
+  @page { size: 1600px 900px; margin: 0; }
+  @media print {
+    :root {
+      --bg: #ffffff; --bg2: #ffffff; --card: #ffffff; --card2: #f4f6fa;
+      --line: rgba(15, 23, 42, 0.14); --line2: rgba(15, 23, 42, 0.3);
+      --text: #0b1324; --text2: #26344b; --muted: #4a5a73;
+      --accent: #2563eb; --accent2: #0e7490; --accent3: #6d28d9; --data: #0e7490;
+      --code-bg: #f1f5f9; --code: #0f172a; --kw: #0369a1; --fn: #15803d; --st: #b91c1c; --num: #a16207; --cm: #5b6b84;
+      --grid: transparent; --glow1: transparent; --glow2: transparent;
+    }
+    html, body { overflow: visible; height: auto; background: #ffffff; }
+    .viewport { position: static; overflow: visible; }
+    .deck { position: static; transform: none; width: 1600px; height: auto; overflow: visible; background: #ffffff; }
+    .slide {
+      position: relative;
+      width: 1600px;
+      height: 900px;
+      opacity: 1;
+      visibility: visible;
+      transition: none;
+      break-after: page;
+      page-break-after: always;
+      overflow: hidden;
+    }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+    .slide .rise > * { animation: none !important; }
+    .progress, .hint-hud, .notes-panel, .help-panel { display: none !important; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>
+<div class="progress" id="progress" aria-hidden="true"></div>
 
-<nav class="nav-dots" id="navDots"></nav>
+<div class="viewport" id="viewport">
+<main class="deck" id="deck" aria-live="polite">
 
-<!-- ══════════════════════════════════════
-  S1 — PORTADA
-══════════════════════════════════════ -->
-<section class="slide" id="s1" data-label="Portada">
-  <div class="orb" style="width:550px;height:550px;background:rgba(59,130,246,0.07);top:-120px;left:-160px;"></div>
-  <div class="orb" style="width:380px;height:380px;background:rgba(139,92,246,0.06);bottom:-80px;right:-80px;"></div>
-  <div class="slide-num">01 / 14</div>
-
-  <div class="reveal">
-    <div class="slide-tag">Proyecto Final · Ingeniería de Software</div>
-    <h1>Travel Planner<br><span class="grad">Multidestino</span></h1>
-    <div class="div"></div>
-    <p style="max-width:560px;font-size:0.88rem;margin-bottom:2.2rem;">
-      Sistema integral de planificación de viajes que combina <strong>algoritmos clásicos de optimización</strong> (Dijkstra + TSP exacto y genético), una API REST con FastAPI, interfaz gráfica con Streamlit, caché LRU, reservas asincrónicas con asyncio y recomendaciones con IA usando Gemini.
-    </p>
-    <div class="g4" style="max-width:660px;">
-      <div class="card" style="text-align:center;padding:1.1rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent);">33</div>
-        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">tests pasando</div>
+<!-- ═════════════ 1 · PORTADA ═════════════ -->
+<section class="slide cover" data-title="Portada">
+  <div class="cover-grid">
+    <div class="rise">
+      <div class="tag">Programación Eficiente · Trabajo final</div>
+      <h1>Travel Planner<br><span class="hl">Multidestino</span></h1>
+      <p class="lead">El mejor camino entre dos ciudades y el mejor orden para recorrer muchas, con el algoritmo adecuado para cada tamaño del problema.</p>
+      <div class="kpis" style="grid-template-columns: repeat(3, 1fr); max-width: 720px;">
+        <div class="kpi"><div class="v">180</div><div class="l">ciudades en 6 continentes</div></div>
+        <div class="kpi"><div class="v">4</div><div class="l">transportes: auto, tren, avión y barco</div></div>
+        <div class="kpi"><div class="v">178</div><div class="l">tests automatizados</div></div>
       </div>
-      <div class="card" style="text-align:center;padding:1.1rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent2);">11</div>
-        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">endpoints API</div>
-      </div>
-      <div class="card" style="text-align:center;padding:1.1rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent3);">3</div>
-        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">transportes</div>
-      </div>
-      <div class="card" style="text-align:center;padding:1.1rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--gold);">5</div>
-        <div style="font-size:0.62rem;color:var(--muted);margin-top:0.25rem;">estados reserva</div>
-      </div>
+      <p class="team"><strong>Esteban Ghinamo · Nicolas Moresco · Santiago Flores</strong><br>Profesora: Valeria Daniele</p>
+    </div>
+    <div class="algo-legend rise">
+      <div class="al dij"><span class="al-n">Dijkstra</span><span class="al-d">2 ciudades · camino mínimo exacto</span></div>
+      <div class="al hk"><span class="al-n">Held-Karp</span><span class="al-d">3 a 12 ciudades · orden óptimo exacto</span></div>
+      <div class="al ga"><span class="al-n">Genético</span><span class="al-d">13 a 25 ciudades · heurístico</span></div>
+      <p class="al-note">Estos colores identifican a cada algoritmo en toda la presentación y en la aplicación.</p>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Presentación del equipo y del tema 5: Sistema de Planificación de Viajes Multidestino.</li>
+    <li>Idea central: hay dos problemas algorítmicos distintos y cada uno se resuelve con el algoritmo adecuado a su tamaño.</li>
+    <li>Stack: FastAPI en el servidor, Streamlit en la interfaz y algoritmos en Python puro, sin librerías de grafos.</li>
+    <li>Recorrido: problema → arquitectura → algoritmos → eficiencia → novedades → métricas → demo.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S2 — OBJETIVO
-══════════════════════════════════════ -->
-<section class="slide slide-alt" id="s2" data-label="Objetivo">
-  <div class="slide-num">02 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">¿Qué resuelve?</div>
-    <h2>Objetivo del<br><span class="grad">proyecto</span></h2>
-  </div>
-  <div class="g6040 reveal">
-    <div>
-      <p class="mb2">El usuario elige <strong>varias ciudades europeas</strong>, un medio de transporte y si quiere minimizar costo o tiempo de viaje. El sistema calcula dos rutas: la que el usuario armó en el orden elegido, y la <strong>ruta óptima</strong> calculada automáticamente mediante TSP.</p>
-      <p class="mb2">Ambas rutas se muestran comparadas con sus costos totales, para que el usuario pueda tomar una decisión informada. Luego puede <strong>crear una reserva</strong> que pasa por un flujo asincrónico de confirmación con estados visibles en tiempo real.</p>
-      <div style="margin-bottom:1.5rem;">
-        <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Flujo principal</div>
-        <div class="flow-row">
-          <div class="flow-box">Elegir ciudades</div>
-          <div class="flow-arr">→</div>
-          <div class="flow-box">Calcular rutas</div>
-          <div class="flow-arr">→</div>
-          <div class="flow-box">Comparar</div>
-          <div class="flow-arr">→</div>
-          <div class="flow-box">Reservar</div>
-        </div>
+<!-- ═════════════ 2 · EL PROBLEMA ═════════════ -->
+<section class="slide" data-title="El problema">
+  <header class="head">
+    <div class="tag">El problema</div>
+    <h2>Dos preguntas que parecen iguales <span class="hl">y no lo son</span></h2>
+  </header>
+  <div class="body">
+    <div class="grid rise" style="grid-template-columns: 1fr 1fr 0.95fr;">
+      <div class="card dij">
+        <div class="kicker">Pregunta 1 · camino mínimo</div>
+        <h3>¿Cuál es el camino más barato de A a B?</h3>
+        <p>Madrid → Roma. Un origen y un destino: se resuelve de forma <strong>exacta y rápida</strong> con Dijkstra.</p>
       </div>
-      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Transportes</div>
-      <div style="display:flex;gap:0.5rem;">
-        <span class="tag tb">🚗 Auto</span>
-        <span class="tag tc">✈ Avión</span>
-        <span class="tag tp">🚆 Tren</span>
-      </div>
-    </div>
-    <div>
-      <div class="card ca mb1">
-        <h3>Criterios de optimización</h3>
-        <p style="margin-top:0.5rem;">El usuario puede elegir entre <strong>minimizar el costo total</strong> o <strong>minimizar el tiempo</strong> de traslado. Esto cambia el peso de las aristas del grafo antes de correr los algoritmos, dando resultados diferentes para el mismo conjunto de ciudades.</p>
-      </div>
-      <div class="card cp mb1">
-        <h3>Validador de itinerarios</h3>
-        <p style="margin-top:0.5rem;"><code>itinerary_validator.py</code> aplica reglas sobre el itinerario generado: presupuesto máximo, duración máxima, cantidad de segmentos, ciudades requeridas o prohibidas, tipos de transporte permitidos y consistencia de horarios.</p>
+      <div class="card tsp">
+        <div class="kicker">Pregunta 2 · orden de visita</div>
+        <h3>¿En qué orden conviene visitar N ciudades?</h3>
+        <p>Madrid, París, Roma, Berlín… Es el <strong>Problema del Viajante (TSP)</strong>: NP-difícil, no se conoce un algoritmo polinomial.</p>
       </div>
       <div class="card">
-        <h3>Resultado comparativo</h3>
-        <p style="margin-top:0.5rem;">La interfaz muestra lado a lado la ruta del usuario y la óptima, con la diferencia de costo o tiempo. Si la optimizada es significativamente mejor, lo resalta.</p>
+        <div class="kicker">Órdenes posibles: (n − 1)!</div>
+        <table class="t compact">
+          <thead><tr><th>Ciudades</th><th class="n">Órdenes</th></tr></thead>
+          <tbody>
+            <tr><td>4</td><td class="n">6</td></tr>
+            <tr><td>8</td><td class="n">5.040</td></tr>
+            <tr><td>12</td><td class="n">39.916.800</td></tr>
+            <tr><td>20</td><td class="n">≈ 1,2 × 10¹⁷</td></tr>
+            <tr><td>25</td><td class="n">≈ 6,2 × 10²³</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="kicker">Por eso el sistema usa tres algoritmos</div>
+      <div class="flow rise">
+        <div class="step dij"><b>2 ciudades</b><span>Dijkstra · camino mínimo</span></div>
+        <div class="step hk"><b>3 a 12</b><span>Held-Karp · exacto</span></div>
+        <div class="step ga"><b>13 a 25</b><span>Genético · heurístico</span></div>
+        <div class="step"><b>Más de 25</b><span>El servidor lo rechaza</span></div>
       </div>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Dijkstra responde “cómo ir de una ciudad a otra”; el TSP responde “en qué orden visitarlas todas”. Se complementan.</li>
+    <li>Con el origen fijo hay (n − 1)! recorridos. Con 20 ciudades, aun evaluando mil millones de rutas por segundo, la fuerza bruta tardaría unos 3,9 años.</li>
+    <li>No existe un único algoritmo bueno para todos los tamaños: se elige según la cantidad de ciudades.</li>
+    <li>El límite de 25 lo valida el servidor (<code>MAX_TSP_CITIES</code>); un pedido mayor devuelve 422.</li>
+  </ul></aside>
 </section>
 
-
-<!-- ══════════════════════════════════════
-  S3 — CÓMO SE COMPLEMENTAN LOS ALGORITMOS
-══════════════════════════════════════ -->
-<section class="slide" id="s3-integracion" data-label="Integración">
-  <div class="orb" style="width:360px;height:360px;background:rgba(6,182,212,0.06);top:8%;right:-70px;"></div>
-  <div class="slide-num">03 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">Explicación inicial · ruta simple vs multidestino</div>
-    <h2>Cómo trabaja<br><span class="grad">el optimizador</span></h2>
-  </div>
-  <div class="g6040 reveal stagger">
-    <div>
-      <p class="mb2">El sistema no usa un único algoritmo para todo. Separa el problema en dos niveles: primero calcula <strong>caminos mínimos entre puntos</strong> y después optimiza el <strong>orden completo de visita</strong> cuando hay varias ciudades.</p>
-      <p class="mb2">Para una ruta puntual, por ejemplo <strong>Madrid → Roma</strong>, se usa Dijkstra. Para un recorrido con varias ciudades, por ejemplo <strong>Madrid → París → Roma → Berlín</strong>, se usa TSP para encontrar el mejor orden posible.</p>
-      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Flujo algorítmico</div>
-      <div class="flow-row mb2">
-        <div class="flow-box">Ciudades seleccionadas</div>
-        <div class="flow-arr">→</div>
-        <div class="flow-box">Matriz costo/tiempo</div>
-        <div class="flow-arr">→</div>
-        <div class="flow-box">TSP</div>
-        <div class="flow-arr">→</div>
-        <div class="flow-box">Ruta óptima</div>
-      </div>
-      <div class="card cg">
-        <p>“Dijkstra me responde cuál es el mejor camino entre dos ciudades. TSP me responde en qué orden conviene visitar muchas ciudades. Por eso se complementan dentro del planificador.”</p>
-      </div>
+<!-- ═════════════ 3 · ARQUITECTURA ═════════════ -->
+<section class="slide" data-title="Arquitectura">
+  <header class="head">
+    <div class="tag">Arquitectura</div>
+    <h2>Capas cliente–servidor: <span class="hl">el servidor decide</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 1.72fr 1fr; align-items: center;">
+    <div class="arch">
+      <svg viewBox="0 0 960 590" role="img" aria-label="Diagrama: la interfaz Streamlit llama por HTTP al servidor FastAPI, que usa los algoritmos, la caché, las reservas y los datos, y registra métricas. Excepciones: la interfaz consulta servicios externos (Gemini y OSRM) y corre el benchmark del Laboratorio en su propio proceso.">
+        <defs>
+          <marker id="arch-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" class="ahead"/>
+          </marker>
+        </defs>
+        <rect class="bx bx-ui" x="250" y="14" width="460" height="104" rx="14"/>
+        <text class="a-t1" x="480" y="56" text-anchor="middle">Streamlit · interfaz</text>
+        <text class="a-t2" x="480" y="86" text-anchor="middle">cliente HTTP liviano: muestra, no calcula</text>
+        <rect class="bx bx-ext" x="758" y="14" width="188" height="104" rx="14"/>
+        <text class="a-t1" x="852" y="50" text-anchor="middle">Gemini · OSRM</text>
+        <text class="a-t2" x="852" y="76" text-anchor="middle">servicios externos</text>
+        <text class="a-t3" x="852" y="100" text-anchor="middle">excepción 1</text>
+        <path class="wire wire-dash" d="M710,66 L752,66" marker-end="url(#arch-ah)"/>
+        <path class="wire" d="M480,118 L480,188" marker-end="url(#arch-ah)"/>
+        <text class="a-t3" x="494" y="160">HTTP / JSON</text>
+        <rect class="bx bx-api" x="250" y="194" width="460" height="112" rx="14"/>
+        <text class="a-t1" x="480" y="234" text-anchor="middle">FastAPI · servidor</text>
+        <text class="a-t2" x="480" y="264" text-anchor="middle">valida los pedidos · elige el algoritmo</text>
+        <text class="a-t2" x="480" y="289" text-anchor="middle">cachea resultados · mide cada corrida</text>
+        <rect class="bx" x="758" y="194" width="188" height="112" rx="14"/>
+        <text class="a-t1" x="852" y="234" text-anchor="middle">Métricas</text>
+        <text class="a-t2" x="852" y="263" text-anchor="middle">uso real</text>
+        <text class="a-t2" x="852" y="287" text-anchor="middle">tiempos · caché · gap</text>
+        <path class="wire" d="M710,250 L752,250" marker-end="url(#arch-ah)"/>
+        <path class="wire" d="M480,306 L480,346 M134,346 L832,346"/>
+        <path class="wire" d="M134,346 L134,390" marker-end="url(#arch-ah)"/>
+        <path class="wire" d="M366,346 L366,390" marker-end="url(#arch-ah)"/>
+        <path class="wire" d="M592,346 L592,390" marker-end="url(#arch-ah)"/>
+        <path class="wire" d="M832,346 L832,390" marker-end="url(#arch-ah)"/>
+        <path class="wire wire-dash" d="M250,66 L70,66 L70,390" marker-end="url(#arch-ah)"/>
+        <text class="a-t3" x="84" y="150">excepción 2:</text>
+        <text class="a-t2" x="84" y="174">benchmark del</text>
+        <text class="a-t2" x="84" y="196">Laboratorio,</text>
+        <text class="a-t2" x="84" y="218">en proceso</text>
+        <rect class="bx" x="16" y="396" width="236" height="180" rx="14"/>
+        <text class="a-t1" x="134" y="430" text-anchor="middle">Algoritmos</text>
+        <circle class="a-dij" cx="44" cy="461" r="6"/><text class="a-t2" x="58" y="466">Dijkstra</text>
+        <circle class="a-hk" cx="44" cy="491" r="6"/><text class="a-t2" x="58" y="496">Held-Karp</text>
+        <circle class="a-ga" cx="44" cy="521" r="6"/><text class="a-t2" x="58" y="526">Genético</text>
+        <text class="a-t2" x="58" y="554">validador de itinerarios</text>
+        <rect class="bx" x="268" y="396" width="196" height="180" rx="14"/>
+        <text class="a-t1" x="366" y="430" text-anchor="middle">Caché</text>
+        <text class="a-t2" x="366" y="466" text-anchor="middle">LRU propio</text>
+        <text class="a-t2" x="366" y="494" text-anchor="middle">Redis opcional</text>
+        <text class="a-t2" x="366" y="522" text-anchor="middle">respaldo automático</text>
+        <rect class="bx" x="480" y="396" width="224" height="180" rx="14"/>
+        <text class="a-t1" x="592" y="430" text-anchor="middle">Reservas</text>
+        <text class="a-t2" x="592" y="466" text-anchor="middle">asíncronas (asyncio)</text>
+        <text class="a-t2" x="592" y="494" text-anchor="middle">procesadas por lotes</text>
+        <rect class="bx" x="720" y="396" width="226" height="180" rx="14"/>
+        <text class="a-t1" x="833" y="430" text-anchor="middle">Datos</text>
+        <text class="a-t2" x="833" y="466" text-anchor="middle">180 ciudades</text>
+        <text class="a-t2" x="833" y="494" text-anchor="middle">4 transportes</text>
+        <text class="a-t2" x="833" y="522" text-anchor="middle">distancias reales</text>
+      </svg>
     </div>
-    <div>
-      <div class="card ca mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>Dijkstra</h3>
-          <span class="tag tb">1 origen → 1 destino</span>
-        </div>
-        <p>Se aplica sobre el grafo de ciudades. Cada conexión tiene costo, tiempo y transporte. El algoritmo encuentra el camino mínimo usando una cola de prioridad.</p>
-      </div>
-      <div class="card cp mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>TSP / Held-Karp</h3>
-          <span class="tag tp">1 origen → N ciudades</span>
-        </div>
-        <p>Se usa cuando el usuario selecciona múltiples destinos. Evalúa combinaciones con programación dinámica, bitmasking y memoización para minimizar costo o tiempo total.</p>
-        <div style="font-size:0.65rem;color:var(--muted);margin:0.7rem 0 0.45rem;letter-spacing:0.1em;text-transform:uppercase;">Órdenes posibles — (n−1)!</div>
-        <div class="flow-row">
-          <div class="flow-box">4 → 6</div>
-          <div class="flow-box">8 → 5.040</div>
-          <div class="flow-box">12 → ~40 M</div>
-          <div class="flow-box">20 → ~1,2×10¹⁷</div>
-        </div>
-      </div>
-      <div class="card co">
-        <h3 style="margin-bottom:0.5rem;">Aclaración importante</h3>
-        <p>En este proyecto ambos algoritmos están integrados en la API, pero para el TSP la matriz se arma desde los datos generados en <code>routes_fixed.py</code>, no desde una ejecución all-pairs de Dijkstra.</p>
-      </div>
-    </div>
+    <ul class="pts rise">
+      <li>La interfaz es un <strong>cliente liviano</strong>: rutas, reservas y estadísticas se piden por HTTP.</li>
+      <li>El <strong>servidor elige el algoritmo</strong>, valida y mide; la UI solo muestra el resultado.</li>
+      <li>Excepciones explícitas: <strong>servicios externos</strong> desde la UI y el <strong>benchmark del Laboratorio</strong> en su proceso.</li>
+    </ul>
   </div>
+  <aside class="notes"><ul>
+    <li>Capas: presentación (<code>app/ui</code>), aplicación (<code>app/api/server.py</code>, 15 endpoints), dominio (<code>app/core</code>: algoritmos puros) e infraestructura (<code>caches</code>, <code>booking</code>, <code>data</code>).</li>
+    <li>Beneficio concreto: los algoritmos se prueban sin interfaz y la API se puede usar sola desde Swagger (<code>/docs</code>).</li>
+    <li>Excepción 1: recomendaciones (Gemini) y trazado por carretera (OSRM) son presentación, no cálculo de rutas; si fallan, las rutas no se ven afectadas.</li>
+    <li>Excepción 2: el benchmark del Laboratorio debe ser controlado y reproducible (semilla fija) y no mezclarse con las métricas reales del servidor.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S3 — ALGORITMOS
-══════════════════════════════════════ -->
-<section class="slide" id="s3" data-label="Algoritmos">
-  <div class="orb" style="width:320px;height:320px;background:rgba(139,92,246,0.07);top:5%;right:-40px;"></div>
-  <div class="slide-num">04 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">app/core/</div>
-    <h2>Algoritmos de<br><span class="grad2">optimización</span></h2>
-  </div>
-  <div class="g2 reveal stagger">
-    <div>
-      <div class="card ca mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>Dijkstra — Camino mínimo</h3>
-          <span class="tag tb">graph.py</span>
-        </div>
-        <p class="mb2">Implementado sobre un <strong>grafo dirigido de ciudades</strong>. Cada arista tiene peso de costo y de tiempo, más una etiqueta de tipo de transporte. Antes de ejecutar la búsqueda se puede filtrar por transporte, descartando aristas que no corresponden.</p>
-        <p class="mb2">Usa una <strong>min-heap (cola de prioridad)</strong> para explorar siempre el nodo con menor costo acumulado primero. Se detiene al alcanzar el destino.</p>
-        <div class="code-block"><span class="kw">class</span> <span class="fn">Route</span>:
-  destino:    <span class="kw">str</span>
-  costo:      <span class="kw">float</span>
-  tiempo:     <span class="kw">float</span>
-  transporte: <span class="kw">str</span>   <span class="cm"># auto | tren | avion</span>
-
-<span class="cm"># Llamada al algoritmo</span>
-grafo.<span class="fn">dijkstra</span>(
-  origen=<span class="st">"Madrid"</span>, destino=<span class="st">"Roma"</span>,
-  criterio=<span class="st">"costo"</span>, transporte=<span class="st">"tren"</span>
-)</div>
-      </div>
-      <div class="card">
-        <h3 style="margin-bottom:0.4rem;">Complejidad temporal</h3>
-        <p><strong>O((V + E) log V)</strong> con min-heap, donde V = ciudades, E = rutas. Eficiente para el grafo europeo que maneja el sistema.</p>
-      </div>
+<!-- ═════════════ 4 · DATOS Y COSTOS ═════════════ -->
+<section class="slide" data-title="Datos y costos">
+  <header class="head">
+    <div class="tag">Datos</div>
+    <h2>Un grafo del mundo <span class="hl">con costos realistas</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 0.9fr 1.1fr;">
+    <div class="kpis rise" style="grid-template-columns: 1fr 1fr; align-content: start;">
+      <div class="kpi"><div class="v">180</div><div class="l">ciudades en 6 continentes</div></div>
+      <div class="kpi"><div class="v">22.328</div><div class="l">rutas directas dirigidas</div></div>
+      <div class="kpi"><div class="v">4</div><div class="l">transportes: auto, tren, avión y barco</div></div>
+      <div class="kpi"><div class="v">46</div><div class="l">hubs aéreos internacionales</div></div>
     </div>
-    <div>
-      <div class="card cp mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>TSP Held-Karp (DP + bitmask)</h3>
-          <span class="tag tp">tsp_dp.py</span>
-        </div>
-        <p class="mb2">Resuelve el <strong>Problema del Viajante</strong> para múltiples destinos. Usa programación dinámica con bitmask para representar el subconjunto de ciudades visitadas, y memoización para evitar recalcular estados ya computados.</p>
-        <p class="mb2">El estado del DP es <strong>dp[mask][i]</strong> = costo mínimo de llegar a la ciudad <em>i</em> habiendo visitado exactamente las ciudades indicadas en el bitmask. Al final reconstruye el camino recorriendo las decisiones almacenadas.</p>
-        <div class="code-block"><span class="cm"># Estado del DP</span>
-dp[mask][i] = costo_min_para_llegar
-  a ciudad[i] habiendo visitado
-  ciudades en {mask}
-
-<span class="cm"># Transición</span>
-<span class="kw">for</span> j en ciudades no visitadas:
-  dp[mask | (1&lt;&lt;j)][j] =
-    min(dp[mask][i] + dist[i][j])
-
-<span class="cm"># Complejidad</span>
-Tiempo: O(n² · 2ⁿ)
-Espacio: O(n · 2ⁿ)</div>
-      </div>
-      <div class="card">
-        <h3 style="margin-bottom:0.4rem;">Tour cerrado vs abierto</h3>
-        <p>El solver soporta ambas variantes: con <strong>regreso al origen</strong> (tour cerrado, el clásico TSP) y <strong>sin regreso</strong> (tour abierto), según lo que necesite el itinerario del usuario.</p>
-      </div>
+    <div class="card acc">
+      <h3>Por qué importan las escalas</h3>
+      <ul class="pts sm" style="margin-top: 12px;">
+        <li><strong>Por tierra</strong>, el costo por km sube en viajes largos: encadenar tramos puede salir más barato. Tren Madrid → Roma: 450 € directo, <strong>301 € por Barcelona</strong>.</li>
+        <li><strong>En avión</strong>, cada despegue paga una tasa fija: si hay vuelo directo, siempre gana.</li>
+        <li>Solo los <strong>hubs</strong> vuelan a cualquier distancia: 23.364 de los 32.220 pares de ciudades necesitan escala.</li>
+        <li>Distancias reales (fórmula de Haversine), <strong>sin APIs externas</strong>.</li>
+      </ul>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Perfiles por transporte (datos, no condicionales): auto 0,18 €/km a 80 km/h (×1,6 desde 1.500 km, más peajes); tren 0,22 €/km a 120 km/h (×1,5 desde 1.200 km); avión 70 € por despegue + 0,12 €/km a 700 km/h, 0,8 h de embarque (×0,8 desde 1.500 km); barco 0,12 €/km a 35 km/h (recorrido ×1,3).</li>
+    <li>Factibilidad: auto y tren en la misma masa continental hasta 4.000 km; barco entre puertos de la misma cuenca o entre hubs de cruceros; avión hub ↔ hub siempre, hub ↔ regional hasta 6.000 km, regional ↔ regional hasta 2.000 km.</li>
+    <li>Por qué el vuelo directo gana: directo = 70 + c·d; con escala = 140 + c·(d₁ + d₂), y d ≤ d₁ + d₂ (desigualdad triangular). El descuento ×0,8 nunca recupera la segunda tasa. Verificado sobre los 8.856 vuelos directos: margen mínimo 48 €.</li>
+    <li>Tests que lo fijan: <code>test_cheapest_long_haul_flight_is_direct</code> y <code>test_far_regional_airports_connect_through_hubs</code>.</li>
+  </ul></aside>
 </section>
 
-
-<!-- ══════════════════════════════════════
-  S3A — POR QUÉ GENÉTICO
-══════════════════════════════════════ -->
-<section class="slide" id="s3-porque" data-label="Por qué Genético">
-  <div class="orb" style="width:320px;height:320px;background:rgba(139,92,246,0.06);top:10%;left:-60px;"></div>
-  <div class="slide-num">05 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">Justificación de la elección</div>
-    <h2>¿Por qué<br><span class="grad2">Algoritmo Genético?</span></h2>
-  </div>
-  <div class="g6040 reveal stagger">
-    <div>
-      <p class="mb2">Para reemplazar a Held-Karp en 13+ ciudades había varias familias de heurísticos posibles. La decisión no fue "cualquier heurístico sirve" — se comparó contra las alternativas más directas antes de elegir cuál implementar.</p>
-      <div class="card co mb1">
-        <h3 style="margin-bottom:0.6rem;">Alternativas consideradas</h3>
-        <div style="display:flex;flex-direction:column;gap:0.55rem;">
-          <div><strong style="color:var(--text);">Nearest Neighbor</strong> <span class="tag to" style="margin-left:0.4rem;">greedy · O(n²)</span><p style="margin-top:0.25rem;">Construye una única solución y nunca la mejora. Rápido, pero la calidad depende del punto de partida y no hay margen de ajuste.</p></div>
-          <div><strong style="color:var(--text);">2-Opt</strong> <span class="tag to" style="margin-left:0.4rem;">mejora local · O(n²)/iter</span><p style="margin-top:0.25rem;">Mejora un tour existente intercambiando aristas, pero queda atrapado en óptimos locales sin forma de escapar.</p></div>
-          <div><strong style="color:var(--text);">Recocido Simulado</strong> <span class="tag to" style="margin-left:0.4rem;">metaheurístico · O(iter)</span><p style="margin-top:0.25rem;">Explora una sola solución a la vez, aceptando empeoras controladas. No aprovecha diversidad poblacional.</p></div>
-        </div>
-      </div>
-      <div class="card cg">
-        <p>“Un heurístico poblacional no busca una única respuesta — mantiene muchas en simultáneo y deja que compitan. Eso es lo que hace al Genético distinto de un greedy o de una mejora local.”</p>
+<!-- ═════════════ 5 · DIJKSTRA ═════════════ -->
+<section class="slide" data-title="Dijkstra">
+  <header class="head">
+    <div class="tag"><span class="dot dij"></span>Camino mínimo</div>
+    <h2>Dijkstra: camino mínimo <span class="hl">con min-heap</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 1fr 1.12fr;">
+    <div class="stack">
+      <ul class="pts rise">
+        <li>El <strong>min-heap</strong> siempre expande la ciudad con menor costo acumulado.</li>
+        <li>Es correcto porque los pesos (euros u horas) <strong>nunca son negativos</strong>.</li>
+        <li><strong>Costo o tiempo: mismo algoritmo</strong>, cambia solo el peso de la arista.</li>
+        <li><strong>También arma la matriz del TSP</strong>: el mejor itinerario de cada par, con escalas.</li>
+      </ul>
+      <div class="card dij" style="padding: 16px 22px;">
+        <div class="kicker">Complejidad</div>
+        <p><strong>O((V + E) log V)</strong>: con 180 ciudades y 22.328 rutas responde en 0,5 a 3 ms.</p>
       </div>
     </div>
-    <div>
-      <div class="card cp mb1">
-        <h3 style="margin-bottom:0.6rem;">Por qué se eligió el Genético</h3>
-        <div style="display:flex;flex-direction:column;gap:0.55rem;">
-          <div><strong style="color:var(--text);">Poblacional, no de una sola solución</strong><p style="margin-top:0.2rem;">Evoluciona 150–200 individuos en paralelo por generación; el cruce (OX) combina buenas subrutas de padres distintos en vez de partir de una sola.</p></div>
-          <div><strong style="color:var(--text);">Nunca pierde lo mejor encontrado</strong><p style="margin-top:0.2rem;">El elitismo pasa los 2 mejores individuos intactos a la siguiente generación — a diferencia de 2-Opt o Recocido Simulado, no hay riesgo de retroceder.</p></div>
-          <div><strong style="color:var(--text);">Extensible sin tocar el algoritmo</strong><p style="margin-top:0.2rem;">El fitness (1/costo) podría sumar restricciones reales — presupuesto, tiempo, ciudades prohibidas — sin cambiar selección, cruce ni mutación.</p></div>
-          <div><strong style="color:var(--text);">Demostrable en vivo</strong><p style="margin-top:0.2rem;">La evolución generación a generación es visual y medible: <code>history</code> guarda <code>best_cost</code> y <code>avg_cost</code> por generación, graficado en la UI con barra de progreso en tiempo real.</p></div>
-        </div>
-      </div>
-      <div class="card">
-        <h3 style="margin-bottom:0.4rem;">Trade-off asumido</h3>
-        <p>A cambio de esa flexibilidad y escalabilidad, el Genético <strong>no garantiza el óptimo</strong>. El Laboratorio existe justamente para medir ese costo: el gap de optimalidad frente a Held-Karp.</p>
+    <div class="stack">
+      <figure class="snip">
+        <figcaption>graph.py · extracto de dijkstra()</figcaption>
+<pre class="code"><span class="kw">for</span> route <span class="kw">in</span> self.graph[current_node]:
+    <span class="kw">if</span> transport_type <span class="kw">and</span> route.transport_type != transport_type:
+        <span class="kw">continue</span>
+    neighbor = route.destination
+    new_distance = current_distance + <span class="fn">getattr</span>(route, weight)
+    <span class="kw">if</span> new_distance &lt; distances[neighbor]:
+        distances[neighbor] = new_distance
+        heapq.<span class="fn">heappush</span>(priority_queue, (new_distance, neighbor))</pre>
+      </figure>
+      <div class="card dij">
+        <div class="kicker">Ejemplo real · avión, sin vuelo directo</div>
+        <p><strong>Sevilla → Estambul → Kuala Lumpur → Perth</strong>: 1.701 € y 24,6 h.</p>
       </div>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Código en <code>app/core/graph.py</code> (<code>TravelGraph</code>). El extracto omite la línea que guarda el predecesor para reconstruir el camino.</li>
+    <li>Alternativas: Bellman-Ford, O(V·E), sobra porque no hay pesos negativos; A* exigiría una heurística admisible por transporte.</li>
+    <li>Las entradas viejas del heap se descartan con <code>visited</code>, corta al llegar al destino y filtra por transporte en el mismo recorrido.</li>
+    <li>La matriz del TSP (<code>/routes/matrix</code>) corre Dijkstra desde cada ciudad y se calcula una sola vez por transporte y criterio (<code>lru_cache</code>).</li>
+    <li>Las respuestas traen siempre costo y horas (y peajes en auto), optimice por lo que optimice.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S3B — ALGORITMO GENÉTICO
-══════════════════════════════════════ -->
-<section class="slide slide-alt" id="s3-genetico" data-label="Algoritmo Genético">
-  <div class="orb" style="width:340px;height:340px;background:rgba(139,92,246,0.07);bottom:5%;left:-60px;"></div>
-  <div class="slide-num">06 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">app/core/tsp_genetic.py · clase GeneticTSP</div>
-    <h2>Algoritmo Genético —<br><span class="grad2">TSP heurístico</span></h2>
-  </div>
-  <div class="g6040 reveal stagger">
-    <div>
-      <p class="mb2">Held-Karp es exacto pero <strong>explota exponencialmente</strong>: con 20 ciudades son 20² × 2²⁰ ≈ <strong>419 millones de estados</strong>, inviable en una UI web. El genético resuelve el mismo problema con complejidad <strong>O(generaciones × población × n)</strong>, totalmente controlable.</p>
-      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Lógica de umbral (routing) — la decide el servidor</div>
-      <div class="flow-row mb2">
-        <div class="flow-box">2 ciudades → Dijkstra</div>
-        <div class="flow-arr">·</div>
-        <div class="flow-box">3–12 → Held-Karp</div>
-        <div class="flow-arr">·</div>
-        <div class="flow-box">13–25 → Genético</div>
-      </div>
-      <div class="card cp mb1">
-        <h3>Codificación (cromosoma)</h3>
-        <p style="margin-top:0.4rem;">Permutación de índices de ciudades. <code>[0, 3, 1, 2]</code> = Madrid → Viena → Barcelona → Roma → (Madrid). Fitness = 1 / costo total del tour.</p>
-      </div>
-      <div class="card co">
-        <h3 style="margin-bottom:0.4rem;">Constante de corte (en el servidor)</h3>
-        <p><code>HELD_KARP_MAX = 12</code> y <code>MAX_TSP_CITIES = 25</code> (<code>app/core/tsp_dp.py</code>). <code>/routes/optimize-multi</code> elige el algoritmo con <code>choose_tsp_algorithm(n)</code>; más de 25 ciudades → 422. Un campo opcional <code>algorithm</code> permite forzarlo. La UI no decide: solo muestra el <code>algorithm</code> y el <code>elapsed_ms</code> que devuelve la API. Con n=12 son ~590K operaciones; con n=20, ~419M.</p>
-      </div>
-    </div>
-    <div>
-      <div class="card ca mb1">
-        <h3 style="margin-bottom:0.6rem;">Operadores evolutivos</h3>
-        <div style="display:flex;flex-direction:column;gap:0.55rem;">
-          <div><strong style="color:var(--text);">Selección — Torneo</strong><p style="margin-top:0.2rem;">5 candidatos al azar, gana el de menor costo.</p></div>
-          <div><strong style="color:var(--text);">Cruce — Order Crossover (OX)</strong><p style="margin-top:0.2rem;">Toma un segmento del padre 1 y rellena con el orden del padre 2, sin repetir ciudades. La ciudad inicial queda siempre fija.</p></div>
-          <div><strong style="color:var(--text);">Mutación — Swap</strong><p style="margin-top:0.2rem;">Intercambia dos ciudades al azar. Probabilidad 2%.</p></div>
-          <div><strong style="color:var(--text);">Elitismo</strong><p style="margin-top:0.2rem;">Los 2 mejores individuos pasan directo a la próxima generación — la mejor solución nunca se pierde.</p></div>
+<!-- ═════════════ 6 · HELD-KARP ═════════════ -->
+<section class="slide" data-title="Held-Karp">
+  <header class="head">
+    <div class="tag"><span class="dot hk"></span>TSP exacto</div>
+    <h2>Held-Karp: programación dinámica <span class="hl">con bitmask</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 1fr 1.2fr;">
+    <div class="stack">
+      <ul class="pts rise">
+        <li>Estado <strong>(mask, pos)</strong>: qué ciudades ya visité y dónde estoy.</li>
+      </ul>
+      <div class="card hk" style="padding: 16px 22px;">
+        <div class="mask" aria-label="mask 0b1101: ciudades 0, 2 y 3 visitadas; falta la 1">
+          <div class="bit"><div class="b">1</div><div class="c">ciudad 3</div></div>
+          <div class="bit"><div class="b">1</div><div class="c">ciudad 2</div></div>
+          <div class="bit off"><div class="b">0</div><div class="c">ciudad 1</div></div>
+          <div class="bit"><div class="b">1</div><div class="c">ciudad 0</div></div>
+          <p style="margin-left: 14px; font-size: 20px;"><code>mask = 0b1101</code><br>visitadas {0, 2, 3}; falta la 1</p>
         </div>
       </div>
-      <div class="code-block"><span class="cm"># Order Crossover (OX)</span>
-parent1: [0, 1, 2, 3, 4]
-parent2: [0, 3, 1, 4, 2]
-segmento [1:3] de parent1 → [1, 2]
-hijo:    [0, 3, 1, 2, 4]  <span class="cm"># relleno de parent2</span>
-
-<span class="cm"># Parámetros (13+ ciudades, solver principal)</span>
-population_size = <span class="num">200</span>
-generations     = <span class="num">400</span>
-mutation_rate   = <span class="num">0.02</span>
-elitism         = <span class="num">2</span></div>
+      <ul class="pts">
+        <li><strong>Memoización</strong>: cada subproblema se calcula una sola vez.</li>
+        <li><strong>Exacto</strong>: garantiza el óptimo y sirve de referencia para el genético.</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <div class="kpis" style="grid-template-columns: 1fr 1fr 1.15fr;">
+        <div class="kpi sm" style="border-top-color: var(--hk);"><div class="v" style="font-size: 32px;">O(n²·2ⁿ)</div><div class="l">tiempo</div></div>
+        <div class="kpi sm" style="border-top-color: var(--hk);"><div class="v" style="font-size: 32px;">O(n·2ⁿ)</div><div class="l">memoria</div></div>
+        <div class="kpi sm" style="border-top-color: var(--hk);"><div class="v" style="font-size: 32px;">≈ 69 ms</div><div class="l">12 ciudades, medido</div></div>
+      </div>
+      <figure class="snip">
+        <figcaption>tsp_dp.py · TSPSolver._tsp()</figcaption>
+<pre class="code sm"><span class="kw">if</span> (mask, pos) <span class="kw">in</span> self.memo:
+    <span class="kw">return</span> self.memo[(mask, pos)]
+<span class="kw">for</span> next_city <span class="kw">in</span> <span class="fn">range</span>(self.n):
+    <span class="kw">if</span> mask &amp; (<span class="nu">1</span> &lt;&lt; next_city):
+        <span class="kw">continue</span>
+    new_mask = mask | (<span class="nu">1</span> &lt;&lt; next_city)
+    cost = self.cost[pos][next_city] + self.<span class="fn">_tsp</span>(new_mask, next_city)</pre>
+      </figure>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Idea clave: el costo de lo que falta depende solo de qué ciudades quedan y dónde estoy, no del orden anterior (subestructura óptima). Por eso los subproblemas se reutilizan.</li>
+    <li>Pasa de (n − 1)! a n²·2ⁿ: con 12 ciudades, de unos 40 millones de órdenes a unas 590 mil operaciones (69 ms en una corrida local).</li>
+    <li><code>parent</code> guarda la mejor decisión de cada estado para reconstruir el tour; soporta tour cerrado o abierto (<code>return_to_start</code>).</li>
+    <li>Cumple el requisito del enunciado “memoización para subrutas ya calculadas”. Código en <code>app/core/tsp_dp.py</code>.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S3C — LABORATORIO DE COMPARACIÓN
-══════════════════════════════════════ -->
-<section class="slide" id="s3-benchmark" data-label="Laboratorio">
-  <div class="orb" style="width:300px;height:300px;background:rgba(34,197,94,0.06);top:10%;right:-50px;"></div>
-  <div class="slide-num">07 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">⚗️ Página "Laboratorio" · app/ui/views/laboratory.py</div>
-    <h2>Comparación empírica:<br><span class="grad">exacto vs heurístico</span></h2>
-  </div>
-  <div class="g6040 reveal stagger">
-    <div>
-      <p class="mb2">Página nueva que enfrenta <strong>Held-Karp</strong> contra el <strong>genético</strong> con ciudades reales tomadas de <code>routes_fixed</code>, con semilla reproducible. Este <strong>benchmark controlado</strong> no depende de la API: arma la matriz de costos y corre ambos algoritmos directamente en la UI. Arriba, la sección <strong>Estadísticas de uso real</strong> muestra los tiempos que el servidor midió en las rutas reales de los usuarios (<code>GET /stats/algorithms</code>, sin contar respuestas cacheadas).</p>
-      <div class="card ca mb1">
-        <h3>Comparación puntual</h3>
-        <p style="margin-top:0.4rem;">Para un <code>n</code> elegido, corre ambos y muestra costo, tiempo (ms) y <strong>gap de optimalidad</strong> del genético contra el óptimo. Por encima de n=12, Held-Karp queda descartado y se informa que sería inviable (2ⁿ estados).</p>
-      </div>
-      <div class="card cp">
-        <h3>Benchmark completo</h3>
-        <p style="margin-top:0.4rem;">Corre n = 4…14 y grafica el tiempo con <strong>eje Y logarítmico</strong> (Altair). Extrapola Held-Karp con su complejidad teórica <code>t = C·n²·2ⁿ</code> para estimar el <strong>punto de cruce</strong> (~n=16) donde el heurístico pasa a ser más rápido.</p>
+<!-- ═════════════ 7 · GENÉTICO ═════════════ -->
+<section class="slide" data-title="Algoritmo genético">
+  <header class="head">
+    <div class="tag"><span class="dot ga"></span>TSP heurístico</div>
+    <h2>Algoritmo genético: <span class="hl">buena ruta en tiempo acotado</span></h2>
+  </header>
+  <div class="body">
+    <div class="grid rise" style="grid-template-columns: repeat(4, 1fr); gap: 18px;">
+      <div class="card ga"><h3>Cromosoma</h3><p>Un orden de visita, con la ciudad de origen fija.</p></div>
+      <div class="card ga"><h3>Torneo</h3><p>De varios candidatos al azar, gana el más barato.</p></div>
+      <div class="card ga"><h3>Cruce OX</h3><p>Mezcla dos padres sin repetir ni perder ciudades.</p></div>
+      <div class="card ga"><h3>Mutación y elitismo</h3><p>Intercambios al azar; los mejores pasan intactos.</p></div>
+    </div>
+    <div class="grid" style="grid-template-columns: 1.12fr 1fr;">
+      <figure class="snip">
+        <figcaption>tsp_genetic.py · _breed_next_generation()</figcaption>
+<pre class="code">next_population: List[List[<span class="kw">int</span>]] = population[: self.elitism]
+<span class="kw">while</span> <span class="fn">len</span>(next_population) &lt; self.population_size:
+    parent1 = self.<span class="fn">_tournament_select</span>(population, costs)
+    parent2 = self.<span class="fn">_tournament_select</span>(population, costs)
+    child = self.<span class="fn">_order_crossover</span>(parent1, parent2)
+    <span class="kw">if</span> random.<span class="fn">random</span>() &lt; self.mutation_rate:
+        child = self.<span class="fn">_swap_mutate</span>(child)
+    next_population.<span class="fn">append</span>(child)</pre>
+      </figure>
+      <div class="card quiet">
+        <h3>El trade-off</h3>
+        <ul class="pts sm" style="margin-top: 10px;">
+          <li>Tiempo <strong>O(G · P · n)</strong>: acotado y predecible.</li>
+          <li><strong>No garantiza el óptimo</strong>: el gap se mide contra Held-Karp.</li>
+          <li>Su curva de convergencia se ve <strong>en vivo</strong> en la app.</li>
+        </ul>
       </div>
     </div>
-    <div>
-      <div class="code-block mb1"><span class="cm"># Extrapolación calibrada con el último punto medido</span>
-C = hk_ms_medido / (n² · 2ⁿ)
-<span class="kw">for</span> k <span class="kw">in</span> range(n_medido, <span class="num">18</span>):
-  proyectado[k] = C * k**<span class="num">2</span> * <span class="num">2</span>**k
-
-<span class="cm"># Cruce: primer k donde el exacto proyectado</span>
-<span class="cm"># supera al promedio del genético</span></div>
-      <div class="card cg">
-        <h3 style="margin-bottom:0.5rem;">Hallazgo pedagógico</h3>
-        <p>El genético tiene un <strong>costo fijo alto</strong> (población × generaciones): para pocas ciudades Held-Karp es más rápido además de exacto. La ventaja del heurístico no es la velocidad con n chico — es que <strong>sigue siendo viable</strong> cuando el exacto ya no puede correr.</p>
-      </div>
-    </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Parámetros del servidor: población 200, 400 generaciones, torneo de 5, mutación swap del 2 %, elitismo de 2 (<code>app/api/server.py</code>).</li>
+    <li>OX: padre 1 [0,1,2,3,4], padre 2 [0,3,1,4,2], segmento [1,2] → hijo [0,3,1,2,4]. Elitismo: el mejor costo por generación nunca empeora (hay un test que lo verifica).</li>
+    <li>En una corrida local de referencia (semilla fija) llegó al óptimo hasta 10 ciudades y quedó a 2,8 % con 11 y a 8,2 % con 12.</li>
+    <li>¿Por qué no otro heurístico? Vecino más cercano construye una sola solución greedy; 2-opt se estanca en óptimos locales; recocido simulado explora una solución a la vez. El genético es poblacional y conserva lo mejor.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S5 — DÓNDE ESTÁ EN EL CÓDIGO
-══════════════════════════════════════ -->
-<section class="slide slide-alt" id="s5-codigo-algoritmos" data-label="Código algoritmos">
-  <div class="slide-num">08 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">Archivos reales detectados</div>
-    <h2>Dónde aparece<br><span class="grad">en el código</span></h2>
-  </div>
-  <div class="g2 reveal stagger">
-    <div>
-      <div class="card ca mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>Dijkstra — <code>graph.py</code></h3>
-          <span class="tag tb">TravelGraph</span>
-        </div>
-        <p class="mb1">La clase <code>TravelGraph</code> representa las ciudades como nodos y las rutas como aristas ponderadas.</p>
-        <div class="code-block"><span class="kw">def</span> <span class="fn">dijkstra</span>(source, target, weight, transport_type):
-  priority_queue = [(<span class="num">0</span>, source)]
-
-  <span class="kw">while</span> priority_queue:
-    current_distance, current_node = heapq.heappop(priority_queue)
-
-    <span class="kw">for</span> route <span class="kw">in</span> graph[current_node]:
-      edge_weight = getattr(route, weight)
-      new_distance = current_distance + edge_weight</div>
-        <p style="margin-top:0.8rem;"><strong>“cada vez que encuentra una ruta mejor, actualiza la distancia y el predecesor para reconstruir el camino final.”</strong></p>
+<!-- ═════════════ 8 · EL SERVIDOR ELIGE ═════════════ -->
+<section class="slide" data-title="El servidor elige">
+  <header class="head">
+    <div class="tag">Decisión del servidor</div>
+    <h2>El servidor elige: <span class="hl">dónde conviene cada uno</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 1.42fr 1fr; gap: 36px;">
+    <div class="chart">
+      <div class="legend">
+        <span><i class="sw hk"></i>Held-Karp medido</span>
+        <span><i class="sw hk dash"></i>Held-Karp proyectado</span>
+        <span><i class="sw ga"></i>Genético medido</span>
       </div>
-      <div class="card cg">
-        <h3 style="margin-bottom:0.5rem;">Endpoints relacionados</h3>
-        <p><code>/routes/shortest</code> calcula un camino mínimo. <code>/routes/compare</code> compara la ruta del usuario contra una ruta optimizada usando Dijkstra con filtro de transporte.</p>
-      </div>
+      <svg viewBox="0 0 880 470" role="img" aria-label="Tiempo de ejecución en escala logarítmica según la cantidad de ciudades. Held-Karp medido: 0,1 ms con 4 ciudades, 69 ms con 12. Proyectado: 2 s con 16, 49 s con 20 y 41 minutos con 25. Genético: cerca de 2 s para cualquier cantidad. Cruce cerca de 16 ciudades.">
+        <rect class="ch-band-hk" x="96" y="24" width="289.5" height="382"/>
+        <rect class="ch-band-ga" x="385.5" y="24" width="470.5" height="382"/>
+        <text class="ch-lbl" x="106" y="46">zona Held-Karp · n ≤ 12</text>
+        <text class="ch-lbl" x="396" y="46">zona genético · 13 a 25</text>
+        <!-- grid + y labels (log scale) -->
+        <line class="ch-grid" x1="96" x2="856" y1="358.2" y2="358.2"/>
+        <line class="ch-grid" x1="96" x2="856" y1="310.5" y2="310.5"/>
+        <line class="ch-grid" x1="96" x2="856" y1="262.8" y2="262.8"/>
+        <line class="ch-grid" x1="96" x2="856" y1="215" y2="215"/>
+        <line class="ch-grid" x1="96" x2="856" y1="167.2" y2="167.2"/>
+        <line class="ch-grid" x1="96" x2="856" y1="119.5" y2="119.5"/>
+        <line class="ch-grid" x1="96" x2="856" y1="71.8" y2="71.8"/>
+        <line class="ch-grid" x1="96" x2="856" y1="24" y2="24"/>
+        <text class="ch-lbl" x="86" y="411" text-anchor="end">0,1 ms</text>
+        <text class="ch-lbl" x="86" y="363" text-anchor="end">1 ms</text>
+        <text class="ch-lbl" x="86" y="315" text-anchor="end">10 ms</text>
+        <text class="ch-lbl" x="86" y="268" text-anchor="end">100 ms</text>
+        <text class="ch-lbl" x="86" y="220" text-anchor="end">1 s</text>
+        <text class="ch-lbl" x="86" y="172" text-anchor="end">10 s</text>
+        <text class="ch-lbl" x="86" y="124" text-anchor="end">100 s</text>
+        <text class="ch-lbl" x="86" y="77" text-anchor="end">17 min</text>
+        <text class="ch-lbl" x="86" y="29" text-anchor="end">2,8 h</text>
+        <!-- x axis -->
+        <line class="ch-axis" x1="96" x2="856" y1="406" y2="406"/>
+        <text class="ch-lbl" x="96" y="428" text-anchor="middle">4</text>
+        <text class="ch-lbl" x="240.8" y="428" text-anchor="middle">8</text>
+        <text class="ch-lbl" x="385.5" y="428" text-anchor="middle">12</text>
+        <text class="ch-lbl" x="530.3" y="428" text-anchor="middle">16</text>
+        <text class="ch-lbl" x="675" y="428" text-anchor="middle">20</text>
+        <text class="ch-lbl" x="856" y="428" text-anchor="middle">25</text>
+        <text class="ch-lbl" x="476" y="458" text-anchor="middle">Cantidad de ciudades (n)</text>
+        <!-- threshold -->
+        <line class="ch-axis ch-dash" x1="385.5" x2="385.5" y1="56" y2="406"/>
+        <text class="ch-mono" x="392" y="70">umbral = 12</text>
+        <!-- series -->
+        <polyline class="ch-line ch-hk ch-dash" points="385.5,270.4 421.7,252.7 457.9,235.2 494.1,218 530.3,201 566.5,184.1 602.7,167.3 638.9,150.7 675,134.2 711.2,117.8 747.4,101.5 783.6,85.3 819.8,69.1 856,53.1"/>
+        <polyline class="ch-line ch-hk" points="96,406 168.4,383.2 240.8,336.9 313.1,320.8 349.3,293.5 385.5,270.4"/>
+        <polyline class="ch-line ch-ga" points="96,200.9 168.4,199.4 240.8,199.5 313.1,198.6 349.3,198.2 385.5,197.4 421.7,195.5 457.9,204.5 530.3,203.6 675,202.6 856,200.8"/>
+        <!-- points with tooltips -->
+        <circle class="ch-pt-hk" cx="96" cy="406" r="6"><title>Held-Karp, n = 4: 0,1 ms (medido)</title></circle>
+        <circle class="ch-pt-hk" cx="168.4" cy="383.2" r="6"><title>Held-Karp, n = 6: 0,3 ms (medido)</title></circle>
+        <circle class="ch-pt-hk" cx="240.8" cy="336.9" r="6"><title>Held-Karp, n = 8: 2,8 ms (medido)</title></circle>
+        <circle class="ch-pt-hk" cx="313.1" cy="320.8" r="6"><title>Held-Karp, n = 10: 6,1 ms (medido)</title></circle>
+        <circle class="ch-pt-hk" cx="349.3" cy="293.5" r="6"><title>Held-Karp, n = 11: 22,7 ms (medido)</title></circle>
+        <circle class="ch-pt-hk" cx="385.5" cy="270.4" r="6"><title>Held-Karp, n = 12: 69,2 ms (medido)</title></circle>
+        <circle class="ch-pt-proj" cx="530.3" cy="201" r="6"><title>Held-Karp, n = 16: ≈ 2,0 s (proyección)</title></circle>
+        <circle class="ch-pt-proj" cx="675" cy="134.2" r="6"><title>Held-Karp, n = 20: ≈ 49 s (proyección)</title></circle>
+        <circle class="ch-pt-proj" cx="856" cy="53.1" r="6"><title>Held-Karp, n = 25: ≈ 41 min (proyección)</title></circle>
+        <circle class="ch-pt-ga" cx="96" cy="200.9" r="6"><title>Genético, n = 4: 1,98 s</title></circle>
+        <circle class="ch-pt-ga" cx="240.8" cy="199.5" r="6"><title>Genético, n = 8: 2,11 s</title></circle>
+        <circle class="ch-pt-ga" cx="385.5" cy="197.4" r="6"><title>Genético, n = 12: 2,34 s</title></circle>
+        <circle class="ch-pt-ga" cx="457.9" cy="204.5" r="6"><title>Genético, n = 14: 1,66 s</title></circle>
+        <circle class="ch-pt-ga" cx="675" cy="202.6" r="6"><title>Genético, n = 20: 1,82 s</title></circle>
+        <circle class="ch-pt-ga" cx="856" cy="200.8" r="6"><title>Genético, n = 25: 1,98 s</title></circle>
+        <!-- direct labels -->
+        <text class="ch-note" x="182" y="398">Held-Karp medido</text>
+        <text class="ch-note" x="700" y="96" text-anchor="end">Held-Karp proyectado</text>
+        <text class="ch-lbl-strong" x="846" y="40" text-anchor="end">n = 25 ≈ 41 min</text>
+        <text class="ch-note" x="106" y="184">Genético ≈ 2 s</text>
+        <circle class="ch-cross" cx="530.3" cy="202" r="14"/>
+        <text class="ch-lbl-strong" x="546" y="240">cruce ≈ n = 16</text>
+      </svg>
+      <p class="small" style="margin-top: 6px;">Corrida local, ciudades europeas. Proyección t = C·n²·2ⁿ calibrada con 12 ciudades.</p>
     </div>
-    <div>
-      <div class="card cp mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>TSP — <code>tsp_dp.py</code></h3>
-          <span class="tag tp">TSPSolver</span>
-        </div>
-        <p class="mb1">La clase <code>TSPSolver</code> implementa Held-Karp. Usa un bitmask para saber qué ciudades ya fueron visitadas.</p>
-        <div class="code-block"><span class="kw">if</span> mask == (<span class="num">1</span> &lt;&lt; n) - <span class="num">1</span>:
-  <span class="kw">return</span> cost[pos][start]  <span class="cm"># tour cerrado</span>
-
-<span class="kw">for</span> next_city <span class="kw">in</span> range(n):
-  <span class="kw">if</span> mask &amp; (<span class="num">1</span> &lt;&lt; next_city):
-    <span class="kw">continue</span>
-
-  new_mask = mask | (<span class="num">1</span> &lt;&lt; next_city)
-  best = min(best, cost[pos][next_city] + tsp(new_mask, next_city))</div>
-        <p style="margin-top:0.8rem;">En la defensa: <strong>“no elige simplemente la ciudad más cercana; evalúa subproblemas y guarda el mejor resultado global.”</strong></p>
-      </div>
-      <div class="card co">
-        <h3 style="margin-bottom:0.5rem;">Endpoint relacionado</h3>
-        <p><code>/routes/optimize-multi</code> recibe la matriz y las ciudades seleccionadas, elige Held-Karp (<code>TSPSolver</code>, n ≤ 12) o el genético (<code>GeneticTSP</code>, n ≤ 25) y devuelve <code>algorithm</code>, <code>optimal_route</code>, <code>total_cost</code>, <code>elapsed_ms</code>, <code>history</code> y <code>cached</code>.</p>
-      </div>
-    </div>
+    <ul class="pts sm rise">
+      <li>Hasta <strong>12 ciudades</strong>, Held-Karp; de <strong>13 a 25</strong>, genético; más, se rechaza.</li>
+      <li>Con n chico gana Held-Karp: <strong>69 ms</strong> con 12 ciudades, y es exacto.</li>
+      <li>El genético tarda <strong>≈ 2 s casi fijos</strong>, sin importar n.</li>
+      <li>Con 25 ciudades, Held-Karp tardaría <strong>≈ 41 min</strong>.</li>
+      <li>El cálculo corre en <strong>un hilo aparte</strong>: el servidor sigue atendiendo.</li>
+    </ul>
   </div>
+  <aside class="notes"><ul>
+    <li><code>POST /routes/optimize-multi</code>: valida (422 si la matriz no coincide, hay ciudades desconocidas, más de 25 ciudades o Held-Karp forzado con más de 12), busca en caché, elige con <code>choose_tsp_algorithm(n)</code> y resuelve con <code>run_in_threadpool</code>.</li>
+    <li>¿Por qué 12 si el cruce está cerca de 16? Margen de seguridad: Held-Karp más que duplica tiempo y memoria por ciudad (con 20, unos 21 millones de entradas en memoria); el genético es acotado y el servidor es compartido.</li>
+    <li>Por el GIL, el hilo no acelera el cálculo: libera el event loop para otras requests. Para paralelismo real de CPU harían falta procesos.</li>
+    <li>La UI no decide: la regla vive en un solo lugar. El campo opcional <code>algorithm</code> permite forzar el genético para compararlo.</li>
+    <li>El Laboratorio reproduce este experimento en vivo (n = 4 a 14, eje logarítmico y extrapolación del cruce).</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S4 — DATOS Y GRAFO
-══════════════════════════════════════ -->
-<section class="slide slide-alt" id="s4" data-label="Datos">
-  <div class="slide-num">09 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">app/data/ · app/core/graph.py</div>
-    <h2>Generación de rutas<br><span class="grad">y grafo de ciudades</span></h2>
-  </div>
-  <div class="g4060 reveal stagger">
-    <div>
-      <div class="card co mb1">
-        <h3 style="margin-bottom:0.6rem;">¿De dónde vienen los datos?</h3>
-        <p><code>routes_fixed.py</code> genera automáticamente rutas entre ciudades europeas a partir de <strong>coordenadas geográficas reales</strong>. Usa la fórmula de Haversine para calcular la distancia real sobre la esfera terrestre entre cada par de ciudades.</p>
+<!-- ═════════════ 9 · EFICIENCIA ═════════════ -->
+<section class="slide" data-title="Técnicas de eficiencia">
+  <header class="head">
+    <div class="tag">Eficiencia</div>
+    <h2>Técnicas de eficiencia <span class="hl">aplicadas</span></h2>
+  </header>
+  <div class="body">
+    <div class="grid rise" style="grid-template-columns: 1fr 1fr; gap: 22px;">
+      <div class="card acc">
+        <h3>Caché LRU</h3>
+        <p>Rutas y TSP repetidos se responden <strong>sin recalcular</strong>, en O(1). Redis es opcional: si no está disponible, se usa el LRU.</p>
       </div>
-      <div class="code-block mb1"><span class="kw">def</span> <span class="fn">haversine</span>(lat1, lon1, lat2, lon2):
-  R = <span class="num">6371</span>  <span class="cm"># radio Tierra en km</span>
-  dlat = radians(lat2 - lat1)
-  dlon = radians(lon2 - lon1)
-  a = sin(dlat/<span class="num">2</span>)**<span class="num">2</span> + cos(lat1) \
-    * cos(lat2) * sin(dlon/<span class="num">2</span>)**<span class="num">2</span>
-  <span class="kw">return</span> R * <span class="num">2</span> * asin(sqrt(a))
-
-<span class="cm"># Genera costo y tiempo por transporte</span>
-costo_avion  = distancia * FACTOR_AVION
-tiempo_tren  = distancia / VELOCIDAD_TREN</div>
-      <p style="font-size:0.78rem;">A partir de la distancia se derivan el <strong>costo estimado</strong> y el <strong>tiempo de viaje</strong> para cada tipo de transporte, generando una red coherente sin depender de APIs externas.</p>
-    </div>
-    <div>
-      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.65rem;letter-spacing:0.1em;text-transform:uppercase;">Estructura del grafo</div>
-      <div class="card mb1" style="padding:1.1rem;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.65rem;align-items:center;">
-          <span style="font-size:0.78rem;">Nodos (ciudades)</span>
-          <span class="tag tc">Madrid, París, Roma…</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.65rem;align-items:center;">
-          <span style="font-size:0.78rem;">Aristas (rutas)</span>
-          <span class="tag tb">dirigidas, con peso doble</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.65rem;align-items:center;">
-          <span style="font-size:0.78rem;">Peso por arista</span>
-          <span class="tag tp">costo · tiempo · transporte</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:0.78rem;">Filtro pre-algoritmo</span>
-          <span class="tag to">por tipo de transporte</span>
-        </div>
+      <div class="card hk">
+        <h3>Memoización</h3>
+        <p>Held-Karp resuelve cada subproblema <strong>una sola vez</strong>; la matriz de itinerarios se calcula una vez por transporte y criterio.</p>
       </div>
-      <div class="card ca mb1">
-        <h3 style="margin-bottom:0.5rem;">Matriz de costos para TSP</h3>
-        <p>Los mismos datos alimentan la <strong>matriz n×n</strong> requerida por Held-Karp. El endpoint <code>/routes/matrix</code> la expone para que la UI la solicite.</p>
+      <div class="card tsp">
+        <h3>Concurrencia asíncrona</h3>
+        <p>Reservas con <strong>asyncio</strong>: cada lote se procesa de forma concurrente con <code>asyncio.gather</code> y la UI se actualiza sola.</p>
       </div>
-      <div class="card">
-        <h3 style="margin-bottom:0.5rem;">Sin dependencias externas</h3>
-        <p>Todo el sistema de datos funciona offline. No depende de APIs de mapas ni servicios de terceros para generar las rutas base.</p>
+      <div class="card dij">
+        <h3>Pedidos en paralelo</h3>
+        <p>Recomendaciones con IA en <strong>bloques de 5 ciudades, 4 a la vez</strong>; solo se guardan en caché las respuestas exitosas.</p>
       </div>
     </div>
+    <div class="strip">El cálculo pesado (TSP) corre en un hilo aparte, así el servidor asíncrono nunca se bloquea.</div>
   </div>
+  <aside class="notes"><ul>
+    <li>Caché: LRU propio con <code>OrderedDict</code> (capacidad 100). Claves: origen, destino, criterio y transporte; para el TSP, algoritmo, ciudades, tipo de tour y md5 de la matriz. Se devuelve una copia (deepcopy) para no alterar lo guardado.</li>
+    <li>Los aciertos de caché se cuentan aparte: no ensucian los tiempos reales.</li>
+    <li>Lotes: un lote sale al juntar 20 reservas o a los 0,5 s; semáforos limitan a 5 lotes y 20 reservas simultáneas. El proveedor está simulado.</li>
+    <li>Gemini: JSON estructurado, un reintento ante 429 o 5xx y rescate de respuestas cortadas. Sin clave, la app funciona igual.</li>
+    <li>Requisitos del enunciado cubiertos: memoización, caching, concurrencia y batching.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S5 — API REST
-══════════════════════════════════════ -->
-<section class="slide" id="s5" data-label="API">
-  <div class="orb" style="width:280px;height:280px;background:rgba(6,182,212,0.05);bottom:5%;left:-40px;"></div>
-  <div class="slide-num">10 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">app/api/server.py · FastAPI + Uvicorn</div>
-    <h2>API REST —<br><span class="grad">capa de servicios</span></h2>
-  </div>
-  <div class="g6040 reveal stagger">
-    <div class="ep-list">
-      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/health</span> <span class="ep-desc">Estado del servidor</span></div>
-      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/routes/matrix</span> <span class="ep-desc">Matriz de costos por transporte</span></div>
-      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/routes/shortest</span> <span class="ep-desc">Dijkstra entre dos ciudades</span></div>
-      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/routes/compare</span> <span class="ep-desc">Ruta usuario vs ruta óptima</span></div>
-      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/routes/optimize-multi</span> <span class="ep-desc">TSP — orden óptimo de destinos</span></div>
-      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/itinerary/plan</span> <span class="ep-desc">Planificación con validaciones</span></div>
-      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/reservations</span> <span class="ep-desc">Crear reserva individual</span></div>
-      <div class="ep-item"><span class="ep-m post">POST</span> <span class="ep-path">/reservations/batch</span> <span class="ep-desc">Lote de reservas simultáneas</span></div>
-      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/reservations/user/{id}</span> <span class="ep-desc">Historial por usuario</span></div>
-      <div class="ep-item"><span class="ep-m del">DEL</span> <span class="ep-path">/reservations/{id}</span> <span class="ep-desc">Cancelar reserva</span></div>
-      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/stats</span> <span class="ep-desc">Estadísticas del sistema</span></div>
-      <div class="ep-item"><span class="ep-m get">GET</span> <span class="ep-path">/stats/algorithms</span> <span class="ep-desc">Ejecuciones reales por algoritmo</span></div>
-    </div>
-    <div>
-      <div class="card ca mb1">
-        <h3 style="margin-bottom:0.5rem;">Documentación automática</h3>
-        <p>FastAPI genera <strong>Swagger UI</strong> en <code>http://127.0.0.1:8000/docs</code> Todos los endpoints son explorables e invocables desde el navegador sin cliente adicional.</p>
+<!-- ═════════════ 10 · NOVEDADES ═════════════ -->
+<section class="slide" data-title="Novedades">
+  <header class="head">
+    <div class="tag">Novedades</div>
+    <h2>Lo nuevo <span class="hl">en esta versión</span></h2>
+  </header>
+  <div class="body">
+    <div class="grid rise" style="grid-template-columns: 1fr 1fr; gap: 22px;">
+      <div class="card dij">
+        <h3>Vuelos con hubs y escalas</h3>
+        <p>Los viajes largos entre aeropuertos regionales <strong>hacen escala en hubs</strong>. Todo se puede optimizar <strong>por precio o por tiempo</strong>.</p>
       </div>
-      <div class="card mb1">
-        <h3 style="margin-bottom:0.5rem;">Background task en startup</h3>
-        <p>Al iniciar, la API lanza un <strong>loop de batch</strong> en segundo plano usando el <code>lifespan</code> de FastAPI. Procesa lotes de reservas acumuladas sin bloquear los endpoints activos.</p>
+      <div class="card acc">
+        <h3>Comparación de transportes</h3>
+        <p>Para dos ciudades, la mejor ruta de cada transporte. Barcelona → Roma: <strong>barco, el más barato</strong> (135 €); <strong>avión, el más rápido</strong> (2 h).</p>
       </div>
-      <div class="card cg">
-        <h3 style="margin-bottom:0.5rem;">Caché integrado en API</h3>
-        <p>Rutas calculadas y optimizaciones se guardan en el <strong>LRU Cache local</strong>. Consultas repetidas (mismas ciudades, mismo transporte) se responden sin recalcular los algoritmos.</p>
+      <div class="card tsp">
+        <h3>Peajes y trazado real</h3>
+        <p>El auto suma <strong>peajes por región</strong> y el mapa sigue <strong>la carretera real</strong> (OSRM), con línea recta como respaldo.</p>
+      </div>
+      <div class="card hk">
+        <h3>Métricas de uso real</h3>
+        <p>El Laboratorio muestra lo que <strong>midió el servidor</strong>: tiempos, caché, calidad del genético y lotes.</p>
       </div>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Hubs: 46 aeropuertos internacionales vuelan entre sí a cualquier distancia; hub ↔ regional hasta 6.000 km y regional ↔ regional hasta 2.000 km. Ejemplo: Sevilla → Estambul → Kuala Lumpur → Perth.</li>
+    <li>Comparación: una corrida de Dijkstra por transporte; marca el más barato y el más rápido, y la UI sugiere solo las opciones que mejoran la elegida en precio o en tiempo.</li>
+    <li>Peajes: tarifa promedio por km según el continente (Europa 0,07 €/km, África y Oceanía 0,01 €/km), ya incluida en el costo. Madrid → Berlín en auto: 468 €, con 131 € de peajes.</li>
+    <li>OSRM: un pedido por ruta, timeout de 4 s y caché; tras un error de red se usa línea recta durante 5 minutos.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S6 — RESERVAS Y ASYNC
-══════════════════════════════════════ -->
-<section class="slide slide-alt" id="s6" data-label="Reservas">
-  <div class="slide-num">11 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">app/booking/ · asyncio</div>
-    <h2>Sistema de reservas<br><span class="grad">asincrónico y batch</span></h2>
-  </div>
-  <div class="g4060 reveal stagger">
-    <div>
-      <div class="card co mb1">
-        <h3 style="margin-bottom:0.6rem;">¿Por qué async?</h3>
-        <p>Las reservas simulan operaciones reales con proveedores externos: confirmación, validaciones, notificaciones. Estas operaciones pueden tardar varios segundos. Con <strong>asyncio</strong> el servidor no se bloquea mientras espera — sigue atendiendo otras peticiones en paralelo.</p>
-      </div>
-      <div class="card mb1">
-        <h3 style="margin-bottom:0.6rem;">Procesamiento batch</h3>
-        <p><code>batching.py</code> agrupa múltiples reservas y las procesa juntas en un lote. Ideal para simular carga masiva sin saturar la respuesta inmediata del servidor. Cada reserva encolada dispara un intento de procesamiento y el loop de fondo revisa la cola cada 0,5 s, así que el lote se confirma casi de inmediato; la UI refresca sola los estados pendientes.</p>
-      </div>
-      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Ciclo de vida — camino feliz</div>
-      <div class="status-flow mb1">
-        <div class="sb sp">pending</div>
-        <span class="sa">→</span>
-        <div class="sb sr">processing</div>
-        <span class="sa">→</span>
-        <div class="sb sc">confirmed</div>
-      </div>
-      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.55rem;letter-spacing:0.1em;text-transform:uppercase;">Camino de error / cancelación</div>
-      <div class="status-flow mb1">
-        <div class="sb sp">pending</div>
-        <span class="sa">→</span>
-        <div class="sb sr">processing</div>
-        <span class="sa">→</span>
-        <div class="sb sf">failed</div>
-      </div>
-      <div class="status-flow">
-        <div class="sb sp">pending</div>
-        <span class="sa">→</span>
-        <div class="sb sk">cancelled</div>
-      </div>
-    </div>
-    <div>
-      <div class="code-block"><span class="cm"># reservations.py — flujo async</span>
-<span class="kw">async def</span> <span class="fn">process_reservation</span>(res_id: <span class="kw">str</span>):
-  res = reservations[res_id]
-  res.status = <span class="st">"processing"</span>
-
-  <span class="cm"># simula confirmación con proveedor</span>
-  <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="num">1.5</span>)
-
-  <span class="kw">if</span> <span class="fn">confirmado</span>(res):
-    res.status = <span class="st">"confirmed"</span>
-    <span class="kw">await</span> <span class="fn">send_notification</span>(res)
-  <span class="kw">else</span>:
-    res.status = <span class="st">"failed"</span>
-
-<span class="cm"># batching.py — loop en background</span>
-<span class="kw">async def</span> <span class="fn">batch_loop</span>():
-  <span class="kw">while</span> <span class="kw">True</span>:
-    lote = cola[:<span class="num">BATCH_SIZE</span>]
-    tasks = [<span class="fn">process_reservation</span>(r)
-             <span class="kw">for</span> r <span class="kw">in</span> lote]
-    <span class="kw">await</span> asyncio.<span class="fn">gather</span>(*tasks)
-    <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(INTERVALO)</div>
+<!-- ═════════════ 11 · MÉTRICAS ═════════════ -->
+<section class="slide" data-title="Métricas de uso real">
+  <header class="head">
+    <div class="tag">Uso real</div>
+    <h2>Métricas de uso real: <span class="hl">medir, no suponer</span></h2>
+  </header>
+  <div class="body">
+    <div class="grid rise" style="grid-template-columns: repeat(3, 1fr); gap: 20px;">
+      <div class="card"><h3>Tendencia</h3><p>Media móvil del tiempo por algoritmo: si sube, el servidor se degrada.</p></div>
+      <div class="card"><h3>p50 · p95 · máximo</h3><p>La mediana muestra lo típico; p95 y máximo, el peor caso.</p></div>
+      <div class="card"><h3>Carga y caché</h3><p>Ejecuciones y aciertos de caché por minuto: cuánto trabajo se ahorra.</p></div>
+      <div class="card ga"><h3>Calidad del genético</h3><p>Generación en que converge y gap contra el óptimo exacto.</p></div>
+      <div class="card dij"><h3>Rutas y lotes</h3><p>Escalas por ruta de Dijkstra y latencia de cada lote de reservas.</p></div>
+      <div class="card quiet"><h3>Solo corridas reales</h3><p>Las respuestas desde caché no cuentan como ejecuciones.</p></div>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Las registra el servidor (<code>solver_metrics.py</code>) y las expone en <code>GET /stats/algorithms</code>; la UI solo grafica.</li>
+    <li>Historial acotado (500 corridas) y thread-safe con Lock, porque el TSP corre en hilos del pool.</li>
+    <li>El gap se calcula cuando Held-Karp ya resolvió ese mismo problema: se recuerdan hasta 200 óptimos.</li>
+    <li>Dos vistas en el Laboratorio: benchmark controlado (semilla fija) y uso real.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S7 — CACHÉ
-══════════════════════════════════════ -->
-<section class="slide" id="s7" data-label="Caché">
-  <div class="slide-num">12 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">app/caches/</div>
-    <h2>Estrategia de<br><span class="grad">caché</span></h2>
-  </div>
-  <div class="g2 reveal stagger">
-    <div>
-      <div class="card ca mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>LRU Cache local</h3>
-          <span class="tag tb">lru_cache.py</span>
-        </div>
-        <p class="mb2">Implementado <strong>desde cero</strong> sin librerías externas. Mantiene los resultados de cálculos recientes en memoria. Cuando supera la capacidad configurada, <strong>descarta el elemento menos recientemente usado</strong> (Least Recently Used).</p>
-        <p class="mb2">Incluye una variante con <strong>TTL</strong> (Time To Live): las entradas expiran automáticamente tras un tiempo configurado, evitando que datos desactualizados persistan en caché indefinidamente.</p>
-        <p class="mb2">También se provee un <strong>decorador</strong> <code>@lru_cache</code> para aplicar caché fácilmente a cualquier función del sistema.</p>
-        <div class="code-block"><span class="cm"># Uso como decorador</span>
-<span class="kw">@lru_cache</span>(capacity=<span class="num">128</span>, ttl=<span class="num">300</span>)
-<span class="kw">def</span> <span class="fn">calcular_ruta</span>(origen, destino,
-                   criterio, transporte):
-  <span class="cm"># cálculo costoso sólo la 1ra vez</span>
-  <span class="kw">return</span> dijkstra(origen, destino)</div>
-      </div>
+<!-- ═════════════ 12 · CALIDAD ═════════════ -->
+<section class="slide" data-title="Calidad">
+  <header class="head">
+    <div class="tag">Calidad</div>
+    <h2>Tests, refactor y <span class="hl">arranque en un comando</span></h2>
+  </header>
+  <div class="body">
+    <div class="kpis rise" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="kpi"><div class="v">178</div><div class="l">tests automatizados con pytest</div></div>
+      <div class="kpi"><div class="v">1.420 → 73</div><div class="l">líneas del archivo principal de la UI tras el refactor</div></div>
+      <div class="kpi"><div class="v">1</div><div class="l">comando para instalar, verificar y levantar todo</div></div>
     </div>
-    <div>
-      <div class="card cp mb1">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.7rem;">
-          <h3>Redis Cache (distribuido)</h3>
-          <span class="tag tp">redis_cache.py</span>
-        </div>
-        <p class="mb2">Alternativa implementada para escenarios donde <strong>múltiples instancias</strong> de la API comparten el mismo caché. Requiere un servidor Redis corriendo externamente.</p>
-        <p>La lógica de la aplicación es <strong>idéntica en ambos casos</strong>: el módulo de caché es intercambiable. Se activa Redis simplemente cambiando la configuración, sin tocar los algoritmos ni los endpoints.</p>
-      </div>
-      <div class="card cg">
-        <h3 style="margin-bottom:0.6rem;">¿Qué se cachea?</h3>
-        <div style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.4rem;">
-          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.76rem;">
-            <span class="tag tg">✓</span>
-            Resultados de Dijkstra por par origen–destino
-          </div>
-          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.76rem;">
-            <span class="tag tg">✓</span>
-            Optimizaciones TSP por conjunto de ciudades
-          </div>
-          <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.76rem;">
-            <span class="tag tg">✓</span>
-            Matrices de costos por tipo de transporte
-          </div>
-        </div>
-      </div>
-    </div>
+    <ul class="pts">
+      <li><strong>Tests de comportamiento</strong>: umbrales, errores 422, caché, determinismo del genético y reglas de datos.</li>
+      <li><strong>Refactor con red de seguridad</strong>: cada página y cada responsabilidad en su propio módulo.</li>
+      <li><strong>install_and_run.bat</strong>: crea el entorno, instala solo si hace falta, verifica y abre la app.</li>
+    </ul>
   </div>
+  <aside class="notes"><ul>
+    <li>Tests por módulo: API 46, métricas 19, datos 19, Gemini 19, OSRM 17, grafo 10, Held-Karp 8, sugerencias 8, lotes 8, genético 7 y 17 más (validador, vista, caché, reservas, setup). Cobertura en HTML.</li>
+    <li>SOLID en concreto: responsabilidad única por vista y módulo; abierto/cerrado con el diccionario de solvers (agregar un algoritmo es agregar una entrada); inversión de dependencias con el backend de caché intercambiable.</li>
+    <li>Profiling con cProfile en <code>profiling_analysis.py</code> (requisito “profiling y refactorización”).</li>
+    <li>El script controla que los puertos 8000 y 8501 estén libres y verifica los endpoints antes de abrir el navegador.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S8 — UI + IA + TESTS
-══════════════════════════════════════ -->
-<section class="slide slide-alt" id="s8" data-label="UI & Tests">
-  <div class="slide-num">13 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">app/ui/ · app/ai/ · app/tests/</div>
-    <h2>Interfaz, IA<br><span class="grad">y cobertura de tests</span></h2>
-  </div>
-  <div class="g3 reveal stagger">
-    <div>
-      <div class="card ca" style="height:100%;">
-        <h3 style="margin-bottom:0.7rem;">Interfaz Streamlit</h3>
-        <p class="mb2">La UI corre en <code>localhost:8501</code> y consume la API REST en <code>localhost:8000</code>. Es un cliente liviano: rutas, reservas y estadísticas se piden por HTTP y el algoritmo lo elige el servidor. <code>install_and_run.bat</code> levanta API y UI juntas.</p>
-        <p style="margin-bottom:1rem;">Desde una sola pantalla el usuario puede:</p>
-        <div style="display:flex;flex-direction:column;gap:0.35rem;">
-          <div style="font-size:0.74rem;">→ Seleccionar transporte y criterio de optimización</div>
-          <div style="font-size:0.74rem;">→ Elegir múltiples ciudades</div>
-          <div style="font-size:0.74rem;">→ Comparar su ruta vs la óptima</div>
-          <div style="font-size:0.74rem;">→ Crear reservas individuales o en lote</div>
-          <div style="font-size:0.74rem;">→ Consultar historial y estados</div>
-          <div style="font-size:0.74rem;">→ Ver estadísticas del sistema</div>
-        </div>
-      </div>
-    </div>
-    <div>
-      <div class="card cp" style="height:100%;">
-        <h3 style="margin-bottom:0.7rem;">Recomendaciones IA</h3>
-        <p class="mb2"><code>app/ai/gemini_recommendations.py</code> integra la API de <strong>Google Gemini</strong> para generar sugerencias de lugares y atracciones relacionadas con las ciudades seleccionadas en el itinerario. Las ciudades se consultan <strong>en paralelo</strong> y las respuestas exitosas quedan en caché.</p>
-        <p class="mb2">Requiere configurar la variable de entorno:</p>
-        <div class="code-block" style="margin-bottom:1rem;">$env:GOOGLE_API_KEY=<span class="st">"TU_API_KEY"</span></div>
-        <p>Si la clave no está configurada, el módulo de IA queda inactivo pero <strong>el resto del sistema funciona con normalidad</strong>. Cálculo de rutas y reservas son completamente independientes.</p>
-      </div>
-    </div>
-    <div>
-      <div class="card cg" style="height:100%;">
-        <h3 style="margin-bottom:0.5rem;">Suite de tests — Pytest</h3>
-        <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:var(--green);margin-bottom:0.3rem;">76 passed</div>
-        <p style="margin-bottom:1rem;font-size:0.74rem;">Ejecutado con <code>pytest</code> + pytest-asyncio para pruebas de código asincrónico. Genera reporte HTML de cobertura automáticamente.</p>
-        <div style="display:flex;flex-direction:column;gap:0.32rem;">
-          <div style="font-size:0.72rem;color:var(--text);">✓ Dijkstra y caminos mínimos</div>
-          <div style="font-size:0.72rem;color:var(--text);">✓ TSP tour cerrado y abierto</div>
-          <div style="font-size:0.72rem;color:var(--text);">✓ Validaciones de itinerario</div>
-          <div style="font-size:0.72rem;color:var(--text);">✓ LRU Cache y TTL</div>
-          <div style="font-size:0.72rem;color:var(--text);">✓ Reservas asincrónicas</div>
-          <div style="font-size:0.72rem;color:var(--text);">✓ Procesamiento batch</div>
-          <div style="font-size:0.72rem;color:var(--text);">✓ Endpoints de FastAPI</div>
-        </div>
-        <div style="margin-top:1rem;padding-top:0.9rem;border-top:1px solid var(--border);">
-          <span class="tag tg">htmlcov/index.html</span>
-        </div>
-      </div>
+<!-- ═════════════ 13 · DEMO ═════════════ -->
+<section class="slide" data-title="Demo en vivo">
+  <header class="head">
+    <div class="tag">Demo</div>
+    <h2>Demo en vivo: <span class="hl">qué mostrar y en qué orden</span></h2>
+  </header>
+  <div class="body" style="gap: 20px;">
+    <div class="demo rise" style="grid-template-columns: 1fr;">
+      <div class="card dij"><div class="n">1</div><div><h3>2 ciudades → Dijkstra y comparación de transportes</h3><p>Tren Madrid–Roma (escala en Barcelona); avión Sevilla–Perth (escalas en hubs).</p></div></div>
+      <div class="card hk"><div class="n">2</div><div><h3>5 ciudades en auto → Held-Karp</h3><p>Peajes incluidos, mapa por carretera y comparación con el genético.</p></div></div>
+      <div class="card ga"><div class="n">3</div><div><h3>14 ciudades → genético</h3><p>Curva de convergencia: mejor costo y promedio por generación.</p></div></div>
+      <div class="card"><div class="n">4</div><div><h3>Reserva de 5 pasajes → lote</h3><p>Los estados pasan de pendiente a confirmada sin recargar.</p></div></div>
+      <div class="card"><div class="n">5</div><div><h3>Laboratorio</h3><p>Métricas de uso real de todo lo recién hecho.</p></div></div>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Antes de empezar: correr <code>install_and_run.bat</code> unos minutos antes. No precalentar la caché, así las corridas cuentan como reales.</li>
+    <li>Paso 1: repetir el cálculo para mostrar la respuesta desde caché y cambiar a “Tiempo” para mostrar que el mismo Dijkstra optimiza por horas.</li>
+    <li>Opcional: seleccionar una ruta para ver las recomendaciones de IA por enfoque.</li>
+    <li>Plan B: Swagger en <code>localhost:8000/docs</code> y la diapositiva 8 con los tiempos medidos. Rutas, reservas y métricas funcionan sin internet; mapas, OSRM y Gemini lo necesitan.</li>
+  </ul></aside>
 </section>
 
-<!-- ══════════════════════════════════════
-  S9 — RESUMEN FINAL
-══════════════════════════════════════ -->
-<section class="slide" id="s9" data-label="Resumen">
-  <div class="orb" style="width:480px;height:480px;background:rgba(59,130,246,0.06);bottom:-100px;right:-100px;"></div>
-  <div class="slide-num">14 / 14</div>
-  <div class="reveal mb3">
-    <div class="slide-tag">Conclusión</div>
-    <h2>Lo que integra<br><span class="grad">el proyecto</span></h2>
-  </div>
-  <div class="g3 reveal stagger" style="max-width:1000px;">
-    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
-      <div style="font-size:1.4rem;flex-shrink:0;">🔭</div>
-      <div>
-        <h3 style="margin-bottom:0.4rem;">Algoritmos clásicos y heurísticos</h3>
-        <p>Dijkstra con min-heap para caminos mínimos, Held-Karp (TSP + bitmask DP) para pocas ciudades y Algoritmo Genético (OX, torneo, elitismo) cuando la cantidad de ciudades hace inviable al exacto.</p>
-      </div>
+<!-- ═════════════ 14 · LIMITACIONES Y PRÓXIMAS MEJORAS ═════════════ -->
+<!-- Si hay mejoras en curso al momento de la defensa, agregarlas en "Próximas mejoras" con <span class="badge pending">en curso</span>. -->
+<section class="slide" data-title="Limitaciones y próximas mejoras">
+  <header class="head">
+    <div class="tag">Honestidad técnica</div>
+    <h2>Limitaciones y <span class="hl">próximas mejoras</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 1fr 1fr;">
+    <div class="card" style="border-top: 4px solid var(--warn);">
+      <h3>Limitaciones</h3>
+      <ul class="pts sm" style="margin-top: 12px;">
+        <li>Reservas y métricas <strong>en memoria</strong>: se pierden al reiniciar.</li>
+        <li>Costos y peajes <strong>estimados</strong>, no tarifas reales.</li>
+        <li>Gemini y OSRM públicos tienen <strong>límites de uso</strong>.</li>
+        <li>El genético <strong>no garantiza el óptimo</strong>.</li>
+      </ul>
     </div>
-    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
-      <div style="font-size:1.4rem;flex-shrink:0;">📐</div>
-      <div>
-        <h3 style="margin-bottom:0.4rem;">Generación de datos</h3>
-        <p>Rutas entre ciudades europeas usando coordenadas reales y la fórmula de Haversine. Sin APIs externas de mapas.</p>
-      </div>
-    </div>
-    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
-      <div style="font-size:1.4rem;flex-shrink:0;">⚡</div>
-      <div>
-        <h3 style="margin-bottom:0.4rem;">API REST completa</h3>
-        <p>FastAPI con 14 endpoints, documentación Swagger automática, background tasks y validación de parámetros.</p>
-      </div>
-    </div>
-    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
-      <div style="font-size:1.4rem;flex-shrink:0;">🔄</div>
-      <div>
-        <h3 style="margin-bottom:0.4rem;">Reservas asincrónicas</h3>
-        <p>asyncio con estados tracked, procesamiento individual y batch en background sin bloquear el servidor.</p>
-      </div>
-    </div>
-    <div class="card" style="display:flex;gap:0.9rem;align-items:flex-start;">
-      <div style="font-size:1.4rem;flex-shrink:0;">🗄️</div>
-      <div>
-        <h3 style="margin-bottom:0.4rem;">Caché multicapa</h3>
-        <p>LRU local con TTL implementado desde cero + Redis como alternativa distribuida, intercambiables sin cambiar lógica.</p>
-      </div>
-    </div>
-    <div class="card cg" style="display:flex;gap:0.9rem;align-items:flex-start;">
-      <div style="font-size:1.4rem;flex-shrink:0;">✓</div>
-      <div>
-        <h3 style="margin-bottom:0.4rem;">76 tests · Cobertura HTML</h3>
-        <p>Pytest cubre algoritmos, caché, async, batch y endpoints. Reporte de cobertura generado automáticamente.</p>
-      </div>
+    <div class="card" style="border-top: 4px solid var(--accent2);">
+      <h3>Próximas mejoras</h3>
+      <ul class="pts sm" style="margin-top: 12px;">
+        <li>Persistir reservas y métricas en una <strong>base de datos</strong>.</li>
+        <li><strong>Tarifas reales</strong> desde APIs de transporte.</li>
+        <li>Opción <strong>“evitar peajes”</strong> en auto.</li>
+        <li><strong>Procesos</strong> para TSP grandes y <strong>2-opt</strong> sobre el genético.</li>
+      </ul>
     </div>
   </div>
+  <aside class="notes"><ul>
+    <li>Nombrar las limitaciones antes de que las pregunten muestra criterio técnico; cada mejora ataca una de ellas.</li>
+    <li>Otras limitaciones: proveedor de reservas simulado, sin autenticación de usuarios, y el GIL impide paralelismo real de CPU con hilos.</li>
+    <li>“Evitar peajes” podría resolverse con el mismo Dijkstra, cambiando el peso o excluyendo los tramos con peaje.</li>
+    <li>2-opt aplicado a la mejor solución del genético es una mejora local barata (O(n²) por pasada) que puede achicar el gap.</li>
+  </ul></aside>
 </section>
+
+<!-- ═════════════ 15 · CIERRE ═════════════ -->
+<section class="slide closing" data-title="Cierre">
+  <div class="tag">Cierre</div>
+  <h1>Gracias. <span class="hl">¿Preguntas?</span></h1>
+  <div class="grid rise" style="grid-template-columns: repeat(3, 1fr); gap: 22px; margin: 26px 0 30px;">
+    <div class="card tsp"><h3>El algoritmo depende del tamaño</h3><p>Dijkstra, Held-Karp o genético: lo decide el servidor.</p></div>
+    <div class="card acc"><h3>La eficiencia se mide</h3><p>Caché, concurrencia, lotes y métricas de uso real.</p></div>
+    <div class="card dij"><h3>Calidad sostenida</h3><p>178 tests, arquitectura en capas y arranque en un comando.</p></div>
+  </div>
+  <p class="team"><strong>Esteban Ghinamo · Nicolas Moresco · Santiago Flores</strong> · Programación Eficiente · Profesora Valeria Daniele</p>
+  <aside class="notes"><ul>
+    <li>¿Por qué 12 y no 16? Margen de seguridad en tiempo y memoria (diapositiva 8).</li>
+    <li>¿Por qué no A*? Hace falta una heurística admisible por transporte, y con 180 ciudades Dijkstra ya responde en milisegundos.</li>
+    <li>¿Cómo saben que el genético es bueno? Por el gap contra Held-Karp, medido en el servidor y en el Laboratorio.</li>
+    <li>¿Qué pasa si Redis u OSRM fallan? Sin Redis al iniciar se usa el LRU; si cae después, cada error cuenta como fallo de caché y se recalcula. Sin OSRM, el mapa usa línea recta.</li>
+    <li>¿Y el GIL? Los hilos liberan el event loop; para paralelismo de CPU se usarían procesos.</li>
+  </ul></aside>
+</section>
+
+</main>
+</div>
+
+<div class="hint-hud" id="hintHud">← → navegar · N notas · F pantalla completa · T tema · ? ayuda</div>
+
+<div class="notes-panel" id="notesPanel" hidden role="region" aria-label="Notas del orador"></div>
+
+<div class="help-panel" id="helpPanel" hidden role="dialog" aria-label="Atajos de teclado">
+  <h4>Atajos de teclado</h4>
+  <dl>
+    <dt>→ ↓ Espacio AvPág</dt><dd>Siguiente diapositiva</dd>
+    <dt>← ↑ RePág</dt><dd>Diapositiva anterior</dd>
+    <dt>Inicio / Fin</dt><dd>Primera / última</dd>
+    <dt>Clic</dt><dd>Lado derecho avanza, lado izquierdo retrocede</dd>
+    <dt>N</dt><dd>Mostrar u ocultar notas del orador</dd>
+    <dt>F</dt><dd>Pantalla completa</dd>
+    <dt>T</dt><dd>Tema claro u oscuro</dd>
+    <dt>?</dt><dd>Esta ayuda · Esc cierra</dd>
+  </dl>
+</div>
 
 <script>
-  const slides = document.querySelectorAll('.slide');
-  const dotsContainer = document.getElementById('navDots');
+(function () {
+  "use strict";
 
-  slides.forEach((slide, i) => {
-    const dot = document.createElement('div');
-    dot.className = 'dot-nav';
-    dot.title = slide.dataset.label || `Slide ${i+1}`;
-    dot.addEventListener('click', () => slide.scrollIntoView({ behavior: 'smooth' }));
-    dotsContainer.appendChild(dot);
-  });
+  var STAGE_WIDTH = 1600;
+  var STAGE_HEIGHT = 900;
+  var PREVIOUS_ZONE = 0.3;
+  var SWIPE_MIN_PX = 60;
+  var HINT_VISIBLE_MS = 5000;
+  var THEME_KEY = "travel-planner-deck-theme";
 
-  const dotEls = document.querySelectorAll('.dot-nav');
+  var deck = document.getElementById("deck");
+  var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+  var progress = document.getElementById("progress");
+  var notesPanel = document.getElementById("notesPanel");
+  var helpPanel = document.getElementById("helpPanel");
+  var hintHud = document.getElementById("hintHud");
+  var total = slides.length;
+  var current = 0;
+  var swipeStart = null;
+  var swallowNextClick = false;
 
-  const revealObs = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
-  }, { threshold: 0.1 });
+  function pad(number) {
+    return String(number).padStart(2, "0");
+  }
 
-  document.querySelectorAll('.reveal, .stagger').forEach(el => revealObs.observe(el));
-
-  const slideObs = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting && e.intersectionRatio > 0.45) {
-        const idx = Array.from(slides).indexOf(e.target);
-        dotEls.forEach((d, i) => d.classList.toggle('active', i === idx));
-      }
+  function addFooters() {
+    slides.forEach(function (slide, index) {
+      var footer = document.createElement("footer");
+      footer.className = "foot";
+      footer.innerHTML = "<span>Travel Planner Multidestino · Programación Eficiente</span><span>" +
+        pad(index + 1) + " / " + pad(total) + "</span>";
+      slide.appendChild(footer);
+      slide.setAttribute("aria-label", "Diapositiva " + (index + 1) + " de " + total + ": " + (slide.dataset.title || ""));
     });
-  }, { threshold: 0.45 });
+  }
 
-  slides.forEach(s => slideObs.observe(s));
+  function fitStage() {
+    var scale = Math.min(window.innerWidth / STAGE_WIDTH, window.innerHeight / STAGE_HEIGHT);
+    /* A hidden or not yet laid out window reports 0; keep the deck visible until the next resize. */
+    deck.style.setProperty("--scale", String(scale > 0 ? scale : 1));
+  }
+
+  function slideFromHash() {
+    var number = parseInt(window.location.hash.replace("#", ""), 10);
+    return isNaN(number) ? 0 : number - 1;
+  }
+
+  function writeHash(index) {
+    var hash = "#" + (index + 1);
+    if (window.location.hash === hash) {
+      return;
+    }
+    try {
+      window.history.replaceState(null, "", hash);
+    } catch (error) {
+      /* Some file:// contexts reject history updates; the deck still works without the hash. */
+    }
+  }
+
+  function renderNotes() {
+    var slide = slides[current];
+    var notes = slide.querySelector(".notes");
+    var next = slides[current + 1];
+    var nextTitle = next ? next.dataset.title : "fin";
+    notesPanel.innerHTML =
+      "<div class=\"np-head\"><span>NOTAS · " + pad(current + 1) + " · " + (slide.dataset.title || "") +
+      "</span><span>Siguiente: " + nextTitle + "</span></div>" +
+      (notes ? notes.innerHTML : "<p>Sin notas para esta diapositiva.</p>");
+  }
+
+  function show(index) {
+    var target = Math.max(0, Math.min(total - 1, index));
+    slides[current].classList.remove("active");
+    slides[current].setAttribute("aria-hidden", "true");
+    current = target;
+    slides[current].classList.add("active");
+    slides[current].removeAttribute("aria-hidden");
+    progress.style.width = ((current + 1) / total * 100) + "%";
+    writeHash(current);
+    renderNotes();
+  }
+
+  function next() { show(current + 1); }
+  function previous() { show(current - 1); }
+
+  function toggleNotes() {
+    notesPanel.hidden = !notesPanel.hidden;
+  }
+
+  function toggleHelp() {
+    helpPanel.hidden = !helpPanel.hidden;
+  }
+
+  function toggleFullscreen() {
+    var root = document.documentElement;
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+      }
+    } catch (error) {
+      /* Fullscreen can be blocked by the browser; F11 remains available. */
+    }
+  }
+
+  function applyTheme(theme) {
+    if (theme === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+  }
+
+  function readStoredTheme() {
+    try {
+      return window.localStorage.getItem(THEME_KEY);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function toggleTheme() {
+    var theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    applyTheme(theme);
+    try {
+      window.localStorage.setItem(THEME_KEY, theme);
+    } catch (error) {
+      /* Storage may be unavailable (private mode); the theme still applies for this session. */
+    }
+  }
+
+  function closePanels() {
+    notesPanel.hidden = true;
+    helpPanel.hidden = true;
+  }
+
+  function onKeyDown(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    var key = event.key;
+    var handled = true;
+    if (key === "ArrowRight" || key === "ArrowDown" || key === "PageDown" || key === "Enter" || (key === " " && !event.shiftKey)) {
+      next();
+    } else if (key === "ArrowLeft" || key === "ArrowUp" || key === "PageUp" || key === "Backspace" || (key === " " && event.shiftKey)) {
+      previous();
+    } else if (key === "Home") {
+      show(0);
+    } else if (key === "End") {
+      show(total - 1);
+    } else if (key === "n" || key === "N") {
+      toggleNotes();
+    } else if (key === "f" || key === "F") {
+      toggleFullscreen();
+    } else if (key === "t" || key === "T") {
+      toggleTheme();
+    } else if (key === "?" || key === "h" || key === "H") {
+      toggleHelp();
+    } else if (key === "Escape") {
+      closePanels();
+    } else {
+      handled = false;
+    }
+    if (handled) {
+      event.preventDefault();
+    }
+  }
+
+  function isInteractive(target) {
+    return Boolean(target.closest("a, button, input, select, textarea, .notes-panel, .help-panel"));
+  }
+
+  function onClick(event) {
+    if (swallowNextClick) {
+      swallowNextClick = false;
+      return;
+    }
+    if (isInteractive(event.target)) {
+      return;
+    }
+    var selection = window.getSelection ? String(window.getSelection()) : "";
+    if (selection) {
+      return;
+    }
+    if (event.clientX < window.innerWidth * PREVIOUS_ZONE) {
+      previous();
+    } else {
+      next();
+    }
+  }
+
+  function onPointerDown(event) {
+    swipeStart = { x: event.clientX, y: event.clientY };
+  }
+
+  function onPointerUp(event) {
+    if (!swipeStart) {
+      return;
+    }
+    var deltaX = event.clientX - swipeStart.x;
+    var deltaY = event.clientY - swipeStart.y;
+    swipeStart = null;
+    if (Math.abs(deltaX) > SWIPE_MIN_PX && Math.abs(deltaX) > Math.abs(deltaY)) {
+      swallowNextClick = true;
+      if (deltaX < 0) {
+        next();
+      } else {
+        previous();
+      }
+    }
+  }
+
+  applyTheme(readStoredTheme());
+  addFooters();
+  slides.forEach(function (slide) { slide.setAttribute("aria-hidden", "true"); });
+  fitStage();
+  current = Math.max(0, Math.min(total - 1, slideFromHash()));
+  show(current);
+
+  window.addEventListener("resize", fitStage);
+  window.addEventListener("load", fitStage);
+  document.addEventListener("fullscreenchange", fitStage);
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(fitStage).observe(document.documentElement);
+  }
+  window.addEventListener("hashchange", function () { show(slideFromHash()); });
+  document.addEventListener("keydown", onKeyDown);
+  document.getElementById("viewport").addEventListener("click", onClick);
+  document.getElementById("viewport").addEventListener("pointerdown", onPointerDown);
+  document.getElementById("viewport").addEventListener("pointerup", onPointerUp);
+  window.setTimeout(function () { hintHud.classList.add("gone"); }, HINT_VISIBLE_MS);
+})();
 </script>
 </body>
 </html>
