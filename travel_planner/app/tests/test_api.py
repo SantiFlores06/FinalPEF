@@ -110,6 +110,20 @@ def test_shortest_route_cache_separates_transport_type(client):
     assert tren.json()["cached"] is False
 
 
+@pytest.mark.parametrize("origin, destination", [
+    ("Madrid", "Tokio"),
+    ("Buenos Aires", "Madrid"),
+    ("Lisboa", "Moscú"),
+])
+def test_cheapest_long_haul_flight_is_direct(client, origin, destination):
+    request = {"origin": origin, "destination": destination, "optimize_by": "cost", "transport_type": "avión"}
+
+    response = client.post("/routes/shortest", json=request)
+
+    assert response.status_code == 200
+    assert response.json()["path"] == [origin, destination]
+
+
 FIVE_CITIES = ["Madrid", "Barcelona", "París", "Roma", "Berlín"]
 FOURTEEN_CITIES = FIVE_CITIES + [
     "Lisboa", "Londres", "Viena", "Praga", "Ámsterdam",

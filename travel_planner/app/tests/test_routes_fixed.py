@@ -3,7 +3,9 @@
 from itertools import permutations
 
 from app.data.cities import CITIES, CITY_CATALOG, MAINLAND_EUROPEAN_CITIES
-from app.data.routes_fixed import MAX_OVERLAND_KM, MAX_SEA_LANE_KM, ROUTES_FIXED, haversine_km
+from app.data.routes_fixed import (
+    MAX_OVERLAND_KM, MAX_SEA_LANE_KM, ROUTES_FIXED, TRANSPORT_PROFILES, build_route, haversine_km,
+)
 
 OVERLAND_TRANSPORTS = ("auto", "tren")
 DIRECT_LINKS = {(origin, destination, transport) for origin, destination, _cost, _time, transport in ROUTES_FIXED}
@@ -27,6 +29,17 @@ def test_overland_routes_stay_on_one_landmass_and_within_reach():
         for origin, destination in links_of(transport):
             assert CITY_CATALOG[origin].landmass == CITY_CATALOG[destination].landmass
             assert haversine_km(origin, destination) <= MAX_OVERLAND_KM
+
+
+def test_flights_charge_a_fixed_fee_and_cheaper_long_haul_km():
+    plane = next(profile for profile in TRANSPORT_PROFILES if profile.name == "avión")
+
+    short_haul = build_route("A", "B", 1000, plane)
+    long_haul = build_route("A", "B", 10000, plane)
+
+    assert short_haul[2] == round(plane.fixed_fee + 1000 * plane.cost_per_km)
+    assert plane.long_distance_factor < 1
+    assert long_haul[2] < plane.fixed_fee + 10000 * plane.cost_per_km
 
 
 def test_island_city_without_neighbors_has_no_overland_routes():

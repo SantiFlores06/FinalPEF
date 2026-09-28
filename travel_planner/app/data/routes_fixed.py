@@ -76,28 +76,31 @@ class TransportProfile:
     cost_per_km: float
     speed_kmh: float
     long_distance_km: float
-    long_distance_surcharge: float
+    long_distance_factor: float
     is_feasible: Feasibility
     boarding_hours: float = 0.0
     distance_factor: float = 1.0
+    fixed_fee: float = 0.0
 
 
-# Long-distance surcharges make multi-leg itineraries worth comparing against direct ones.
+# Overland and sea trips get pricier per km on long distances, so chaining legs can pay off.
+# Flights pay a fixed fee per takeoff (airport taxes) and get cheaper per km on long haul,
+# so a direct flight beats chaining several shorter ones.
 TRANSPORT_PROFILES = (
     TransportProfile(
-        "auto", cost_per_km=0.18, speed_kmh=80, long_distance_km=1500, long_distance_surcharge=1.6,
+        "auto", cost_per_km=0.18, speed_kmh=80, long_distance_km=1500, long_distance_factor=1.6,
         is_feasible=overland_link,
     ),
     TransportProfile(
-        "tren", cost_per_km=0.22, speed_kmh=120, long_distance_km=1200, long_distance_surcharge=1.5,
+        "tren", cost_per_km=0.22, speed_kmh=120, long_distance_km=1200, long_distance_factor=1.5,
         is_feasible=overland_link,
     ),
     TransportProfile(
-        "avión", cost_per_km=0.30, speed_kmh=700, long_distance_km=1500, long_distance_surcharge=1.7,
-        is_feasible=air_link, boarding_hours=0.8,
+        "avión", cost_per_km=0.10, speed_kmh=700, long_distance_km=1500, long_distance_factor=0.8,
+        is_feasible=air_link, boarding_hours=0.8, fixed_fee=60,
     ),
     TransportProfile(
-        "barco", cost_per_km=0.12, speed_kmh=35, long_distance_km=3000, long_distance_surcharge=1.3,
+        "barco", cost_per_km=0.12, speed_kmh=35, long_distance_km=3000, long_distance_factor=1.3,
         is_feasible=sea_link, boarding_hours=2.0, distance_factor=SEA_DETOUR_FACTOR,
     ),
 )
@@ -108,9 +111,10 @@ TRANSPORT_TYPES = tuple(profile.name for profile in TRANSPORT_PROFILES)
 def build_route(origin: str, destination: str, distance_km: float, profile: TransportProfile) -> tuple:
     """Build one (origin, destination, cost, time, transport) route for a transport profile."""
     travelled_km = distance_km * profile.distance_factor
-    cost = travelled_km * profile.cost_per_km
+    distance_cost = travelled_km * profile.cost_per_km
     if travelled_km > profile.long_distance_km:
-        cost *= profile.long_distance_surcharge
+        distance_cost *= profile.long_distance_factor
+    cost = profile.fixed_fee + distance_cost
     hours = travelled_km / profile.speed_kmh + profile.boarding_hours
     return origin, destination, round(cost), round(hours, 1), profile.name
 
