@@ -3,8 +3,19 @@ conftest.py - Configuración y fixtures para los tests con Pytest.
 Define datos de prueba reutilizables para todos los módulos de test.
 """
 import pytest
+import requests
 from app.core.graph import TravelGraph
 from app.core.itinerary_validator import ItineraryConstraints, TransportType
+
+
+@pytest.fixture(autouse=True)
+def offline_http(monkeypatch):
+    """Keep every test offline: a real HTTP GET (API, OSRM) fails fast unless the test mocks it."""
+    def refuse_network(*_args, **_kwargs):
+        raise requests.ConnectionError("Network access is disabled in tests")
+
+    monkeypatch.setattr(requests, "get", refuse_network)
+
 
 @pytest.fixture
 def simple_graph():

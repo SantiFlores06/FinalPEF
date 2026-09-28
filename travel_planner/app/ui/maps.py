@@ -7,6 +7,7 @@ import streamlit as st
 from streamlit_folium import st_folium
 
 from app.data.cities import CITIES, CITY_CATALOG
+from app.ui.road_geometry import RoadRoute, fetch_road_route
 from app.ui.styles import map_frame
 
 USER_ROUTE_COLOR = "#3B82F6"
@@ -23,6 +24,8 @@ ENDPOINT_ICON = "home"
 DEFAULT_STOP_ICON = "circle"
 TRANSPORT_STOP_ICONS = {"auto": "car", "tren": "train", "avión": "plane", "barco": "ship"}
 TRANSPORT_LINE_DASHES = {"barco": "10 8"}
+# Transports drawn along the real road network; the others keep a line between stops
+ROAD_TRANSPORTS = frozenset({"auto"})
 
 Coordinate = Tuple[float, float]
 
@@ -87,19 +90,34 @@ def add_route_markers(route_map: folium.Map, route: List[str],
         visited.add(city)
 
 
-def build_route_map(route: List[str], line_color: str, label: str,
-                    segment_costs: Optional[List[float]] = None,
-                    transport: Optional[str] = None) -> Optional[folium.Map]:
-    """Build a map of the route fitted to its stops, or None without known coordinates."""
-    coordinates = [CITIES[city] for city in route if city in CITIES]
-    if not coordinates:
-        return None
-    route_map = create_fitted_map(coordinates)
-    add_route_markers(route_map, route, segment_costs, transport)
+def road_tooltip(label: str, road_route: RoadRoute) -> str:
+    """Return the line tooltip with the real driving distance and duration."""
+    return f"{label} · {road_route.distance_km:.0f} km por carretera · {road_route.duration_hours:.1f} h"
+
+
+def add_route_line(route_map: folium.Map, stops: List[str], line_color: str, label: str,
+                   transport: Optional[str]) -> None:
+    """Draw car routes along the roads when OSRM provides them, otherwise a line joining the stops."""
+    coordinates = [CITIES[city] for city in stops]
+    road_route = fetch_road_route(stops) if transport in ROAD_TRANSPORTS else None
+    if road_route:
+        coordinates, label = road_route.coordinates, road_tooltip(label, road_route)
     folium.PolyLine(
         coordinates, color=line_color, weight=LINE_WEIGHT, opacity=0.9, tooltip=label,
         dash_array=TRANSPORT_LINE_DASHES.get(transport),
     ).add_to(route_map)
+
+
+def build_route_map(route: List[str], line_color: str, label: str,
+                    segment_costs: Optional[List[float]] = None,
+                    transport: Optional[str] = None) -> Optional[folium.Map]:
+    """Build a map of the route fitted to its stops, or None without known coordinates."""
+    stops = [city for city in route if city in CITIES]
+    if not stops:
+        return None
+    route_map = create_fitted_map([CITIES[city] for city in stops])
+    add_route_markers(route_map, route, segment_costs, transport)
+    add_route_line(route_map, stops, line_color, label, transport)
     return route_map
 
 
