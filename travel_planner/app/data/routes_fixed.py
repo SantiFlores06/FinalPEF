@@ -96,8 +96,8 @@ TRANSPORT_PROFILES = (
         is_feasible=overland_link,
     ),
     TransportProfile(
-        "avión", cost_per_km=0.10, speed_kmh=700, long_distance_km=1500, long_distance_factor=0.8,
-        is_feasible=air_link, boarding_hours=0.8, fixed_fee=60,
+        "avión", cost_per_km=0.12, speed_kmh=700, long_distance_km=1500, long_distance_factor=0.8,
+        is_feasible=air_link, boarding_hours=0.8, fixed_fee=70,
     ),
     TransportProfile(
         "barco", cost_per_km=0.12, speed_kmh=35, long_distance_km=3000, long_distance_factor=1.3,
