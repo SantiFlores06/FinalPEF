@@ -582,7 +582,7 @@
     <li>Presentación del equipo y del tema 5: Sistema de Planificación de Viajes Multidestino.</li>
     <li>Idea central: hay dos problemas algorítmicos distintos y cada uno se resuelve con el algoritmo adecuado a su tamaño.</li>
     <li>Stack: FastAPI en el servidor, Streamlit en la interfaz y algoritmos en Python puro, sin librerías de grafos.</li>
-    <li>Recorrido: problema → arquitectura → algoritmos → eficiencia → novedades → métricas → demo.</li>
+    <li>Recorrido: problema → arquitectura → algoritmos → eficiencia → novedades → IA → métricas → demo.</li>
   </ul></aside>
 </section>
 
@@ -1051,7 +1051,45 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 11 · MÉTRICAS ═════════════ -->
+<!-- ═════════════ 11 · IA ═════════════ -->
+<section class="slide" data-title="Inteligencia artificial">
+  <header class="head">
+    <div class="tag">Inteligencia artificial</div>
+    <h2>Recomendaciones con Gemini: <span class="hl">rápidas y tolerantes a fallos</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 1fr 1.05fr;">
+    <ul class="pts sm rise">
+      <li>El usuario elige un <strong>enfoque</strong>: variado, cultura, gastronomía, naturaleza, vida nocturna o compras.</li>
+      <li><strong>3 consejos cortos por ciudad</strong>, en JSON con un esquema fijo: nada de texto libre que haya que interpretar.</li>
+      <li><strong>Bloques de 5 ciudades, hasta 4 pedidos a la vez</strong>: una ruta de 14 ciudades son 3 pedidos en paralelo.</li>
+      <li><strong>Caché por ciudad y enfoque</strong>: solo guarda respuestas exitosas; la segunda vez es instantánea.</li>
+      <li>Si Gemini falla, <strong>las rutas siguen funcionando</strong>: se muestra un aviso y un botón para reintentar.</li>
+    </ul>
+    <div class="stack">
+      <figure class="snip">
+        <figcaption>gemini_recommendations.py · request_in_chunks()</figcaption>
+<pre class="code sm">chunks = <span class="fn">split_into_chunks</span>(cities)
+<span class="kw">with</span> <span class="fn">ThreadPoolExecutor</span>(max_workers=<span class="fn">min</span>(MAX_CONCURRENT_REQUESTS, <span class="fn">len</span>(chunks))) <span class="kw">as</span> executor:
+    <span class="kw">for</span> chunk_recommendations <span class="kw">in</span> executor.<span class="fn">map</span>(
+            request_recommendations, <span class="fn">repeat</span>(client), chunks, <span class="fn">repeat</span>(interest)):
+        recommendations.<span class="fn">update</span>(chunk_recommendations)</pre>
+      </figure>
+      <div class="card acc">
+        <div class="kicker">Por qué en bloques</div>
+        <p>Un pedido por ciudad choca con el <strong>límite por minuto</strong>; uno solo con 14 ciudades <strong>se corta</strong> y se pierde todo. Bloques de 5: pocos pedidos, cortos y en paralelo.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Modelo <code>gemini-3.5-flash-lite</code> (configurable con <code>GEMINI_MODEL</code>), SDK <code>google-genai</code>. La clave va en <code>.env</code>, que no se versiona.</li>
+    <li>Hilos sí sirven acá: la espera es de red (I/O), y durante la I/O Python libera el GIL. En el TSP, que es CPU pura, no aceleran.</li>
+    <li>Presupuesto de 250 tokens por ciudad (mínimo 1.024) y “pensamiento” mínimo. Si la respuesta igual se corta, se rescatan las ciudades completas y se registra el motivo (<code>finish_reason</code>).</li>
+    <li>Un reintento con pausa de 1,5 s ante 429 (límite) o errores 5xx. Si un bloque falla, los otros se muestran igual.</li>
+    <li>Arquitectura: se llama desde la UI porque es contenido de presentación, no cálculo de rutas (excepción 1 de la diapositiva 3). Sin clave, la app funciona igual.</li>
+  </ul></aside>
+</section>
+
+<!-- ═════════════ 12 · MÉTRICAS ═════════════ -->
 <section class="slide" data-title="Métricas de uso real">
   <header class="head">
     <div class="tag">Uso real</div>
@@ -1075,7 +1113,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 12 · CALIDAD ═════════════ -->
+<!-- ═════════════ 13 · CALIDAD ═════════════ -->
 <section class="slide" data-title="Calidad">
   <header class="head">
     <div class="tag">Calidad</div>
@@ -1101,7 +1139,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 13 · DEMO ═════════════ -->
+<!-- ═════════════ 14 · DEMO ═════════════ -->
 <section class="slide" data-title="Demo en vivo">
   <header class="head">
     <div class="tag">Demo</div>
@@ -1124,7 +1162,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 14 · LIMITACIONES Y PRÓXIMAS MEJORAS ═════════════ -->
+<!-- ═════════════ 15 · LIMITACIONES Y PRÓXIMAS MEJORAS ═════════════ -->
 <!-- Si hay mejoras en curso al momento de la defensa, agregarlas en "Próximas mejoras" con <span class="badge pending">en curso</span>. -->
 <section class="slide" data-title="Limitaciones y próximas mejoras">
   <header class="head">
@@ -1159,7 +1197,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 15 · CIERRE ═════════════ -->
+<!-- ═════════════ 16 · CIERRE ═════════════ -->
 <section class="slide closing" data-title="Cierre">
   <div class="tag">Cierre</div>
   <h1>Gracias. <span class="hl">¿Preguntas?</span></h1>
