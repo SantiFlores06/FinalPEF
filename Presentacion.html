@@ -372,6 +372,34 @@
   .wire { fill: none; stroke: var(--muted); stroke-width: 2; }
   .wire-dash { stroke-dasharray: 7 6; }
   .ahead { fill: var(--muted); }
+  /* Detailed architecture diagram: fixed light palette in every theme */
+  .arch-light { background: #FFFFFF; border-radius: 16px; padding: 8px; }
+  .arch-light .ad-lane { stroke-width: 1; }
+  .arch-light .ad-lane-ui { fill: #EEF4FB; stroke: #C9DAEE; }
+  .arch-light .ad-lane-api { fill: #EDF7F3; stroke: #C6E3D8; }
+  .arch-light .ad-lane-core { fill: #FDF6EA; stroke: #F0DDB8; }
+  .arch-light .ad-lane-sup { fill: #F2F4F7; stroke: #D5DAE1; }
+  .arch-light .ad-lt { font: 700 13px var(--mono); letter-spacing: 0.12em; }
+  .arch-light .ad-lt-ui { fill: #2F6DB5; }
+  .arch-light .ad-lt-api { fill: #2E8B6E; }
+  .arch-light .ad-lt-core { fill: #B7791F; }
+  .arch-light .ad-lt-sup { fill: #6B7A8C; }
+  .arch-light .ad-t1 { fill: #1F2933; font: 700 18px var(--display); }
+  .arch-light .ad-t2 { fill: #52606D; font: 14.5px var(--sans); }
+  .arch-light .ad-t3 { fill: #52606D; font: 13px var(--mono); }
+  .arch-light .ad-ep { fill: #1F2933; font: 13px var(--mono); }
+  .arch-light .ad-pill { fill: #EDF7F3; stroke: #8CC7B1; stroke-width: 1.2; }
+  .arch-light .ad-bad { fill: #C0392B; font: 700 16px var(--display); }
+  .arch-light .ad-dot { fill: #3E4C59; }
+  .arch-light .bx { fill: #FFFFFF; stroke: #6B7A8C; stroke-width: 1.5; }
+  .arch-light .bx-ui { stroke: #2F6DB5; }
+  .arch-light .bx-api { stroke: #2E8B6E; }
+  .arch-light .bx-core { stroke: #D98E1F; }
+  .arch-light .bx-ext { stroke: #7B8794; stroke-dasharray: 6 4; }
+  .arch-light .bx-bad { stroke: #C0392B; stroke-width: 2; }
+  .arch-light .wire { stroke: #3E4C59; stroke-width: 1.6; }
+  .arch-light .wire-dash { stroke-dasharray: 6 4; }
+  .arch-light .ahead { fill: #3E4C59; }
   .a-dij { fill: var(--dij); }
   .a-hk { fill: var(--hk); }
   .a-ga { fill: var(--ga); }
@@ -715,7 +743,170 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 4 · DATOS Y COSTOS ═════════════ -->
+<!-- ═════════════ 4 · ARQUITECTURA EN DETALLE ═════════════ -->
+<section class="slide" data-title="Arquitectura en detalle">
+  <header class="head">
+    <div class="tag">Arquitectura</div>
+    <h2>Módulos y flujo: <span class="hl">quién llama a quién</span></h2>
+  </header>
+  <div class="body" style="grid-template-columns: 1fr;">
+    <div class="arch arch-light">
+      <svg viewBox="0 0 1440 640" role="img" aria-label="Diagrama de módulos. La interfaz Streamlit llama por HTTP a FastAPI mediante api_client; los mapas y las recomendaciones llaman directamente a OSRM y Gemini. FastAPI rechaza con 422 los pedidos de más de 25 ciudades para acotar el tiempo de respuesta, y deriva cada endpoint al núcleo: Dijkstra para 2 ciudades, choose_tsp_algorithm elige Held-Karp hasta 12 ciudades y el genético de 13 a 25, además del validador y las métricas. El soporte incluye la caché, los datos y las reservas asíncronas.">
+        <defs>
+          <marker id="ad-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" class="ahead"/>
+          </marker>
+        </defs>
+
+        <!-- Lanes -->
+        <rect class="ad-lane ad-lane-ui" x="0" y="0" width="330" height="640" rx="14"/>
+        <rect class="ad-lane ad-lane-api" x="350" y="0" width="320" height="640" rx="14"/>
+        <rect class="ad-lane ad-lane-core" x="690" y="0" width="450" height="640" rx="14"/>
+        <rect class="ad-lane ad-lane-sup" x="1160" y="0" width="280" height="640" rx="14"/>
+        <text class="ad-lt ad-lt-ui" x="165" y="24" text-anchor="middle">PRESENTACIÓN · app.ui</text>
+        <text class="ad-lt ad-lt-api" x="510" y="24" text-anchor="middle">SERVICIO · app.api</text>
+        <text class="ad-lt ad-lt-core" x="915" y="24" text-anchor="middle">NÚCLEO · app.core</text>
+        <text class="ad-lt ad-lt-sup" x="1300" y="24" text-anchor="middle">SOPORTE</text>
+
+        <!-- Presentation -->
+        <rect class="bx bx-ui" x="16" y="48" width="298" height="150" rx="12"/>
+        <text class="ad-t1" x="165" y="78" text-anchor="middle">Streamlit · interfaz</text>
+        <text class="ad-t2" x="165" y="102" text-anchor="middle">streamlit_app.py + views/</text>
+        <text class="ad-t3" x="165" y="132" text-anchor="middle">Inicio · Ruta Multidestino</text>
+        <text class="ad-t3" x="165" y="154" text-anchor="middle">Mis Reservas · Estadísticas</text>
+        <text class="ad-t3" x="165" y="176" text-anchor="middle">Laboratorio (benchmark local)</text>
+
+        <rect class="bx bx-ui" x="16" y="228" width="298" height="70" rx="12"/>
+        <text class="ad-t1" x="165" y="258" text-anchor="middle">api_client.py</text>
+        <text class="ad-t2" x="165" y="282" text-anchor="middle">cliente HTTP / JSON liviano</text>
+
+        <rect class="bx bx-ui" x="16" y="352" width="144" height="86" rx="12"/>
+        <text class="ad-t1" x="88" y="380" text-anchor="middle">Mapa</text>
+        <text class="ad-t2" x="88" y="402" text-anchor="middle" style="font-size:13px">maps.py</text>
+        <text class="ad-t2" x="88" y="422" text-anchor="middle" style="font-size:13px">road_geometry.py</text>
+        <rect class="bx bx-ui" x="170" y="352" width="144" height="86" rx="12"/>
+        <text class="ad-t1" x="242" y="380" text-anchor="middle">Consejos IA</text>
+        <text class="ad-t2" x="242" y="402" text-anchor="middle" style="font-size:13px">gemini_</text>
+        <text class="ad-t2" x="242" y="422" text-anchor="middle" style="font-size:13px">recommendations.py</text>
+
+        <rect class="bx bx-ext" x="16" y="500" width="144" height="70" rx="12"/>
+        <text class="ad-t1" x="88" y="530" text-anchor="middle">OSRM</text>
+        <text class="ad-t3" x="88" y="552" text-anchor="middle">externo</text>
+        <rect class="bx bx-ext" x="170" y="500" width="144" height="70" rx="12"/>
+        <text class="ad-t1" x="242" y="530" text-anchor="middle">Gemini</text>
+        <text class="ad-t3" x="242" y="552" text-anchor="middle">externo</text>
+
+        <path class="wire" d="M165,198 V226" marker-end="url(#ad-ah)"/>
+        <path class="wire wire-dash" d="M16,176 H6 V334 H88 V350" marker-end="url(#ad-ah)"/>
+        <path class="wire wire-dash" d="M88,334 H242 V350" marker-end="url(#ad-ah)"/>
+        <circle class="ad-dot" cx="88" cy="334" r="3.5"/>
+        <text class="ad-t3" x="165" y="324" text-anchor="middle">directo, sin pasar por la API</text>
+        <path class="wire wire-dash" d="M88,438 V498" marker-end="url(#ad-ah)"/>
+        <path class="wire wire-dash" d="M242,438 V498" marker-end="url(#ad-ah)"/>
+
+        <!-- api_client -> FastAPI -->
+        <path class="wire" d="M314,263 H364" marker-end="url(#ad-ah)"/>
+
+        <!-- Service -->
+        <rect class="bx bx-api" x="366" y="48" width="288" height="436" rx="12"/>
+        <text class="ad-t1" x="510" y="78" text-anchor="middle">FastAPI · server.py</text>
+        <text class="ad-t2" x="510" y="102" text-anchor="middle">valida (Pydantic) · cachea · mide</text>
+        <rect class="ad-pill" x="382" y="122" width="256" height="36" rx="18"/>
+        <text class="ad-ep" x="510" y="145" text-anchor="middle">GET /routes/matrix</text>
+        <rect class="ad-pill" x="382" y="168" width="256" height="36" rx="18"/>
+        <text class="ad-ep" x="510" y="191" text-anchor="middle">POST /routes/shortest</text>
+        <rect class="ad-pill" x="382" y="214" width="256" height="36" rx="18"/>
+        <text class="ad-ep" x="510" y="237" text-anchor="middle">POST /routes/optimize-multi</text>
+        <rect class="ad-pill" x="382" y="260" width="256" height="36" rx="18"/>
+        <text class="ad-ep" x="510" y="283" text-anchor="middle">POST /itinerary/plan</text>
+        <rect class="ad-pill" x="382" y="306" width="256" height="36" rx="18"/>
+        <text class="ad-ep" x="510" y="329" text-anchor="middle">GET /stats/algorithms</text>
+        <rect class="ad-pill" x="382" y="352" width="256" height="36" rx="18"/>
+        <text class="ad-ep" x="510" y="375" text-anchor="middle">POST /reservations</text>
+
+        <rect class="bx bx-bad" x="382" y="402" width="256" height="66" rx="10"/>
+        <text class="ad-bad" x="510" y="428" text-anchor="middle">Más de 25 ciudades: 422</text>
+        <text class="ad-t2" x="510" y="452" text-anchor="middle">se rechaza por rendimiento</text>
+
+        <!-- Service -> cache -->
+        <path class="wire" d="M510,48 V40 H1300 V46" marker-end="url(#ad-ah)"/>
+        <text class="ad-t3" x="1082" y="34" text-anchor="middle">get / set caché</text>
+
+        <!-- Service -> core -->
+        <path class="wire" d="M638,186 H680 V79 H704" marker-end="url(#ad-ah)"/>
+        <path class="wire" d="M638,232 H690 V170 H763" marker-end="url(#ad-ah)"/>
+        <path class="wire" d="M638,278 H696 V403 H704" marker-end="url(#ad-ah)"/>
+        <path class="wire" d="M638,324 H684 V481 H704" marker-end="url(#ad-ah)"/>
+        <!-- Service -> booking -->
+        <path class="wire" d="M638,370 H662 V600 H1174" marker-end="url(#ad-ah)"/>
+        <text class="ad-t3" x="915" y="592" text-anchor="middle">reservas asíncronas</text>
+
+        <!-- Core -->
+        <rect class="bx bx-core" x="706" y="48" width="418" height="62" rx="12"/>
+        <text class="ad-t1" x="915" y="74" text-anchor="middle">Dijkstra · graph.py</text>
+        <text class="ad-t2" x="915" y="96" text-anchor="middle">2 ciudades: camino mínimo por costo o tiempo</text>
+
+        <polygon class="bx bx-core" points="915,124 1065,170 915,216 765,170"/>
+        <text class="ad-ep" x="915" y="166" text-anchor="middle" font-weight="700">choose_tsp_algorithm</text>
+        <text class="ad-t2" x="915" y="188" text-anchor="middle">¿n ≤ 12 ciudades?</text>
+
+        <path class="wire" d="M915,216 V236"/>
+        <path class="wire" d="M810,236 H1020"/>
+        <path class="wire" d="M810,236 V260" marker-end="url(#ad-ah)"/>
+        <path class="wire" d="M1020,236 V260" marker-end="url(#ad-ah)"/>
+        <text class="ad-t3" x="818" y="254">sí · 3 a 12</text>
+        <text class="ad-t3" x="1028" y="254">no · 13 a 25</text>
+
+        <rect class="bx bx-core" x="706" y="262" width="208" height="84" rx="12"/>
+        <text class="ad-t1" x="810" y="290" text-anchor="middle">Held-Karp</text>
+        <text class="ad-t3" x="810" y="312" text-anchor="middle">tsp_dp.py</text>
+        <text class="ad-t2" x="810" y="336" text-anchor="middle">exacto · O(n² · 2ⁿ)</text>
+        <rect class="bx bx-core" x="916" y="262" width="208" height="84" rx="12"/>
+        <text class="ad-t1" x="1020" y="290" text-anchor="middle">Genético</text>
+        <text class="ad-t3" x="1020" y="312" text-anchor="middle">tsp_genetic.py</text>
+        <text class="ad-t2" x="1020" y="336" text-anchor="middle">heurístico · ≈ 2 s</text>
+
+        <rect class="bx bx-core" x="706" y="372" width="418" height="62" rx="12"/>
+        <text class="ad-t1" x="915" y="398" text-anchor="middle">Validador de itinerarios</text>
+        <text class="ad-t3" x="915" y="420" text-anchor="middle">itinerary_validator.py</text>
+        <rect class="bx bx-core" x="706" y="450" width="418" height="62" rx="12"/>
+        <text class="ad-t1" x="915" y="476" text-anchor="middle">Métricas de cada corrida</text>
+        <text class="ad-t3" x="915" y="498" text-anchor="middle">solver_metrics.py</text>
+
+        <!-- Support -->
+        <rect class="bx bx-sup" x="1176" y="48" width="248" height="110" rx="12"/>
+        <text class="ad-t1" x="1300" y="76" text-anchor="middle">Caché</text>
+        <text class="ad-t3" x="1300" y="98" text-anchor="middle">cache_backend.py</text>
+        <text class="ad-t2" x="1300" y="120" text-anchor="middle">LRU propio (default)</text>
+        <text class="ad-t2" x="1300" y="142" text-anchor="middle">Redis opcional</text>
+
+        <rect class="bx bx-sup" x="1176" y="190" width="248" height="110" rx="12"/>
+        <text class="ad-t1" x="1300" y="218" text-anchor="middle">Datos</text>
+        <text class="ad-t3" x="1300" y="240" text-anchor="middle">cities.py · routes_fixed.py</text>
+        <text class="ad-t2" x="1300" y="262" text-anchor="middle">180 ciudades · 4 transportes</text>
+        <text class="ad-t2" x="1300" y="284" text-anchor="middle">distancias con Haversine</text>
+
+        <path class="wire" d="M1176,245 H1150 V79 H1126" marker-end="url(#ad-ah)"/>
+        <path class="wire" d="M1150,170 H1067" marker-end="url(#ad-ah)"/>
+        <circle class="ad-dot" cx="1150" cy="170" r="3.5"/>
+        <text class="ad-t3" x="1106" y="162" text-anchor="middle">matrices</text>
+
+        <rect class="bx bx-sup" x="1176" y="540" width="248" height="90" rx="12"/>
+        <text class="ad-t1" x="1300" y="566" text-anchor="middle">Reservas</text>
+        <text class="ad-t2" x="1300" y="588" text-anchor="middle">asyncio · procesadas por lotes</text>
+        <text class="ad-t3" x="1300" y="612" text-anchor="middle">pending → confirmed</text>
+      </svg>
+    </div>
+  </div>
+  <aside class="notes"><ul>
+    <li>Recorrido de un pedido: Streamlit → <code>api_client.py</code> → FastAPI valida con Pydantic → consulta la caché → deriva al núcleo → registra el tiempo en <code>solver_metrics.py</code>.</li>
+    <li>El servidor elige el algoritmo con <code>choose_tsp_algorithm</code>: Held-Karp hasta 12 ciudades (<code>HELD_KARP_MAX</code>), genético de 13 a 25.</li>
+    <li>Más de 25 ciudades (<code>MAX_TSP_CITIES</code>) se rechaza con 422 antes de llegar al núcleo: es una decisión de rendimiento para acotar el tiempo de respuesta en un servidor compartido. La UI tampoco deja elegir más de 25.</li>
+    <li>Las flechas punteadas son las excepciones de la diapositiva 3: mapas y consejos llaman directo a OSRM y Gemini; si fallan, el cálculo de rutas no se ve afectado.</li>
+  </ul></aside>
+</section>
+
+<!-- ═════════════ 5 · DATOS Y COSTOS ═════════════ -->
 <section class="slide" data-title="Datos y costos">
   <header class="head">
     <div class="tag">Datos</div>
@@ -746,7 +937,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 5 · DIJKSTRA ═════════════ -->
+<!-- ═════════════ 6 · DIJKSTRA ═════════════ -->
 <section class="slide" data-title="Dijkstra">
   <header class="head">
     <div class="tag"><span class="dot dij"></span>Camino mínimo</div>
@@ -792,7 +983,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 6 · HELD-KARP ═════════════ -->
+<!-- ═════════════ 7 · HELD-KARP ═════════════ -->
 <section class="slide" data-title="Held-Karp">
   <header class="head">
     <div class="tag"><span class="dot hk"></span>TSP exacto</div>
@@ -843,7 +1034,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 7 · GENÉTICO ═════════════ -->
+<!-- ═════════════ 8 · GENÉTICO ═════════════ -->
 <section class="slide" data-title="Algoritmo genético">
   <header class="head">
     <div class="tag"><span class="dot ga"></span>TSP heurístico</div>
@@ -886,7 +1077,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 8 · EL SERVIDOR ELIGE ═════════════ -->
+<!-- ═════════════ 9 · EL SERVIDOR ELIGE ═════════════ -->
 <section class="slide" data-title="El servidor elige">
   <header class="head">
     <div class="tag">Decisión del servidor</div>
@@ -981,7 +1172,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 9 · EFICIENCIA ═════════════ -->
+<!-- ═════════════ 10 · EFICIENCIA ═════════════ -->
 <section class="slide" data-title="Técnicas de eficiencia">
   <header class="head">
     <div class="tag">Eficiencia</div>
@@ -1017,7 +1208,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 10 · NOVEDADES ═════════════ -->
+<!-- ═════════════ 11 · NOVEDADES ═════════════ -->
 <section class="slide" data-title="Novedades">
   <header class="head">
     <div class="tag">Novedades</div>
@@ -1051,7 +1242,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 11 · IA ═════════════ -->
+<!-- ═════════════ 12 · IA ═════════════ -->
 <section class="slide" data-title="Inteligencia artificial">
   <header class="head">
     <div class="tag">Inteligencia artificial</div>
@@ -1089,7 +1280,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 12 · MÉTRICAS ═════════════ -->
+<!-- ═════════════ 13 · MÉTRICAS ═════════════ -->
 <section class="slide" data-title="Métricas de uso real">
   <header class="head">
     <div class="tag">Uso real</div>
@@ -1113,7 +1304,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 13 · CALIDAD ═════════════ -->
+<!-- ═════════════ 14 · CALIDAD ═════════════ -->
 <section class="slide" data-title="Calidad">
   <header class="head">
     <div class="tag">Calidad</div>
@@ -1139,7 +1330,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 14 · DEMO ═════════════ -->
+<!-- ═════════════ 15 · DEMO ═════════════ -->
 <section class="slide" data-title="Demo en vivo">
   <header class="head">
     <div class="tag">Demo</div>
@@ -1158,11 +1349,11 @@
     <li>Antes de empezar: correr <code>install_and_run.bat</code> unos minutos antes. No precalentar la caché, así las corridas cuentan como reales.</li>
     <li>Paso 1: repetir el cálculo para mostrar la respuesta desde caché y cambiar a “Tiempo” para mostrar que el mismo Dijkstra optimiza por horas.</li>
     <li>Opcional: seleccionar una ruta para ver las recomendaciones de IA por enfoque.</li>
-    <li>Plan B: Swagger en <code>localhost:8000/docs</code> y la diapositiva 8 con los tiempos medidos. Rutas, reservas y métricas funcionan sin internet; mapas, OSRM y Gemini lo necesitan.</li>
+    <li>Plan B: Swagger en <code>localhost:8000/docs</code> y la diapositiva 9 con los tiempos medidos. Rutas, reservas y métricas funcionan sin internet; mapas, OSRM y Gemini lo necesitan.</li>
   </ul></aside>
 </section>
 
-<!-- ═════════════ 15 · LIMITACIONES Y PRÓXIMAS MEJORAS ═════════════ -->
+<!-- ═════════════ 16 · LIMITACIONES Y PRÓXIMAS MEJORAS ═════════════ -->
 <!-- Si hay mejoras en curso al momento de la defensa, agregarlas en "Próximas mejoras" con <span class="badge pending">en curso</span>. -->
 <section class="slide" data-title="Limitaciones y próximas mejoras">
   <header class="head">
@@ -1197,7 +1388,7 @@
   </ul></aside>
 </section>
 
-<!-- ═════════════ 16 · CIERRE ═════════════ -->
+<!-- ═════════════ 17 · CIERRE ═════════════ -->
 <section class="slide closing" data-title="Cierre">
   <div class="tag">Cierre</div>
   <h1>Gracias. <span class="hl">¿Preguntas?</span></h1>
@@ -1208,7 +1399,7 @@
   </div>
   <p class="team"><strong>Esteban Ghinamo · Nicolas Moresco · Santiago Flores</strong> · Programación Eficiente · Profesora Valeria Daniele</p>
   <aside class="notes"><ul>
-    <li>¿Por qué 12 y no 16? Margen de seguridad en tiempo y memoria (diapositiva 8).</li>
+    <li>¿Por qué 12 y no 16? Margen de seguridad en tiempo y memoria (diapositiva 9).</li>
     <li>¿Por qué no A*? Hace falta una heurística admisible por transporte, y con 180 ciudades Dijkstra ya responde en milisegundos.</li>
     <li>¿Cómo saben que el genético es bueno? Por el gap contra Held-Karp, medido en el servidor y en el Laboratorio.</li>
     <li>¿Qué pasa si Redis u OSRM fallan? Sin Redis al iniciar se usa el LRU; si cae después, cada error cuenta como fallo de caché y se recalcula. Sin OSRM, el mapa usa línea recta.</li>
