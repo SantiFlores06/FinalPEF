@@ -139,8 +139,14 @@ def test_car_map_falls_back_to_a_straight_line_without_road_geometry():
 @pytest.mark.parametrize("transport", ["avión", "barco", "tren"])
 def test_other_transports_never_ask_for_road_geometry(transport):
     with patch.object(maps, "fetch_road_route") as fetch:
-        route_map = maps.build_route_map(["Barcelona", "Atenas"], "#000", "Ruta", transport=transport)
+        maps.build_route_map(["Barcelona", "Atenas"], "#000", "Ruta", transport=transport)
 
     fetch.assert_not_called()
+
+
+def test_ship_map_keeps_a_dashed_straight_line():
+    route_map = maps.build_route_map(["Barcelona", "Atenas"], "#000", "Ruta", transport="barco")
+
     [line] = route_lines(route_map)
     assert [tuple(point) for point in line.locations] == [CITIES["Barcelona"], CITIES["Atenas"]]
+    assert line.options["dashArray"] == maps.TRANSPORT_LINE_DASHES["barco"]

@@ -1,6 +1,8 @@
 """Folium maps for the city overview and the planned routes."""
 
-from typing import List, Optional, Sequence, Tuple
+import logging
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import folium
 import streamlit as st
@@ -8,7 +10,10 @@ from streamlit_folium import st_folium
 
 from app.data.cities import CITIES, CITY_CATALOG
 from app.ui.road_geometry import RoadRoute, fetch_road_route
+from app.ui.route_geometry import great_circle_path, world_copies
 from app.ui.styles import map_frame
+
+logger = logging.getLogger(__name__)
 
 USER_ROUTE_COLOR = "#3B82F6"
 OPTIMAL_ROUTE_COLOR = "#10B981"
@@ -24,10 +29,19 @@ ENDPOINT_ICON = "home"
 DEFAULT_STOP_ICON = "circle"
 TRANSPORT_STOP_ICONS = {"auto": "car", "tren": "train", "avión": "plane", "barco": "ship"}
 TRANSPORT_LINE_DASHES = {"barco": "10 8"}
-# Transports drawn along the real road network; the others keep a line between stops
-ROAD_TRANSPORTS = frozenset({"auto"})
 
 Coordinate = Tuple[float, float]
+
+
+@dataclass(frozen=True)
+class RouteLine:
+    """Polyline pieces drawn for a route, sharing the tooltip that describes them."""
+
+    segments: List[List[Coordinate]]
+    tooltip: str
+
+
+LineStrategy = Callable[[List[str], str], RouteLine]
 
 
 def compute_bounds(coordinates: Sequence[Coordinate]) -> List[List[float]]:
@@ -95,17 +109,55 @@ def road_tooltip(label: str, road_route: RoadRoute) -> str:
     return f"{label} · {road_route.distance_km:.0f} km por carretera · {road_route.duration_hours:.1f} h"
 
 
+def straight_line(stops: List[str], label: str) -> RouteLine:
+    """Join the stops with straight lines: the fallback of every other geometry."""
+    return RouteLine([[CITIES[city] for city in stops]], label)
+
+
+def road_line(stops: List[str], label: str) -> RouteLine:
+    """Draw car routes along the roads when OSRM provides them, otherwise a straight line."""
+    road_route = fetch_road_route(stops)
+    if road_route is None:
+        return straight_line(stops, label)
+    return RouteLine([road_route.coordinates], road_tooltip(label, road_route))
+
+
+def flight_line(stops: List[str], label: str) -> RouteLine:
+    """Draw each flight leg as a great-circle arc, copied across the antimeridian when it crosses it."""
+    arcs = [
+        arc
+        for origin, destination in zip(stops, stops[1:])
+        for arc in world_copies(great_circle_path(CITIES[origin], CITIES[destination]))
+    ]
+    return RouteLine(arcs, label) if arcs else straight_line(stops, label)
+
+
+# Geometry of each transport's line; the others ("tren", "barco") keep the straight line
+LINE_STRATEGIES: Dict[Optional[str], LineStrategy] = {
+    "auto": road_line,
+    "avión": flight_line,
+}
+
+
+def plan_route_line(stops: List[str], label: str, transport: Optional[str]) -> RouteLine:
+    """Return the transport's line, falling back to straight lines if its geometry fails for any reason."""
+    draw_line = LINE_STRATEGIES.get(transport, straight_line)
+    try:
+        return draw_line(stops, label)
+    except Exception:  # a broken geometry must never break the whole map
+        logger.exception("Could not draw the %s geometry, using straight lines", transport)
+        return straight_line(stops, label)
+
+
 def add_route_line(route_map: folium.Map, stops: List[str], line_color: str, label: str,
                    transport: Optional[str]) -> None:
-    """Draw car routes along the roads when OSRM provides them, otherwise a line joining the stops."""
-    coordinates = [CITIES[city] for city in stops]
-    road_route = fetch_road_route(stops) if transport in ROAD_TRANSPORTS else None
-    if road_route:
-        coordinates, label = road_route.coordinates, road_tooltip(label, road_route)
-    folium.PolyLine(
-        coordinates, color=line_color, weight=LINE_WEIGHT, opacity=0.9, tooltip=label,
-        dash_array=TRANSPORT_LINE_DASHES.get(transport),
-    ).add_to(route_map)
+    """Draw the route with the geometry of its transport."""
+    route_line = plan_route_line(stops, label, transport)
+    for segment in route_line.segments:
+        folium.PolyLine(
+            segment, color=line_color, weight=LINE_WEIGHT, opacity=0.9, tooltip=route_line.tooltip,
+            dash_array=TRANSPORT_LINE_DASHES.get(transport),
+        ).add_to(route_map)
 
 
 def build_route_map(route: List[str], line_color: str, label: str,
