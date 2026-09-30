@@ -92,7 +92,7 @@ cd travel_planner
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-La suite (76 tests en `app/tests/`) también genera el reporte de cobertura en `htmlcov/index.html`.
+La suite (214 tests en `app/tests/`) también genera el reporte de cobertura en `htmlcov/index.html`.
 
 ## Estructura
 

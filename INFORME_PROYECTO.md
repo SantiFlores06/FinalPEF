@@ -183,7 +183,7 @@ pytest
 El resultado esperado actualmente es:
 
 ```text
-76 passed
+214 passed
 ```
 
 ## Flujo esperado de uso
