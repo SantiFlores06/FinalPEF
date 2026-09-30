@@ -458,6 +458,17 @@ def test_compare_endpoint_finds_a_direct_ship_route(client):
     assert response.json()["direct_exists"] is True
 
 
+def test_compare_endpoint_uses_the_direct_route_of_the_requested_transport(client):
+    def compare(transport):
+        params = {"origin": "París", "destination": "Barcelona", "transport": transport}
+        return client.get("/routes/compare", params=params).json()
+
+    plane, car = compare("avión"), compare("auto")
+
+    assert plane["direct_exists"] and car["direct_exists"]
+    assert plane["direct_route"]["total_cost"] != car["direct_route"]["total_cost"]
+
+
 def test_compare_endpoint_rejects_unknown_criterion(client):
     response = client.get(
         "/routes/compare", params={"origin": "Madrid", "destination": "Roma", "optimize_by": "comfort"}
