@@ -71,3 +71,32 @@ def test_cancel_reservation_is_irreversible():
         assert await manager.cancel_reservation(reservation.reservation_id) is False
 
     asyncio.run(scenario())
+
+
+def test_cancel_during_processing_is_not_overwritten_by_confirmation():
+    async def scenario():
+        manager = ReservationManager()
+        reservation = await manager.create_reservation(
+            user_id="user_1",
+            itinerary={"total_cost": 50},
+        )
+        provider_reached = asyncio.Event()
+        release_provider = asyncio.Event()
+
+        async def blocking_provider_confirmation(_reservation):
+            provider_reached.set()
+            await release_provider.wait()
+
+        manager._confirm_with_providers = blocking_provider_confirmation
+
+        processing = asyncio.create_task(manager.process_reservation(reservation))
+        await provider_reached.wait()
+        assert reservation.status == ReservationStatus.PROCESSING
+
+        assert await manager.cancel_reservation(reservation.reservation_id) is True
+        release_provider.set()
+        await processing
+
+        assert reservation.status == ReservationStatus.CANCELLED
+
+    asyncio.run(scenario())

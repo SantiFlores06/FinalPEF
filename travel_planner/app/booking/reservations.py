@@ -113,25 +113,41 @@ class ReservationManager:
         """
         async with self.semaphore:
             try:
+                if self._was_cancelled(reservation):
+                    return reservation
                 reservation.status = ReservationStatus.PROCESSING
                 reservation.updated_at = datetime.now()
 
                 logger.info(f"Procesando reserva {reservation.reservation_id}")
 
                 await self._confirm_with_providers(reservation)
+                if self._was_cancelled(reservation):
+                    return reservation
                 await self._send_notification(reservation)
+                if self._was_cancelled(reservation):
+                    return reservation
 
                 reservation.status = ReservationStatus.CONFIRMED
                 reservation.updated_at = datetime.now()
                 logger.info(f"✓ Reserva {reservation.reservation_id} confirmada")
 
             except Exception as e:
+                if self._was_cancelled(reservation):
+                    return reservation
                 reservation.status = ReservationStatus.FAILED
                 reservation.error_message = str(e)
                 reservation.updated_at = datetime.now()
                 logger.error(f"✗ Reserva {reservation.reservation_id} falló: {e}")
 
             return reservation
+
+    @staticmethod
+    def _was_cancelled(reservation: Reservation) -> bool:
+        """Cancellation wins: processing must never overwrite a CANCELLED reservation."""
+        if reservation.status != ReservationStatus.CANCELLED:
+            return False
+        logger.info(f"Reserva {reservation.reservation_id} cancelada durante el procesamiento")
+        return True
 
     async def _confirm_with_providers(self, reservation: Reservation) -> None:
         """Simula confirmación con proveedores de transporte/hoteles."""
