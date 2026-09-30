@@ -110,6 +110,21 @@ def test_server_can_process_a_whole_batch_concurrently():
     assert server.reservation_manager.max_concurrent >= server.batch_processor.batch_size
 
 
+def test_batch_processor_holds_its_background_tasks_until_they_finish():
+    async def scenario():
+        processor = BatchProcessor(batch_size=1, timeout_seconds=30)
+
+        future = processor.add_item_sync("item_1", {})
+        assert processor.background_tasks
+        assert not any(task.done() for task in processor.background_tasks)
+
+        await asyncio.wait_for(future, timeout=1)
+        await asyncio.sleep(0.01)  # let finished tasks run their done callbacks
+        assert processor.background_tasks == set()
+
+    asyncio.run(scenario())
+
+
 def test_batch_processor_records_size_and_latency_of_each_batch():
     async def scenario():
         processor = BatchProcessor(batch_size=2, timeout_seconds=30)

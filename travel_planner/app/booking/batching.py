@@ -4,7 +4,7 @@ Agrupa múltiples reservas para procesarlas eficientemente en batches.
 """
 import asyncio
 import time
-from typing import List, Dict, Any, Optional, Deque
+from typing import List, Dict, Any, Optional, Deque, Coroutine, Set
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from collections import deque
@@ -46,6 +46,8 @@ class BatchProcessor:
         self.processing = False
         self.semaphore = asyncio.Semaphore(max_concurrent_batches)
         self.batch_history: Deque[Dict[str, Any]] = deque(maxlen=MAX_BATCH_HISTORY)
+        # The event loop only keeps weak references to tasks, so hold them until they finish
+        self.background_tasks: Set[asyncio.Task] = set()
 
         self.stats = {
             'total_items': 0,
@@ -65,8 +67,14 @@ class BatchProcessor:
 
         logger.debug(f"Item {item_id} agregado a la cola ({len(self.queue)} items)")
 
-        asyncio.create_task(self.trigger_processing())
+        self._run_in_background(self.trigger_processing())
         return batch_item.future
+
+    def _run_in_background(self, coroutine: Coroutine[Any, Any, None]) -> None:
+        """Schedule the coroutine, keeping a reference so it is not garbage-collected mid-run."""
+        task = asyncio.create_task(coroutine)
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
 
     def _should_process(self) -> bool:
         """Verifica si se debe procesar un lote."""
@@ -93,7 +101,7 @@ class BatchProcessor:
         try:
             batch = self._extract_batch()
             if batch:
-                asyncio.create_task(self._process_batch(batch))
+                self._run_in_background(self._process_batch(batch))
         finally:
             self.processing = False
             self.last_processed_time = datetime.now()
