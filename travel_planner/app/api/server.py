@@ -391,6 +391,9 @@ async def get_compare_routes(
     1. Ruta directa (si existe conexión directa en el transporte especificado)
     2. Ruta más económica (usando Dijkstra, puede tener intermediarios)
     """
+    if optimize_by not in VALID_METRICS:
+        raise HTTPException(status_code=400, detail="Criterio de optimización inválido")
+
     try:
         direct_route = find_direct_route(origin, destination, transport, optimize_by)
         cheapest_path, cheapest_cost = graph.find_shortest_path(

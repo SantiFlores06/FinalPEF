@@ -428,6 +428,14 @@ def test_compare_endpoint_finds_a_direct_ship_route(client):
     assert response.json()["direct_exists"] is True
 
 
+def test_compare_endpoint_rejects_unknown_criterion(client):
+    response = client.get(
+        "/routes/compare", params={"origin": "Madrid", "destination": "Roma", "optimize_by": "comfort"}
+    )
+
+    assert response.status_code == 400
+
+
 def test_algorithm_stats_record_dijkstra_hops(client):
     client.post("/routes/shortest", json={
         "origin": "Madrid", "destination": "Berlín", "optimize_by": "cost", "transport_type": "auto",
