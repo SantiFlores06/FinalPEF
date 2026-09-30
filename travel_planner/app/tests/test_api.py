@@ -477,6 +477,17 @@ def test_compare_endpoint_rejects_unknown_criterion(client):
     assert response.status_code == 400
 
 
+@pytest.mark.parametrize("origin, destination", [
+    ("Atlántida", "Madrid"),
+    ("Madrid", "Atlántida"),
+])
+def test_compare_endpoint_rejects_unknown_city(client, origin, destination):
+    response = client.get("/routes/compare", params={"origin": origin, "destination": destination})
+
+    assert response.status_code == 422
+    assert "Atlántida" in response.json()["detail"]
+
+
 def test_algorithm_stats_record_dijkstra_hops(client):
     client.post("/routes/shortest", json={
         "origin": "Madrid", "destination": "Berlín", "optimize_by": "cost", "transport_type": "auto",

@@ -394,6 +394,7 @@ async def get_compare_routes(
     """
     if optimize_by not in VALID_METRICS:
         raise HTTPException(status_code=400, detail="Criterio de optimización inválido")
+    validate_known_cities([origin, destination])
 
     try:
         direct_route = find_direct_route(origin, destination, transport, optimize_by)
