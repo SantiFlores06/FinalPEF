@@ -180,6 +180,23 @@ def test_shortest_route_rejects_unknown_criterion(client):
     assert shortest_flight(client, "Madrid", "Roma", "comfort").status_code == 400
 
 
+@pytest.mark.parametrize("origin, destination", [
+    ("Atlántida", "Madrid"),
+    ("Madrid", "Atlántida"),
+])
+def test_shortest_route_rejects_unknown_city(client, origin, destination):
+    response = shortest_flight(client, origin, destination, "cost")
+
+    assert response.status_code == 422
+    assert "Atlántida" in response.json()["detail"]
+
+
+def test_shortest_route_returns_404_when_known_cities_are_not_connected(client):
+    request = {"origin": "Madrid", "destination": "Nueva York", "optimize_by": "cost", "transport_type": "auto"}
+
+    assert client.post("/routes/shortest", json=request).status_code == 404
+
+
 def test_matrix_rejects_unknown_criterion(client):
     response = client.get("/routes/matrix", params={"transport": "avión", "optimize_by": "comfort"})
 

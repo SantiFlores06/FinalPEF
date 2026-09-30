@@ -297,6 +297,8 @@ async def calculate_shortest_route(request: RouteRequest, graph: TravelGraph = D
     if request.optimize_by not in VALID_METRICS:
         raise HTTPException(status_code=400, detail="Criterio de optimización inválido")
 
+    validate_known_cities([request.origin, request.destination])
+
     cache_key = f"{request.origin}_{request.destination}_{request.optimize_by}_{request.transport_type}"
 
     cached = route_cache.get(cache_key)
