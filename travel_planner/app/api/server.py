@@ -15,6 +15,7 @@ import asyncio
 import copy
 import hashlib
 import logging
+import math
 from functools import lru_cache
 from time import perf_counter
 
@@ -485,6 +486,20 @@ def validate_matrix_matches_cities(cost_matrix: List[List[float]], cities: List[
         )
 
 
+def is_invalid_cost(value: float) -> bool:
+    """A cost is invalid when it is NaN or negative, except for the unreachable marker."""
+    return math.isnan(value) or (value < 0 and value != UNREACHABLE_MARKER)
+
+
+def validate_matrix_costs(cost_matrix: List[List[float]]) -> None:
+    """Raise 422 when any cost is NaN or negative other than the unreachable marker."""
+    if any(is_invalid_cost(value) for row in cost_matrix for value in row):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Los costos no pueden ser negativos (use {UNREACHABLE_MARKER} para rutas inexistentes)",
+        )
+
+
 def validate_known_cities(cities: List[str]) -> None:
     """Raise 422 when any city is not in the catalog."""
     unknown_cities = [city for city in cities if city not in CITIES]
@@ -501,6 +516,7 @@ def validate_forced_algorithm(algorithm: Optional[str], n_cities: int) -> None:
 def validate_tsp_request(request: TSPRequest) -> None:
     """Raise 422 when the TSP request is inconsistent or unsafe to solve."""
     validate_matrix_matches_cities(request.cost_matrix, request.cities)
+    validate_matrix_costs(request.cost_matrix)
     validate_known_cities(request.cities)
     validate_forced_algorithm(request.algorithm, len(request.cities))
 

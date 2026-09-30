@@ -1,5 +1,7 @@
 """Tests de integracion livianos para la API FastAPI."""
 
+import json
+
 import pytest
 
 pytest.importorskip("httpx")
@@ -329,6 +331,34 @@ def test_optimize_multi_rejects_matrix_size_mismatch(client):
     response = optimize_multi(client, FIVE_CITIES, matrix)
 
     assert response.status_code == 422
+
+
+def matrix_with_cost(cost):
+    return [[0.0, 10.0, 10.0], [10.0, 0.0, cost], [10.0, 10.0, 0.0]]
+
+
+def test_optimize_multi_rejects_negative_costs(client):
+    response = optimize_multi(client, FIVE_CITIES[:3], matrix_with_cost(-50.0))
+
+    assert response.status_code == 422
+
+
+def test_optimize_multi_rejects_nan_costs(client):
+    # httpx refuses to encode NaN, but a raw body with NaN is valid for Python's JSON parser
+    body = json.dumps({"cities": FIVE_CITIES[:3], "cost_matrix": matrix_with_cost(float("nan"))})
+
+    response = client.post("/routes/optimize-multi", content=body, headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 422
+
+
+def test_optimize_multi_still_accepts_the_unreachable_marker(client):
+    matrix = [[0.0, 100.0, -1.0], [100.0, 0.0, 50.0], [80.0, 50.0, 0.0]]
+
+    response = optimize_multi(client, FIVE_CITIES[:3], matrix)
+
+    assert response.status_code == 200
+    assert response.json()["total_cost"] == 230.0
 
 
 def test_optimize_multi_rejects_disconnected_matrix_without_caching(client):
