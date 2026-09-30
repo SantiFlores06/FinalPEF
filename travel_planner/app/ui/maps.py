@@ -11,6 +11,7 @@ from streamlit_folium import st_folium
 from app.data.cities import CITIES, CITY_CATALOG
 from app.ui.road_geometry import RoadRoute, fetch_road_route
 from app.ui.route_geometry import great_circle_path, world_copies
+from app.ui.sea_geometry import SeaRoute, fetch_sea_route
 from app.ui.styles import map_frame
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,11 @@ def rail_tooltip(label: str, road_route: RoadRoute) -> str:
     return f"{label} · {APPROXIMATE_TRACE_NOTE} · ~{road_route.distance_km:.0f} km"
 
 
+def sea_tooltip(label: str, sea_route: SeaRoute) -> str:
+    """Return the ship line tooltip with the approximate distance along the sea lanes."""
+    return f"{label} · ~{sea_route.distance_km:.0f} km por mar"
+
+
 def straight_line(stops: List[str], label: str) -> RouteLine:
     """Join the stops with straight lines: the fallback of every other geometry."""
     return RouteLine([[CITIES[city] for city in stops]], label)
@@ -149,11 +155,20 @@ def flight_line(stops: List[str], label: str) -> RouteLine:
     return RouteLine(arcs, label) if arcs else straight_line(stops, label)
 
 
-# Geometry of each transport's line; ship ("barco") keeps the straight line until it gets its own
+def ship_line(stops: List[str], label: str) -> RouteLine:
+    """Follow the sea lanes between the ports, or keep the straight line when they cannot be traced."""
+    sea_route = fetch_sea_route(stops)
+    if sea_route is None:
+        return straight_line(stops, label)
+    return RouteLine(sea_route.segments, sea_tooltip(label, sea_route))
+
+
+# Geometry of each transport's line; any other transport keeps the straight line
 LINE_STRATEGIES: Dict[Optional[str], LineStrategy] = {
     "auto": road_line,
     "tren": rail_line,
     "avión": flight_line,
+    "barco": ship_line,
 }
 
 

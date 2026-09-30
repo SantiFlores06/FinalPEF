@@ -38,3 +38,4 @@ google-genai==2.25.0
 # Mapas
 folium==0.19.5
 streamlit-folium==0.22.0
+searoute==1.6.0
