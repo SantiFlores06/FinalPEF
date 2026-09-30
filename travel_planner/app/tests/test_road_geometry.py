@@ -136,7 +136,35 @@ def test_car_map_falls_back_to_a_straight_line_without_road_geometry():
     assert [tuple(point) for point in line.locations] == [CITIES["Madrid"], CITIES["Barcelona"]]
 
 
-@pytest.mark.parametrize("transport", ["avión", "barco", "tren"])
+def test_train_map_follows_the_land_corridor_as_an_approximate_trace():
+    with patch.object(maps, "fetch_road_route", return_value=ROAD_ROUTE) as fetch:
+        route_map = maps.build_route_map(["Madrid", "Barcelona"], "#000", "Tu ruta", transport="tren")
+
+    fetch.assert_called_once_with(["Madrid", "Barcelona"])
+    [line] = route_lines(route_map)
+    assert [tuple(point) for point in line.locations] == ROAD_ROUTE.coordinates
+    assert tooltip_texts(line) == ["Tu ruta · trazado aproximado · ~621 km"]
+
+
+def test_train_map_asks_osrm_through_the_shared_road_geometry():
+    with patch.object(road_geometry.requests, "get", return_value=osrm_answer(OK_ANSWER)) as http_get:
+        route_map = maps.build_route_map(["Madrid", "Barcelona"], "#000", "Tu ruta", transport="tren")
+
+    http_get.assert_called_once()
+    [line] = route_lines(route_map)
+    assert [tuple(point) for point in line.locations] == ROAD_ROUTE.coordinates
+
+
+def test_train_map_falls_back_to_a_straight_line_when_osrm_fails():
+    with patch.object(road_geometry.requests, "get", side_effect=requests.ConnectionError("offline")):
+        route_map = maps.build_route_map(["Madrid", "Barcelona"], "#000", "Tu ruta", transport="tren")
+
+    [line] = route_lines(route_map)
+    assert [tuple(point) for point in line.locations] == [CITIES["Madrid"], CITIES["Barcelona"]]
+    assert tooltip_texts(line) == ["Tu ruta"]
+
+
+@pytest.mark.parametrize("transport", ["avión", "barco"])
 def test_other_transports_never_ask_for_road_geometry(transport):
     with patch.object(maps, "fetch_road_route") as fetch:
         maps.build_route_map(["Barcelona", "Atenas"], "#000", "Ruta", transport=transport)

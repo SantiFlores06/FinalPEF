@@ -29,6 +29,7 @@ ENDPOINT_ICON = "home"
 DEFAULT_STOP_ICON = "circle"
 TRANSPORT_STOP_ICONS = {"auto": "car", "tren": "train", "avión": "plane", "barco": "ship"}
 TRANSPORT_LINE_DASHES = {"barco": "10 8"}
+APPROXIMATE_TRACE_NOTE = "trazado aproximado"
 
 Coordinate = Tuple[float, float]
 
@@ -109,17 +110,33 @@ def road_tooltip(label: str, road_route: RoadRoute) -> str:
     return f"{label} · {road_route.distance_km:.0f} km por carretera · {road_route.duration_hours:.1f} h"
 
 
+def rail_tooltip(label: str, road_route: RoadRoute) -> str:
+    """Return the train line tooltip, warning that the land corridor only approximates the track."""
+    return f"{label} · {APPROXIMATE_TRACE_NOTE} · ~{road_route.distance_km:.0f} km"
+
+
 def straight_line(stops: List[str], label: str) -> RouteLine:
     """Join the stops with straight lines: the fallback of every other geometry."""
     return RouteLine([[CITIES[city] for city in stops]], label)
 
 
-def road_line(stops: List[str], label: str) -> RouteLine:
-    """Draw car routes along the roads when OSRM provides them, otherwise a straight line."""
+def road_corridor_line(stops: List[str], label: str,
+                       describe: Callable[[str, RoadRoute], str]) -> RouteLine:
+    """Follow the OSRM road polyline through the stops, or keep the straight line when OSRM cannot provide it."""
     road_route = fetch_road_route(stops)
     if road_route is None:
         return straight_line(stops, label)
-    return RouteLine([road_route.coordinates], road_tooltip(label, road_route))
+    return RouteLine([road_route.coordinates], describe(label, road_route))
+
+
+def road_line(stops: List[str], label: str) -> RouteLine:
+    """Draw car routes along the real road network."""
+    return road_corridor_line(stops, label, road_tooltip)
+
+
+def rail_line(stops: List[str], label: str) -> RouteLine:
+    """Approximate train routes with the land corridor through the same stops, since no free rail router exists."""
+    return road_corridor_line(stops, label, rail_tooltip)
 
 
 def flight_line(stops: List[str], label: str) -> RouteLine:
@@ -132,9 +149,10 @@ def flight_line(stops: List[str], label: str) -> RouteLine:
     return RouteLine(arcs, label) if arcs else straight_line(stops, label)
 
 
-# Geometry of each transport's line; the others ("tren", "barco") keep the straight line
+# Geometry of each transport's line; ship ("barco") keeps the straight line until it gets its own
 LINE_STRATEGIES: Dict[Optional[str], LineStrategy] = {
     "auto": road_line,
+    "tren": rail_line,
     "avión": flight_line,
 }
 

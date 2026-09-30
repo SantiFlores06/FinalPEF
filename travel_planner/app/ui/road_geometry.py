@@ -1,4 +1,5 @@
-"""Real road geometry of car routes from an OSRM server, with a silent fallback when it is unavailable."""
+"""Real road geometry of car routes (and the approximate corridor of train routes) from an OSRM server,
+with a silent fallback when it is unavailable."""
 
 import logging
 import os
