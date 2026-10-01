@@ -633,7 +633,7 @@
         <p>Madrid, París, Roma, Berlín… Es el <strong>Problema del Viajante (TSP)</strong>: NP-difícil, no se conoce un algoritmo polinomial.</p>
       </div>
       <div class="card">
-        <div class="kicker">Órdenes posibles: (n − 1)!</div>
+        <div class="kicker">Órdenes posibles: (n − 1)! · n = ciudades, origen fijo</div>
         <table class="t compact">
           <thead><tr><th>Ciudades</th><th class="n">Órdenes</th></tr></thead>
           <tbody>
@@ -954,6 +954,7 @@
       <div class="card dij" style="padding: 16px 22px;">
         <div class="kicker">Complejidad</div>
         <p><strong>O((V + E) log V)</strong>: con 180 ciudades y 22.328 rutas responde en 0,5 a 3 ms.</p>
+        <p class="small" style="margin-top: 6px;">V = ciudades (vértices) · E = rutas directas (aristas) · log V = costo de cada operación del heap.</p>
       </div>
     </div>
     <div class="stack">
@@ -976,7 +977,7 @@
   </div>
   <aside class="notes"><ul>
     <li>Código en <code>app/core/graph.py</code> (<code>TravelGraph</code>). El extracto omite la línea que guarda el predecesor para reconstruir el camino.</li>
-    <li>Alternativas: Bellman-Ford, O(V·E), sobra porque no hay pesos negativos; A* exigiría una heurística admisible por transporte.</li>
+    <li>Alternativas: Bellman-Ford, O(V·E) (V = ciudades, E = rutas), sobra porque no hay pesos negativos; A* exigiría una heurística admisible por transporte.</li>
     <li>Las entradas viejas del heap se descartan con <code>visited</code>, corta al llegar al destino y filtra por transporte en el mismo recorrido.</li>
     <li>La matriz del TSP (<code>/routes/matrix</code>) corre Dijkstra desde cada ciudad y se calcula una sola vez por transporte y criterio (<code>lru_cache</code>).</li>
     <li>Las respuestas traen siempre costo y horas (y peajes en auto), optimice por lo que optimice.</li>
@@ -1014,6 +1015,7 @@
         <div class="kpi sm" style="border-top-color: var(--hk);"><div class="v" style="font-size: 32px;">O(n·2ⁿ)</div><div class="l">memoria</div></div>
         <div class="kpi sm" style="border-top-color: var(--hk);"><div class="v" style="font-size: 32px;">≈ 69 ms</div><div class="l">12 ciudades, medido</div></div>
       </div>
+      <p class="small">n = ciudades · 2ⁿ = conjuntos posibles de ciudades visitadas (máscaras) · n² = por cada estado (máscara, ciudad actual) se prueba cada ciudad siguiente · memoria n·2ⁿ = un resultado guardado por estado.</p>
       <figure class="snip">
         <figcaption>tsp_dp.py · TSPSolver._tsp()</figcaption>
 <pre class="code sm"><span class="kw">if</span> (mask, pos) <span class="kw">in</span> self.memo:
@@ -1062,7 +1064,7 @@
       <div class="card quiet">
         <h3>El trade-off</h3>
         <ul class="pts sm" style="margin-top: 10px;">
-          <li>Tiempo <strong>O(G · P · n)</strong>: acotado y predecible.</li>
+          <li>Tiempo <strong>O(G · P · n)</strong>: acotado y predecible. G = generaciones, P = tamaño de la población, n = ciudades.</li>
           <li><strong>No garantiza el óptimo</strong>: el gap se mide contra Held-Karp.</li>
           <li>Su curva de convergencia se ve <strong>en vivo</strong> en la app.</li>
         </ul>
@@ -1153,7 +1155,7 @@
         <circle class="ch-cross" cx="530.3" cy="202" r="14"/>
         <text class="ch-lbl-strong" x="546" y="240">cruce ≈ n = 16</text>
       </svg>
-      <p class="small" style="margin-top: 6px;">Corrida local, ciudades europeas. Proyección t = C·n²·2ⁿ calibrada con 12 ciudades.</p>
+      <p class="small" style="margin-top: 6px;">Corrida local, ciudades europeas. Proyección t = C·n²·2ⁿ (t = tiempo, n = ciudades, C = constante medida en esta máquina), calibrada con 12 ciudades.</p>
     </div>
     <ul class="pts sm rise">
       <li>Hasta <strong>12 ciudades</strong>, Held-Karp; de <strong>13 a 25</strong>, genético; más, se rechaza.</li>
@@ -1182,7 +1184,7 @@
     <div class="grid rise" style="grid-template-columns: 1fr 1fr; gap: 22px;">
       <div class="card acc">
         <h3>Caché LRU</h3>
-        <p>Rutas y TSP repetidos se responden <strong>sin recalcular</strong>, en O(1). Redis es opcional: si no está disponible, se usa el LRU.</p>
+        <p>Rutas y TSP repetidos se responden <strong>sin recalcular</strong>, en O(1), tiempo constante que no depende de cuántos resultados haya guardados. Redis es opcional: si no está disponible, se usa el LRU.</p>
       </div>
       <div class="card hk">
         <h3>Memoización</h3>
@@ -1384,7 +1386,7 @@
     <li>Nombrar las limitaciones antes de que las pregunten muestra criterio técnico; cada mejora ataca una de ellas.</li>
     <li>Otras limitaciones: proveedor de reservas simulado, sin autenticación de usuarios, y el GIL impide paralelismo real de CPU con hilos.</li>
     <li>“Evitar peajes” podría resolverse con el mismo Dijkstra, cambiando el peso o excluyendo los tramos con peaje.</li>
-    <li>2-opt aplicado a la mejor solución del genético es una mejora local barata (O(n²) por pasada) que puede achicar el gap.</li>
+    <li>2-opt aplicado a la mejor solución del genético es una mejora local barata (O(n²) por pasada, con n = ciudades) que puede achicar el gap.</li>
   </ul></aside>
 </section>
 
