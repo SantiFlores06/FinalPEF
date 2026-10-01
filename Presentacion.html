@@ -1015,7 +1015,7 @@
         <div class="kpi sm" style="border-top-color: var(--hk);"><div class="v" style="font-size: 32px;">O(n·2ⁿ)</div><div class="l">memoria</div></div>
         <div class="kpi sm" style="border-top-color: var(--hk);"><div class="v" style="font-size: 32px;">≈ 69 ms</div><div class="l">12 ciudades, medido</div></div>
       </div>
-      <p class="small">n = ciudades · 2ⁿ = conjuntos posibles de ciudades visitadas (máscaras) · n² = por cada estado (máscara, ciudad actual) se prueba cada ciudad siguiente · memoria n·2ⁿ = un resultado guardado por estado.</p>
+      <p class="small"><strong>¿Por qué n²·2ⁿ?</strong> n = ciudades. Hay n·2ⁿ estados (qué ciudades visité × en cuál estoy) y en cada uno pruebo n ciudades siguientes: n·2ⁿ × n = n²·2ⁿ. Memoria: un resultado por estado, n·2ⁿ.</p>
       <figure class="snip">
         <figcaption>tsp_dp.py · TSPSolver._tsp()</figcaption>
 <pre class="code sm"><span class="kw">if</span> (mask, pos) <span class="kw">in</span> self.memo:
@@ -1030,6 +1030,7 @@
   </div>
   <aside class="notes"><ul>
     <li>Idea clave: el costo de lo que falta depende solo de qué ciudades quedan y dónde estoy, no del orden anterior (subestructura óptima). Por eso los subproblemas se reutilizan.</li>
+    <li>De dónde sale n²·2ⁿ: hay n·2ⁿ estados, uno por cada combinación de qué ciudades visité y en cuál estoy; en cada estado pruebo n ciudades siguientes. n·2ⁿ estados × n pruebas = n²·2ⁿ. La memoria guarda un resultado por estado: n·2ⁿ.</li>
     <li>Pasa de (n − 1)! a n²·2ⁿ: con 12 ciudades, de unos 40 millones de órdenes a unas 590 mil operaciones (69 ms en una corrida local).</li>
     <li><code>parent</code> guarda la mejor decisión de cada estado para reconstruir el tour; soporta tour cerrado o abierto (<code>return_to_start</code>).</li>
     <li>Cumple el requisito del enunciado “memoización para subrutas ya calculadas”. Código en <code>app/core/tsp_dp.py</code>.</li>
@@ -1290,11 +1291,11 @@
   </header>
   <div class="body">
     <div class="grid rise" style="grid-template-columns: repeat(3, 1fr); gap: 20px;">
-      <div class="card"><h3>Tendencia</h3><p>Media móvil del tiempo por algoritmo: si sube, el servidor se degrada.</p></div>
-      <div class="card"><h3>p50 · p95 · máximo</h3><p>La mediana muestra lo típico; p95 y máximo, el peor caso.</p></div>
-      <div class="card"><h3>Carga y caché</h3><p>Ejecuciones y aciertos de caché por minuto: cuánto trabajo se ahorra.</p></div>
-      <div class="card ga"><h3>Calidad del genético</h3><p>Generación en que converge y gap contra el óptimo exacto.</p></div>
-      <div class="card dij"><h3>Rutas y lotes</h3><p>Escalas por ruta de Dijkstra y latencia de cada lote de reservas.</p></div>
+      <div class="card"><h3>Tendencia</h3><p><strong>Media móvil</strong>: promedio de las últimas 10 ejecuciones. Si sube con el tiempo, el sistema se degrada.</p></div>
+      <div class="card"><h3>p50 · p95 · máximo</h3><p><strong>p50</strong>: la mitad de las consultas tarda menos (lo típico). <strong>p95</strong>: el 95 % tarda menos (los casos lentos). <strong>Máximo</strong>: la más lenta.</p></div>
+      <div class="card"><h3>Carga y caché</h3><p>Ejecuciones por minuto (carga) y % de respuestas servidas desde la caché (trabajo ahorrado).</p></div>
+      <div class="card ga"><h3>Calidad del genético</h3><p><strong>Convergencia</strong>: generación en que deja de mejorar. <strong>Gap</strong>: cuánto más caro sale que el óptimo de Held-Karp.</p></div>
+      <div class="card dij"><h3>Rutas y lotes</h3><p><strong>Escalas</strong>: tramos de cada ruta de Dijkstra. <strong>Latencia de lote</strong>: espera desde que se encola una reserva hasta que se procesa.</p></div>
       <div class="card quiet"><h3>Solo corridas reales</h3><p>Las respuestas desde caché no cuentan como ejecuciones.</p></div>
     </div>
   </div>
